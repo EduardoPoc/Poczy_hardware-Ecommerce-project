@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Pesquise produtos na Poczy Hardware" />
     <title>Pesquisa — Poczy Hardware</title>
-    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -19,7 +19,7 @@
         <div class="search-page-main">
           <div class="search-header">
           <header class="site-header">
-            <a class="brand-logo" href="index.html" aria-label="Poczy Hardware — início"><img src="assets/logo1.svg" alt="Poczy Hardware" /></a>
+            <a class="brand-logo" href="index.html" aria-label="Poczy Hardware — início"><img src="./assets/logo1.svg" alt="Poczy Hardware" /></a>
             <form class="search-form" role="search" action="pesquisa.html" method="get">
               <label class="visually-hidden" for="product-search">Buscar produtos</label>
               <i class="bi bi-search search-field-icon" aria-hidden="true"></i>
@@ -30,7 +30,11 @@
             <a class="cart-link" href="#results"><i class="bi bi-cart3" aria-hidden="true"></i> Carrinho</a>
             <a class="login-link" href="#"><i class="bi bi-person" aria-hidden="true"></i> Entrar</a>
           </header>
-          <nav class="category-filters" aria-label="Filtrar por categoria">
+          <div class="mobile-search-controls">
+            <button id="category-toggle" type="button" aria-expanded="false" aria-controls="category-options"><i class="bi bi-grid" aria-hidden="true"></i> Categorias <i class="bi bi-chevron-down toggle-chevron" aria-hidden="true"></i></button>
+            <button id="filter-toggle" type="button" aria-expanded="false" aria-controls="filter-options"><i class="bi bi-sliders" aria-hidden="true"></i> Filtros <i class="bi bi-chevron-down toggle-chevron" aria-hidden="true"></i></button>
+          </div>
+          <nav class="category-filters" id="category-options" aria-label="Filtrar por categoria">
             <button type="button" class="active" data-category="all" aria-pressed="true">Todos</button>
             <button type="button" data-category="notebooks" aria-pressed="false">Notebooks</button>
             <button type="button" data-category="pcs" aria-pressed="false">PCs montados</button>
@@ -52,7 +56,7 @@
           <h1 id="search-title">Resultados da pesquisa</h1>
           <p class="search-summary" role="status" aria-live="polite"></p>
           <div class="search-layout">
-            <aside class="filter-sidebar" aria-labelledby="filter-title">
+            <aside class="filter-sidebar" id="filter-options" aria-labelledby="filter-title">
               <div class="filter-sidebar-heading">
                 <h2 id="filter-title">Filtrar produtos</h2>
                 <button id="clear-filters" type="button">Limpar filtros</button>
@@ -61,6 +65,10 @@
             </aside>
             <div class="search-results-main">
               <div class="row g-3 product-row" id="search-products"></div>
+              <nav class="results-pagination" id="results-pagination" aria-label="Páginas dos resultados" hidden>
+                <p class="pagination-status"></p>
+                <div class="pagination-controls"></div>
+              </nav>
               <p class="search-empty" hidden>Nenhum produto corresponde aos filtros selecionados.</p>
             </div>
           </div>

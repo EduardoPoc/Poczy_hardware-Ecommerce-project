@@ -1,4 +1,13 @@
 import './shared.js';
+const notebookImage = new URL('../../assets/notebook.png', import.meta.url).href;
+const cpuIcon = new URL('../../assets/cpu-icon.svg', import.meta.url).href;
+const gpuIcon = new URL('../../assets/gpu-icon.svg', import.meta.url).href;
+
+const productImages = {
+  'notebook.png': notebookImage,
+  'cpu-icon.svg': cpuIcon,
+  'gpu-icon.svg': gpuIcon
+};
 
 const products = {
   processors: [
@@ -25,7 +34,7 @@ function renderProducts(targetId, items) {
   target.innerHTML = items.map(([name, image]) => `
     <article class="product-card">
       <div class="product-card-inner">
-        <div class="product-image"><img src="assets/${image}" alt="" /></div>
+        <div class="product-image"><img src="${productImages[image]}" alt="" /></div>
         <p class="product-name" title="${name}">${name}</p>
         <p class="product-price"><span class="product-price-label">A partir de</span><span class="product-price-value">R$ 1.299,90</span></p>
       </div>
@@ -43,7 +52,8 @@ const featuredOffers = [
     specs: 'Core 5 • RTX 3050 • Tela 165 Hz',
     oldPrice: 'R$ 7.999,00',
     price: 'R$ 6.999,00',
-    image: 'assets/notebook.png',
+    image: notebookImage,
+    isIcon: false,
     alt: 'Notebook Alienware 15',
     href: '#products'
   },
@@ -53,7 +63,8 @@ const featuredOffers = [
     specs: '8 GB GDDR6 • DLSS 3 • Ray Tracing',
     oldPrice: 'R$ 2.299,90',
     price: 'R$ 1.999,90',
-    image: 'assets/gpu-icon.svg',
+    image: gpuIcon,
+    isIcon: true,
     alt: 'Ilustração de placa de vídeo GeForce RTX 4060',
     href: '#graphics'
   },
@@ -63,7 +74,8 @@ const featuredOffers = [
     specs: '6 núcleos • 12 threads • Socket AM4',
     oldPrice: 'R$ 1.299,90',
     price: 'R$ 899,90',
-    image: 'assets/cpu-icon.svg',
+    image: cpuIcon,
+    isIcon: true,
     alt: 'Ilustração de processador Ryzen 5 5600',
     href: '#processors'
   },
@@ -73,7 +85,8 @@ const featuredOffers = [
     specs: '8 GB GDDR6 • RDNA 3 • Ray Tracing',
     oldPrice: 'R$ 2.199,90',
     price: 'R$ 1.799,90',
-    image: 'assets/gpu-icon.svg',
+    image: gpuIcon,
+    isIcon: true,
     alt: 'Ilustração de placa de vídeo Radeon RX 7600',
     href: '#graphics'
   },
@@ -83,7 +96,8 @@ const featuredOffers = [
     specs: '6 núcleos • 12 threads • Socket LGA 1700',
     oldPrice: 'R$ 1.399,90',
     price: 'R$ 999,90',
-    image: 'assets/cpu-icon.svg',
+    image: cpuIcon,
+    isIcon: true,
     alt: 'Ilustração de processador Core i5 12400F',
     href: '#processors'
   }
@@ -115,7 +129,7 @@ function renderOffer(index) {
   const image = hero.querySelector('.hero-image-wrap img');
   image.src = offer.image;
   image.alt = offer.alt;
-  image.classList.toggle('hero-example-icon', offer.image.endsWith('.svg'));
+  image.classList.toggle('hero-example-icon', offer.isIcon);
   hero.querySelector('.eyebrow').textContent = offer.category;
   hero.querySelector('h1').textContent = offer.name;
   hero.querySelector('.hero-specs').textContent = offer.specs;

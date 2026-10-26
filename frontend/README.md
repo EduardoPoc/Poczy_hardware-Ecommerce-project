@@ -8,7 +8,8 @@ Aplicação HTML, CSS e JavaScript com duas páginas, preparada como projeto Vit
 frontend/
 ├── index.html                # Página inicial
 ├── pesquisa.html             # Pesquisa e filtros
-├── public/assets/           # Logos, imagens e ícones copiados para dist/assets/
+├── assets/                   # Imagens e ícones usados pelas páginas e importados pelos scripts
+├── public/assets/favicon.svg # Ícone da aba copiado diretamente para a build
 ├── src/
 │   ├── data/catalog.js      # Catálogo demonstrativo e regras de filtro
 │   ├── assets/brand/        # Variações da marca que ainda não são publicadas
