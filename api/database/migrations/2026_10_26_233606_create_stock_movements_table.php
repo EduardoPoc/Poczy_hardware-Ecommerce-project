@@ -15,8 +15,6 @@ return new class extends Migration
             $table->enum('type', ['INBOUND', 'OUTBOUND', 'ADJUSTMENT']);
             $table->integer('change');
             $table->string('reason', 150)->nullable();
-            $table->dateTime('created_at')->useCurrent();
-            $table->index(['product_id', 'created_at']);
         });
     }
 

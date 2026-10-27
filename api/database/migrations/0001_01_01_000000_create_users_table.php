@@ -16,18 +16,17 @@ return new class extends Migration
             $table->string('password');
             $table->enum('role', ['CUSTOMER', 'ADMIN'])->default('CUSTOMER');
             $table->rememberToken();
-            $table->dateTime('created_at')->useCurrent();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
+            $table->id();
+            $table->string('email')->unique();
             $table->string('token');
-            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

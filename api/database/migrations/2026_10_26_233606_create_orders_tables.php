@@ -16,9 +16,6 @@ return new class extends Migration
             $table->decimal('products_total', 10, 2)->unsigned();
             $table->decimal('shipping_total', 10, 2)->unsigned();
             $table->decimal('total', 10, 2)->unsigned();
-            $table->dateTime('created_at')->useCurrent();
-            $table->index(['user_id', 'created_at']);
-            $table->index(['status', 'created_at']);
         });
 
         Schema::create('order_shipping_addresses', function (Blueprint $table): void {

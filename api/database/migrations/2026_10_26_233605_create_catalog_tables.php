@@ -32,7 +32,7 @@ return new class extends Migration
             $table->unsignedInteger('stock')->default(0);
             $table->string('image_url', 500)->nullable();
             $table->boolean('is_active')->default(true);
-            $table->dateTime('created_at')->useCurrent();
+
             $table->index(['category_id', 'price']);
         });
     }
