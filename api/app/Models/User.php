@@ -3,35 +3,48 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    public const CREATED_AT = 'criado_em';
+    use HasFactory, Notifiable;
 
-    public const UPDATED_AT = null;
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
 
-    use HasApiTokens, HasFactory, Notifiable;
-
-    protected $fillable = ['nome', 'email', 'senha_hash'];
-
-    protected $hidden = ['senha_hash', 'remember_token'];
-
-    protected $table = 'usuarios';
-
-    protected $authPasswordName = 'senha_hash';
-
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'senha_hash' => 'hashed',
-            'criado_em' => 'datetime',
+            'password' => 'hashed',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
+    }
+
+    public function passwordChanges(): HasMany
+    {
+        return $this->hasMany(PasswordChangeHistory::class, 'id_user');
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
     }
 }
