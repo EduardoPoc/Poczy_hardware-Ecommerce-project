@@ -2,6 +2,35 @@
 
 Projeto de e-commerce de hardware. A interface atual fica em `frontend/`.
 
+## Desenvolvimento com Docker
+
+O ambiente segue a estrutura do [tutorial BookShelf API](https://victor-raphael17.github.io/studies/laravel.html), adaptada para as pastas `api/` e `frontend/`. É um ambiente de desenvolvimento com PHP 8.5, Laravel 12, MySQL 8.4 e Node.js 24.
+
+Com o Docker Desktop/daemon iniciado, execute na raiz:
+
+```sh
+cp .env.example .env
+docker compose up -d --build --wait
+docker compose exec api php artisan migrate
+```
+
+- Frontend: `http://localhost:5173`.
+- API: `http://localhost:8000/api/v1/health`.
+- MySQL: `127.0.0.1:3306`.
+
+As credenciais ficam no `.env` da raiz. O Compose configura a conexão da API com `mysql:3306`; as demais configurações do Laravel ficam em `api/.env`, criado automaticamente junto da chave da aplicação quando ausentes. As dependências são instaladas na inicialização, e as migrations são executadas explicitamente pelo comando acima.
+
+O Compose usa a rede padrão e mantém volumes para o banco, `vendor/` e `node_modules/`. Os diretórios de código são montados para desenvolvimento. `docker compose down` para os serviços e mantém os dados. Alterar as variáveis de usuário/senha do MySQL não modifica as credenciais de um banco já inicializado.
+
+Para acompanhar a inicialização ou rodar os testes:
+
+```sh
+docker compose logs -f api mysql
+docker compose exec api composer test
+```
+
+No WSL, habilite a integração com sua distribuição nas configurações do Docker Desktop. O catálogo demonstrativo do frontend ainda não está conectado à API.
+
 ## Modelo lógico inicial do banco de dados
 
 O catálogo usa `PRODUTOS` como tabela central. Preço, marca, estoque e informações comuns ficam nela. Atributos usados por filtros específicos ficam em tabelas de detalhes com relação 1:1 com o produto. Este é um modelo lógico inicial, ainda não uma migração aplicada ao banco.
