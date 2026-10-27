@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('usuarios', function (Blueprint $table): void {
+        Schema::create('users', function (Blueprint $table): void {
             $table->id();
-            $table->string('nome', 100);
+            $table->string('name', 100);
             $table->string('email', 150)->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('senha_hash');
-            $table->enum('tipo', ['CLIENTE', 'ADMIN'])->default('CLIENTE');
+            $table->string('password');
+            $table->enum('role', ['CUSTOMER', 'ADMIN'])->default('CUSTOMER');
             $table->rememberToken();
-            $table->dateTime('criado_em')->useCurrent();
+            $table->dateTime('created_at')->useCurrent();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -34,10 +34,11 @@ return new class extends Migration
             $table->integer('last_activity')->index();
         });
     }
+
     public function down(): void
     {
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('password_reset_tokens');
-        Schema::dropIfExists('usuarios');
+        Schema::dropIfExists('users');
     }
 };
