@@ -11,15 +11,16 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',
         'name',
         'description',
+        'attributes',
         'is_active',
     ];
 
     protected function casts(): array
     {
         return [
+            'attributes' => 'array',
             'is_active' => 'boolean',
         ];
     }
