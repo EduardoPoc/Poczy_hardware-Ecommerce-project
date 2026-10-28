@@ -55,6 +55,21 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public function assembledPc(): HasOne
+    {
+        return $this->hasOne(AssembledPc::class, 'product_id');
+    }
+
+    public function monitor(): HasOne
+    {
+        return $this->hasOne(Monitor::class, 'product_id');
+    }
+
+    public function notebook(): HasOne
+    {
+        return $this->hasOne(Notebook::class, 'product_id');
+    }
+
     public function peripheral(): HasOne
     {
         return $this->hasOne(Peripheral::class, 'product_id');
