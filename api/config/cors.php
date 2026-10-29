@@ -8,5 +8,5 @@ return [
     'allowed_headers' => ['Accept', 'Authorization', 'Content-Type', 'X-Requested-With'],
     'exposed_headers' => [],
     'max_age' => 0,
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 ];

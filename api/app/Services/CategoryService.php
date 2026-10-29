@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Category;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+
+class CategoryService
+{
+    public function __construct(private SpecificationService $specifications) {}
+
+    /** @return Collection<int, Category> */
+    public function listPublicCategories(): Collection
+    {
+        return Category::where('is_active', true)->orderBy('name')->orderBy('id')->get();
+    }
+
+    public function getPublicCategory(int $id): Category
+    {
+        return Category::where('is_active', true)->findOrFail($id);
+    }
+
+    /** @return Collection<int, Category> */
+    public function listAll(): Collection
+    {
+        return Category::orderBy('name')->orderBy('id')->get();
+    }
+
+    public function findById(int $id): Category
+    {
+        return Category::findOrFail($id);
+    }
+
+    /** @param array{name: string, description?: ?string, attributes?: ?array, is_active?: bool} $data */
+    public function create(array $data): Category
+    {
+        $this->specifications->validateDefinitions($data['attributes'] ?? []);
+
+        return Category::create($data)->refresh();
+    }
+
+    /** @param array<string, mixed> $data */
+    public function update(int $id, array $data): Category
+    {
+        return DB::transaction(function () use ($id, $data): Category {
+            $category = Category::lockForUpdate()->findOrFail($id);
+            if (array_key_exists('attributes', $data)) {
+                $definitions = $data['attributes'] ?? [];
+                $this->specifications->validateDefinitions($definitions);
+                foreach ($category->products()->cursor() as $product) {
+                    $this->specifications->validateValues($product->specifications ?? [], $definitions, 'attributes.products.'.$product->id);
+                }
+            }
+            $category->update($data);
+
+            return $category;
+        }, 3);
+    }
+
+    public function delete(int $id): void
+    {
+        DB::transaction(function () use ($id): void {
+            $category = Category::lockForUpdate()->findOrFail($id);
+            if ($category->products()->exists()) {
+                throw new ConflictHttpException('A categoria possui produtos. Desative-a ou remova os vínculos antes de excluir.');
+            }
+            $category->delete();
+        }, 3);
+    }
+}

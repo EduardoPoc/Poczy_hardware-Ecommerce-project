@@ -3,14 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     public function test_health_returns_json_without_a_database_connection(): void
     {
-        $this->get('/api/v1/health')
+        $this->get('/api/health')
             ->assertOk()
             ->assertExactJson([
                 'status' => 'ok',
@@ -20,28 +19,34 @@ class ExampleTest extends TestCase
 
     public function test_user_requires_authentication_even_without_an_accept_header(): void
     {
-        $this->get('/api/v1/user')
+        $this->get('/api/user')
             ->assertUnauthorized()
             ->assertJsonPath('message', 'Unauthenticated.');
     }
 
     public function test_authenticated_user_is_returned_without_sensitive_fields(): void
     {
-        $user = User::factory()->make();
-        Sanctum::actingAs($user);
+        $user = new User(['name' => 'Mariana Costa', 'email' => 'mariana.costa@example.com', 'password' => 'PoczyDemo!2026']);
+        $this->actingAs($user, 'web');
 
-        $this->get('/api/v1/user')
+        $this->get('/api/user')
             ->assertOk()
             ->assertJsonPath('data.email', $user->email)
-            ->assertJsonPath('data.nome', $user->nome)
-            ->assertJsonMissingPath('data.senha_hash')
+            ->assertJsonPath('data.name', $user->name)
             ->assertJsonMissingPath('data.password')
             ->assertJsonMissingPath('data.remember_token');
     }
 
+    public function test_bearer_tokens_do_not_authenticate_requests(): void
+    {
+        $this->withToken('1|'.str_repeat('a', 40))
+            ->get('/api/user')
+            ->assertUnauthorized();
+    }
+
     public function test_unknown_routes_return_json(): void
     {
-        $this->get('/api/v1/missing')
+        $this->get('/api/missing')
             ->assertNotFound()
             ->assertHeader('Content-Type', 'application/json');
     }
@@ -50,7 +55,7 @@ class ExampleTest extends TestCase
     {
         config(['cors.allowed_origins' => ['http://localhost:5173']]);
 
-        $this->options('/api/v1/user', [], [
+        $this->options('/api/user', [], [
             'Origin' => 'http://localhost:5173',
             'Access-Control-Request-Method' => 'GET',
             'Access-Control-Request-Headers' => 'Authorization',
@@ -63,7 +68,7 @@ class ExampleTest extends TestCase
     {
         config(['cors.allowed_origins' => ['http://localhost:5173', 'http://127.0.0.1:5173']]);
 
-        $this->get('/api/v1/health', ['Origin' => 'https://example.com'])
+        $this->get('/api/health', ['Origin' => 'https://example.com'])
             ->assertOk()
             ->assertHeaderMissing('Access-Control-Allow-Origin');
     }
