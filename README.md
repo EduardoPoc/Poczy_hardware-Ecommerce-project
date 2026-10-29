@@ -4,17 +4,18 @@ Projeto de e-commerce de hardware, com frontend em `frontend/` e backend Laravel
 
 ## Estado atual e documentação
 
-O projeto possui migrations, models, seeders com dados fixos e uma pesquisa de produtos integrada ao catálogo da API. As categorias guardam as definições dos atributos em JSON, e os produtos guardam suas especificações em outro JSON. Os models mantêm casts e relacionamentos; a validação de entrada ficará nos controllers/Form Requests e ainda não foi implementada.
+O projeto possui migrations, models, seeders com dados fixos e uma pesquisa de produtos integrada ao catálogo da API. As categorias guardam as definições dos atributos em JSON, e os produtos guardam suas especificações em outro JSON. Os models mantêm casts e relacionamentos. Form Requests validam entradas; services aplicam as regras de negócio. A API oferece cadastro e sessão, edição do perfil, endereços, catálogo administrativo, checkout, cancelamento, mudanças de status e movimentações de estoque.
 
 | Documento | Conteúdo |
 | --- | --- |
 | [Backend](api/README.md) | Execução local, rotas existentes, estrutura, seeders e verificação |
-| [Contrato dos GETs](api/app/Http/Controllers/GET_ENDPOINTS.md) | Planejamento dos oito GETs do usuário padrão, responsabilidades MSC, filtros e formatos de resposta |
+| [Contrato dos GETs](api/app/Http/Controllers/GET_ENDPOINTS.md) | Consultas públicas e pessoais, filtros e formatos de resposta |
+| [Regras de negócio e escritas](api/BUSINESS_RULES.md) | Permissões, endpoints, validações, sessão/CSRF, checkout, estoque e status |
 | [Banco de dados](#banco-de-dados) | Tabelas, campos, relacionamentos, índices e regras de exclusão |
 
-MSC significa Model–Service–Controller. O contrato documenta a organização prevista para os endpoints de produtos, categorias, endereços, perfil e compras. Os controllers e services desses oito GETs ainda não foram implementados.
+A arquitetura segue MVC com Service Layer, conforme o tutorial anexado: controllers coordenam HTTP, Form Requests validam, services orquestram o negócio e API Resources apresentam o JSON. Os endpoints pessoais exigem sessão autenticada e restringem acesso ao próprio usuário; as operações administrativas exigem `role=ADMIN`. Os contratos anteriores de consulta foram preservados.
 
-As rotas já disponíveis são `GET /api/v1/catalog`, `GET /api/v1/health`, `GET /api/v1/user` e `GET /up`. A pesquisa atual carrega `/api/v1/catalog` uma vez e filtra no navegador. A consulta remota proposta em `/api/categoria/filter` e a definição do prefixo das novas rotas continuam no planejamento, sem alterar o fluxo atual.
+Os novos caminhos são `/api/product`, `/api/product/{id}`, `/api/categoria`, `/api/categoria/filter`, `/api/address`, `/api/user`, `/api/order` e `/api/order/{id}`. Também estão disponíveis `/api/catalog`, `/api/health` e `/up`. Todas as rotas da API usam o prefixo `/api`. A pesquisa atual usa `/api/catalog` e filtra no navegador; `/api/categoria/filter` oferece a consulta remota por JSON no parâmetro `filter` da URL, sem mudar o frontend existente.
 
 ## Desenvolvimento com Docker
 
@@ -35,10 +36,12 @@ docker compose exec api php artisan db:seed
 ```
 
 - Frontend: `http://localhost:5173`.
-- API: `http://localhost:8000/api/v1/health`.
+- API: `http://localhost:8000/api/health`.
 - MySQL: `127.0.0.1:3306`.
 
 As credenciais ficam no `.env` da raiz. O Compose configura a conexão da API com `mysql:3306`; as demais configurações do Laravel ficam em `api/.env`, criado automaticamente junto da chave da aplicação quando ausentes. As dependências são instaladas na inicialização, e as migrations são executadas explicitamente pelo comando acima.
+
+No Linux, configure `LOCAL_UID` e `LOCAL_GID` no `.env` da raiz com os valores de `id -u` e `id -g` antes de construir a API. Isso permite que o usuário do container escreva em `storage` e `bootstrap/cache`, montados da máquina local. Após alterar os IDs, reconstrua a imagem com `docker compose build api`. Se um volume de dependências já foi criado com outro usuário, ajuste somente a propriedade desse volume antes de reiniciar a API.
 
 O Compose usa a rede padrão e mantém volumes para o banco, `vendor/` e `node_modules/`. Os diretórios de código são montados para desenvolvimento. `docker compose down` para os serviços e mantém os dados. Alterar as variáveis de usuário/senha do MySQL não modifica as credenciais de um banco já inicializado.
 
@@ -104,7 +107,7 @@ Esta base foi remodelada para instalações novas. Um banco que já executou as 
 
 Os campos `created_at` e `updated_at` são criados na própria migration. Um usuário pode ter vários registros, acessíveis por `User::passwordChanges()`; cada registro pertence ao usuário por `PasswordChangeHistory::user()`. A exclusão do usuário é bloqueada enquanto houver histórico, preservando os registros de auditoria.
 
-Essa tabela não guarda e-mail, senhas ou tokens. O fluxo de alteração de senha deve criar um registro após a alteração efetiva, na mesma transação. A estrutura está disponível, mas o registro automático das alterações ainda precisa ser integrado a esse fluxo. `password_reset_tokens` continua responsável pelas solicitações temporárias de recuperação.
+Essa tabela não guarda e-mail, senhas ou tokens. `PUT /api/user/password` altera a senha e cria o registro de auditoria na mesma transação. O fluxo exige a senha atual, encerra a sessão corrente e revoga as demais sessões quando o driver é `database`. `password_reset_tokens` continua responsável pelas solicitações temporárias de recuperação.
 
 **`addresses` — model `Address`**
 
@@ -203,11 +206,11 @@ A própria categoria guarda o JSON com as definições dos atributos em `categor
 | `minimum`, `maximum` | Limites numéricos inclusivos opcionais |
 | `exclusive_minimum`, `exclusive_maximum` | Limites numéricos exclusivos opcionais |
 
-A categoria deve existir antes dos produtos, conforme a chave estrangeira `products.category_id`. As definições podem ser editadas sem alterar os valores existentes. Os campos `type`, `required`, `options` e limites descrevem as regras pretendidas: a validação de entrada fica para a futura camada de controllers/Form Requests e não está implementada agora.
+A categoria deve existir antes dos produtos, conforme a chave estrangeira `products.category_id`. As definições podem ser editadas sem reescrever os valores existentes; alterações que invalidem produtos cadastrados são rejeitadas. `SpecificationService` aplica `type`, `required`, `options` e limites tanto nos cadastros/edições quanto nos filtros recebidos por `FilterProductsRequest`.
 
 Os models mantêm casts, campos preenchíveis e relacionamentos, sem eventos de validação ou normalização das especificações. Os JSONs são persistidos preservando os tipos fornecidos. Desativar `is_filterable` oculta o filtro e preserva os dados do produto. A descrição continua um texto de apresentação.
 
-`GET /api/v1/catalog` fornece categorias ativas, definições filtráveis e produtos ativos com marca, preço e especificações. A pesquisa faz uma única carga ao abrir a página e filtra em memória, incluindo `false` como opção válida. Marca continua em `products.brand_id`, com a definição reservada `brand` controlando seu filtro; preço continua em `products.price`. Recarregue a página para buscar alterações do catálogo. Não existe paginação no servidor neste endpoint; carregar todos os produtos é adequado à base inicial, mas exige revisão quando o catálogo crescer. A interface administrativa para cadastrar atributos ainda não existe; o cadastro está disponível pelos models e seeders.
+`GET /api/catalog` fornece categorias ativas, definições filtráveis e produtos ativos com marca, preço e especificações. A pesquisa faz uma única carga ao abrir a página e filtra em memória, incluindo `false` como opção válida. Marca continua em `products.brand_id`, com a definição reservada `brand` controlando seu filtro; preço continua em `products.price`. Recarregue a página para buscar alterações do catálogo. Não existe paginação no servidor neste endpoint; carregar todos os produtos é adequado à base inicial, mas exige revisão quando o catálogo crescer. A API administrativa permite cadastrar e editar categorias, atributos, marcas e produtos. A interface administrativa no frontend continua pendente.
 
 ### Pedidos e histórico
 
@@ -217,7 +220,7 @@ Os models mantêm casts, campos preenchíveis e relacionamentos, sem eventos de 
 | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Chave primária, auto incremento |
 | `user_id` | BIGINT UNSIGNED | Obrigatório; referência a `users.id` |
-| `status` | VARCHAR(30) | Obrigatório; opções ainda dependem da aplicação |
+| `status` | VARCHAR(30) | `PENDING`, `PAID`, `PROCESSING`, `SHIPPED`, `DELIVERED` ou `CANCELLED`, controlados pelo service |
 | `payment_method` | VARCHAR(40) | Anulável |
 | `products_total` | DECIMAL(10,2) UNSIGNED | Obrigatório |
 | `shipping_total` | DECIMAL(10,2) UNSIGNED | Obrigatório |
@@ -237,7 +240,7 @@ Cada pedido pertence a um usuário, possui vários itens e registros de históri
 | `city` | VARCHAR(100) | Obrigatório |
 | `state` | CHAR(2) | Obrigatório |
 
-Essa tabela guarda uma cópia do endereço usado na compra, com no máximo um registro por pedido. Editar `addresses` não altera essa cópia. O fluxo de compra precisa preencher o snapshot explicitamente.
+Essa tabela guarda uma cópia do endereço usado na compra, com no máximo um registro por pedido. Editar `addresses` não altera essa cópia. `OrderService::create` preenche o snapshot na mesma transação do pedido, itens, movimentações e histórico.
 
 **`order_items` — model `OrderItem`**
 
@@ -264,7 +267,7 @@ Os snapshots e valores unitários preservam os dados da compra mesmo após alter
 | `status` | VARCHAR(30) | Obrigatório |
 | `changed_at` | DATETIME | Padrão: data e hora atuais no banco |
 
-`changed_at` registra o momento da mudança de status, enquanto `created_at` e `updated_at` registram a criação e edição da linha. Alterar `Order.status` não cria um histórico automaticamente.
+`changed_at` registra o momento da mudança de status, enquanto `created_at` e `updated_at` registram a criação e edição da linha. As mudanças pela API passam por `OrderService`, que valida a transição e grava o histórico na mesma transação. Alterações diretas pelos models não executam esse fluxo.
 
 ### Movimentações de estoque
 
@@ -279,7 +282,7 @@ Os snapshots e valores unitários preservam os dados da compra mesmo após alter
 | `change` | INT | Variação com sinal, como `+5` ou `-2` |
 | `reason` | VARCHAR(150) | Anulável |
 
-Um produto possui várias movimentações. Criar uma movimentação não altera `Product.stock` automaticamente; o saldo e o histórico precisam ser gravados juntos pelo fluxo de negócio, em uma transação.
+Um produto possui várias movimentações. `StockService` altera o saldo e cria a movimentação na mesma transação, com bloqueio do produto. Entradas são positivas, saídas negativas e ajustes aceitam ambos os sinais; saldo negativo é rejeitado. Criar registros diretamente pelo model não executa essa regra.
 
 ### Regras de exclusão e índices
 
@@ -317,9 +320,9 @@ Além das chaves primárias, estrangeiras e restrições de unicidade, existem o
 
 ### Autenticação por sessões e CSRF
 
-O esquema está preparado para sessões em banco e não cria `personal_access_tokens`. A rota protegida `/api/v1/user` usa o guard `web`, sem autenticação Bearer. `password_reset_tokens` continua necessária para recuperação de senha, e `remember_token` para o recurso “lembrar de mim”.
+O esquema está preparado para sessões em banco e não cria `personal_access_tokens`. A rota protegida `/api/user` usa o guard `web`, sem autenticação Bearer. `password_reset_tokens` continua necessária para recuperação de senha, e `remember_token` para o recurso “lembrar de mim”.
 
-Para usar a tabela `sessions`, a configuração da API deve ter `SESSION_DRIVER=database`. O fluxo completo de login e logout por cookies, o middleware de sessão nas requisições da SPA, os domínios stateful do Sanctum e o CORS com credenciais ainda precisam ser configurados. O frontend solicitará `/sanctum/csrf-cookie`, enviará cookies nas requisições e usará o cabeçalho `X-XSRF-TOKEN` nas operações protegidas.
+Para usar a tabela `sessions`, configure `SESSION_DRIVER=database`, já definido no `.env.example` atualizado. Instalações existentes com `array` em `api/.env` devem atualizar esse valor e limpar o cache de configuração; esse driver não persiste login entre requisições. `POST /api/login` e `POST /api/logout` estão implementados. As rotas de escrita usam `web` para sessão/CSRF e as pessoais também exigem `auth:web`; o CORS permite credenciais para origens autorizadas. O frontend deve obter `/sanctum/csrf-cookie`, enviar cookies e usar `X-XSRF-TOKEN` nas escritas. A integração nas telas continua pendente; veja o [contrato de sessão](api/BUSINESS_RULES.md#cookies-e-csrf-na-spa).
 
 Remover a migration de criação de tokens afeta instalações novas; não exclui uma tabela `personal_access_tokens` que já exista em outro banco. Alterar a migration de `sessions` também não adiciona a FK a uma tabela já migrada: nesse caso, será necessária uma migration de atualização específica.
 
@@ -353,7 +356,7 @@ Os testes podem ser executados com:
 docker compose exec api php artisan test --compact
 ```
 
-Eles verificam os relacionamentos, timestamps automáticos, snapshots, restrições de exclusão, persistência e expiração de sessões e migrations com rollback. A persistência é testada em SQLite na memória; a compilação do esquema MySQL também é verificada sem conexão a um servidor MySQL.
+Eles verificam os relacionamentos, timestamps automáticos, snapshots, restrições de exclusão, persistência e expiração de sessões e migrations com rollback. A suíte padrão usa SQLite em memória e também verifica a compilação do esquema MySQL. Os testes HTTP de escrita e consulta também foram executados em um banco temporário separado no MySQL 8.4 do Docker.
 
 Os testes também verificam a carga fixa das seeders e sua reexecução sem duplicar ou sobrescrever registros. Não usam factories ou geração aleatória. Para verificar os filtros e o build do frontend a partir da raiz:
 
@@ -362,10 +365,10 @@ node --test frontend/src/data/catalog.test.js
 npm --prefix frontend run build
 ```
 
-### Regras de negócio a implementar
+### Regras de negócio implementadas e próximos passos
 
-Os models representam o esquema e os relacionamentos. Cadastro e login, confirmação de e-mail, autorização, checkout, cálculo dos totais, criação dos snapshots, atualização conjunta de estoque e movimentações, e registro das mudanças de status ainda precisam de fluxos próprios.
+O [contrato de escritas](api/BUSINESS_RULES.md) descreve cadastro, login/logout, perfil, alteração de senha com auditoria, endereços, catálogo administrativo, checkout transacional, cancelamento e transições de status. Valores e snapshots são calculados e copiados no servidor, o estoque não pode ficar negativo e clientes não escolhem preços, frete, status ou privilégios. A exclusão de pedidos pela API representa cancelamento, preservando os registros da compra.
 
-Os GETs planejados estão em [Controllers/GET_ENDPOINTS.md](api/app/Http/Controllers/GET_ENDPOINTS.md). O contrato prevê acesso somente aos dados do usuário autenticado, resumos de pedidos com soma das unidades e detalhe da compra com snapshots e timeline. Esses comportamentos, a paginação proposta e a validação dos filtros ainda precisam ser implementados. O documento também registra a decisão pendente sobre o transporte do JSON do filtro e a transição do catálogo atual.
+O [contrato dos GETs](api/app/Http/Controllers/GET_ENDPOINTS.md) mantém consultas públicas e pessoais, paginação, isolamento por usuário e filtros por JSON na query string. A pesquisa continua filtrando no navegador e mantém o carrinho de visitantes em `localStorage`.
 
-Quantidades maiores que zero e regras de compatibilidade entre componentes ainda precisam de validação. Nos filtros do catálogo, opções do mesmo campo funcionam como alternativas; filtros de campos diferentes são combinados. A pesquisa usa o catálogo da API e mantém o carrinho de visitantes em `localStorage`.
+O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, interface administrativa, integração do frontend com sessão/checkout e chaves de idempotência para repetição de `POST /api/order`.

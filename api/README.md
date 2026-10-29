@@ -17,6 +17,10 @@ A carga de seeders é para desenvolvimento e insere o catálogo fixo e a cliente
 
 O Compose define `DB_HOST=mysql` e usa as credenciais `MYSQL_*` do `.env` da raiz. Os arquivos da API ficam montados no container; as configurações restantes estão em `api/.env`.
 
+No container, `artisan serve` usa `--no-reload` para preservar as variáveis de conexão definidas pelo Compose no processo HTTP. Alterações de configuração exigem reiniciar a API; as alterações dos arquivos PHP continuam sendo lidas nas requisições.
+
+No Linux, os argumentos de build `LOCAL_UID` e `LOCAL_GID` vêm do `.env` da raiz e devem corresponder a `id -u` e `id -g` da máquina local. A API roda sem root e precisa escrever em `storage` e `bootstrap/cache`. Se esses IDs mudarem, reconstrua a imagem e ajuste a propriedade do volume `vendor` existente para o mesmo usuário; não é necessário liberar escrita para todos nos arquivos do projeto.
+
 ## Executar localmente
 
 ```sh
@@ -31,7 +35,7 @@ composer run dev
 
 A API fica em `http://localhost:8000`. Para instalar e migrar de uma vez, use `composer run setup`. O driver `pdo_sqlite` precisa estar habilitado no PHP para usar o banco SQLite padrão. Como alternativa, configure `DB_CONNECTION=mysql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` e `DB_PASSWORD` no `.env`, crie o banco MySQL e execute as migrações com `pdo_mysql` habilitado.
 
-Cache em arquivos, sessões em memória e fila síncrona permitem iniciar a base sem serviços adicionais. Para processamento em segundo plano, configure uma conexão de fila e um worker.
+Cache em arquivos, sessões no banco e fila síncrona permitem iniciar a base sem serviços adicionais além do banco configurado. Para processamento em segundo plano, configure uma conexão de fila e um worker.
 
 ### Arquivo SQLite
 
@@ -39,29 +43,35 @@ Cache em arquivos, sessões em memória e fila síncrona permitem iniciar a base
 
 ## Rotas implementadas
 
-| Método | Rota | Autenticação | Resposta |
-| --- | --- | --- | --- |
-| GET | `/api/v1/health` | Pública | `{"status":"ok","name":"Poczy Hardware API"}` |
-| GET | `/api/v1/catalog` | Pública | Categorias, atributos e produtos ativos para filtragem local |
-| GET | `/api/v1/user` | Sessão Laravel (guard `web`) | Usuário autenticado em `data`, sem senha |
-| GET | `/up` | Pública | Verificação de inicialização do Laravel |
+| Área | Rotas | Acesso |
+| --- | --- | --- |
+| Saúde | `GET /api/health`, `GET /up` | Público |
+| Catálogo | `GET /api/catalog`, `/api/product`, `/api/product/{id}`, `/api/categoria`, `/api/categoria/{id}`, `/api/categoria/filter` | Público |
+| Cadastro e sessão | `POST /api/user`, `POST /api/login`, `POST /api/logout` | CSRF; logout exige sessão autenticada |
+| Perfil | `GET/PUT/PATCH/DELETE /api/user`, `PUT /api/user/password` | Próprio usuário |
+| Endereços | `GET/POST /api/address`, `GET/PUT/PATCH/DELETE /api/address/{id}` | Próprio usuário |
+| Compras | `GET/POST /api/order`, `GET/DELETE /api/order/{id}` | Próprio usuário; DELETE cancela |
+| Produtos e categorias | `POST /api/product`, `PUT/PATCH/DELETE /api/product/{id}`; equivalentes em `/api/categoria` | Administrador |
+| Marcas | CRUD em `/api/brand` e `/api/brand/{brand}` | Administrador |
+| Estoque | `GET/POST /api/product/{id}/stock-movements` | Administrador |
+| Operação | `GET /api/admin/product`, `/api/admin/product/{id}`, `/api/admin/categoria`, `/api/admin/categoria/{id}`, `/api/admin/order`, `/api/admin/order/{id}`; `PUT/PATCH /api/admin/order/{id}` | Administrador |
 
-O status em `/api/v1/health` verifica que a aplicação responde; não verifica a conexão com o banco. Os erros retornam JSON mesmo sem o cabeçalho `Accept`. Use `APP_DEBUG=false` em produção.
+Consulte o [contrato de escritas e regras de negócio](BUSINESS_RULES.md) para payloads, status HTTP, permissões e transições. Os nomes singulares/portugueses das rotas anteriores foram preservados. `/api/health` verifica a resposta da aplicação, sem testar o banco; erros retornam JSON mesmo sem `Accept`. Use `APP_DEBUG=false` em produção.
 
-O Sanctum permanece instalado para apoiar a autenticação da SPA por sessões e CSRF. A migration de tokens Bearer foi removida; cadastro, login, logout e regras dos módulos do e-commerce ainda precisam ser implementados. O modelo `User` usa a tabela `users`, os campos `name` e `password`, e os timestamps `created_at` e `updated_at`. O campo `role` assume `CUSTOMER` no banco e não permite atribuição em massa. O seeder padrão carrega as categorias, 24 produtos de referência com especificações e um usuário de exemplo; não o execute em produção.
+O projeto usa sessão Laravel (`web`) e CSRF; Bearer tokens não autenticam essas rotas. O cadastro sempre cria `CUSTOMER`; `role` não é aceito na entrada. Cadastros e logins possuem limites de tentativas. A promoção a administrador depende de um processo confiável fora desses endpoints. As seeders são apenas para desenvolvimento.
 
-## Arquitetura MSC e contrato dos GETs
+## MVC com Service Layer e contratos HTTP
 
-O padrão previsto para os próximos endpoints é Model–Service–Controller:
+Os controllers seguem a separação de responsabilidades do tutorial anexado, preservando os oito GETs originais:
 
 - Controller/Form Request: recebe e valida entradas, identifica o usuário autenticado e delega ao service.
 - Service: concentra regras de negócio e de acesso, consultas, filtros e composição dos resultados.
 - Model: representa dados, casts e relacionamentos, sem validação de entrada.
 - API Resource: define os campos públicos da resposta, excluindo dados protegidos e custos internos.
 
-O [contrato dos GETs](app/Http/Controllers/GET_ENDPOINTS.md) está salvo na pasta dos controllers. É documentação de planejamento, sem implementar os controllers, services ou rotas a seguir:
+O [contrato dos GETs](app/Http/Controllers/GET_ENDPOINTS.md) está salvo na pasta dos controllers. Descreve os controllers, services e rotas implementados a seguir:
 
-| GET proposto | Retorno |
+| GET implementado | Retorno |
 | --- | --- |
 | `/api/product` | Cards com ID, nome, preço e imagem |
 | `/api/product/{id}` | Detalhes públicos do produto, categoria, marca e especificações |
@@ -72,11 +82,11 @@ O [contrato dos GETs](app/Http/Controllers/GET_ENDPOINTS.md) está salvo na past
 | `/api/order` | Resumo das compras do usuário, com quantidade de unidades e linhas de itens |
 | `/api/order/{id}` | Compra do usuário, itens com snapshots, endereço de entrega e timeline |
 
-O documento detalha campos de saída, responsabilidades, paginação proposta, isolamento por usuário e status HTTP. A quantidade de produtos por compra é a soma de `order_items.quantity`; não se confunde com a contagem das linhas.
+O documento detalha campos de saída, responsabilidades, paginação, isolamento por usuário e status HTTP. A quantidade de produtos por compra é a soma de `order_items.quantity`; não se confunde com a contagem das linhas.
 
-A implementação atual mantém o prefixo `/api/v1`; os caminhos propostos acima ainda não estão registrados. A migração de prefixo e o envio do JSON dos filtros precisam ser definidos. O contrato recomenda transportar os filtros na URL para manter GET e registra POST como alternativa se o corpo JSON for obrigatório.
+Todas as rotas usam o prefixo `/api`, com os controllers em `app/Http/Controllers/Api`. `/api/catalog` mantém a pesquisa atual integrada ao frontend e `/api/health` verifica a aplicação. O filtro deve ser enviado como JSON codificado no parâmetro `filter` da URL; corpo JSON em GET não é aceito para os filtros. Produtos, resultados filtrados e pedidos usam `page` e `per_page` (padrão 20, limite 100).
 
-`CatalogController` já atende `/api/v1/catalog` e ainda consulta os models diretamente. A separação em services é a arquitetura prevista para os novos endpoints, não uma camada já implementada no catálogo atual. A pesquisa existente continua filtrando no navegador; `/api/categoria/filter` propõe filtragem remota para uma etapa posterior.
+`CatalogController` mantém `/api/catalog`, delega consultas aos services e usa `CatalogResource` para apresentar a resposta. `ProductFilterController` concentra a ação de filtragem para manter os controllers de recursos com os métodos RESTful. A pesquisa existente continua filtrando no navegador; `/api/categoria/filter` executa filtragem remota quando chamado, sem alterar o fluxo atual do frontend.
 
 ## Banco de dados e models
 
@@ -93,9 +103,9 @@ O [README principal](../README.md#banco-de-dados) detalha o esquema. São 18 tab
 
 `products.specifications` armazena os dados técnicos em JSON; `description` continua sendo texto. As tabelas e models de tipos específicos de hardware foram removidos. A marca continua em `Product::brand`; a definição reservada `brand` controla a exibição do filtro sem duplicar a marca no JSON. As categorias usam ID/nome, sem `code`, e têm nome único.
 
-`categories.attributes` guarda as definições dos atributos. Cada chave identifica um atributo, com `name`, `type` (`text`, `integer`, `number`, `boolean`) e, opcionalmente, `unit`, `options`, `required`, `is_filterable`, `minimum`, `maximum`, `exclusive_minimum` e `exclusive_maximum`. Esses metadados descrevem as regras pretendidas para o cadastro. A tabela, o model e a factory `CategoryAttribute` foram removidos.
+`categories.attributes` guarda as definições dos atributos. Cada chave identifica um atributo, com `name`, `type` (`text`, `integer`, `number`, `boolean`) e, opcionalmente, `unit`, `options`, `required`, `is_filterable`, `minimum`, `maximum`, `exclusive_minimum` e `exclusive_maximum`. `SpecificationService` usa esses metadados para validar o cadastro e os filtros com os mesmos tipos, opções e limites. Booleanos e números preservam seu tipo JSON; `false` não é ausência. A tabela, o model e a factory `CategoryAttribute` foram removidos.
 
-Os models não validam entradas nem normalizam os valores dos JSONs. A validação deverá ser implementada posteriormente nos controllers/Form Requests. Por enquanto, `Category` e `Product` apenas persistem os JSONs via casts e oferecem os relacionamentos. A FK do banco continua exigindo uma categoria existente antes do produto. Alterar as definições não modifica produtos existentes. O cadastro administrativo ainda precisa de interface/rotas de escrita.
+Os models mantêm dados, casts e relacionamentos. Form Requests validam os campos permitidos e `SpecificationService` verifica tipos, obrigatoriedade, opções e limites dinâmicos. A atualização parcial de produto valida o resultado completo, inclusive na troca de categoria. A categoria precisa existir antes do produto; alterações de definições que invalidem produtos existentes são rejeitadas. As rotas administrativas de escrita estão implementadas; a interface administrativa continua pendente.
 
 ### Seeders com dados fixos
 
@@ -106,7 +116,7 @@ Os models não validam entradas nem normalizam os valores dos JSONs. A validaç�
 
 As configurações são ilustrativas e não representam SKUs específicos. Preços, custos e estoques são valores de desenvolvimento, não cotações ou inventário real. As seeders não usam factories ou geradores aleatórios. Podem ser executadas novamente sem duplicar ou sobrescrever registros existentes. Não removem automaticamente os antigos exemplos de um banco já preenchido. Localizam categorias/marcas pelo nome, produtos pelo par categoria/nome e usuários pelo e-mail; renomear os registros iniciais pode recriar os nomes originais.
 
-`CatalogSeeder` define o JSON de atributos na criação da categoria e preserva definições já editadas. A carga inicial não cria pedidos, endereços ou movimentações; esses registros pertencem aos futuros fluxos do usuário e da operação.
+`CatalogSeeder` define o JSON de atributos na criação da categoria e preserva definições já editadas. A carga inicial não cria pedidos, endereços ou movimentações; esses registros são criados pelos services nos fluxos do usuário e da operação.
 
 As factories, o autoload correspondente e o trait `HasFactory` foram removidos. Os testes criam seus registros diretamente pelos models com valores explícitos. Os models continuam sem validação de entrada.
 
@@ -120,17 +130,17 @@ Para uma instalação nova, use `php artisan migrate` e, no ambiente de desenvol
 
 ### Catálogo da pesquisa
 
-`GET /api/v1/catalog` é público e retorna `data.categories` (ID, nome e atributos filtráveis) e `data.products` (ID, categoria, marca, nome, descrição, especificações, preço e imagem). Produtos e categorias inativos são omitidos; custo e dados pessoais não são expostos. A pesquisa carrega o catálogo uma vez e aplica os filtros no navegador. Não há paginação no servidor neste endpoint.
+`GET /api/catalog` é público e retorna `data.categories` (ID, nome e atributos filtráveis) e `data.products` (ID, categoria, marca, nome, descrição, especificações, preço e imagem). Produtos e categorias inativos são omitidos; custo e dados pessoais não são expostos. A pesquisa carrega o catálogo uma vez e aplica os filtros no navegador. Não há paginação no servidor neste endpoint.
 
 Defina `VITE_API_BASE_URL` no frontend quando a API não estiver em `http://localhost:8000`. Alterações no cadastro aparecem depois de recarregar a pesquisa. A página inicial mantém destaques demonstrativos.
 
 ## Frontend e CORS
 
-O projeto adotou autenticação por sessões e cookies, com proteção CSRF. A rota `/api/v1/user` utiliza `auth:web`; `User` não usa mais `HasApiTokens`, e o esquema não cria `personal_access_tokens`. A recuperação de senha continua usando a tabela separada `password_reset_tokens`.
+O projeto adotou autenticação por sessões e cookies, com proteção CSRF. A rota `/api/user` utiliza `auth:web`; `User` não usa mais `HasApiTokens`, e o esquema não cria `personal_access_tokens`. A recuperação de senha continua usando a tabela separada `password_reset_tokens`.
 
 A tabela `sessions` aceita visitantes com `user_id` nulo e possui FK para `users`, com exclusão em cascata. Seu `payload` armazena os dados de sessão e o token CSRF. A configuração `SESSION_DRIVER=database` é necessária para persistir as sessões nessa tabela.
 
-A configuração completa da SPA ainda está pendente: iniciar as sessões nas rotas da API, configurar os domínios stateful, habilitar credenciais no CORS e implementar login/logout. O frontend deverá solicitar `/sanctum/csrf-cookie`, enviar cookies com as requisições e usar o cabeçalho `X-XSRF-TOKEN` nas operações protegidas. `CORS_ALLOWED_ORIGINS` lista as origens; atualmente o padrão permite `http://localhost:5173` e `http://127.0.0.1:5173`.
+As rotas de sessão e escritas usam `web`, que inicia a sessão e verifica CSRF independentemente da lista stateful do Sanctum. Rotas pessoais também exigem `auth:web`. O `.env.example` agora usa `SESSION_DRIVER=database`; instalações existentes que ainda tenham `array` em `api/.env` precisam atualizar esse valor e executar `php artisan config:clear`. O frontend deve solicitar `/sanctum/csrf-cookie`, enviar cookies (`credentials: include`) e o valor decodificado do cookie no cabeçalho `X-XSRF-TOKEN`, então executar `POST /api/login`. Login regenera o ID da sessão; logout invalida a sessão e renova o CSRF. A integração dessas operações nas telas continua pendente. `CORS_ALLOWED_ORIGINS` lista as origens; atualmente o padrão permite `http://localhost:5173` e `http://127.0.0.1:5173`.
 
 Alterar migrations já executadas não altera o banco existente. Remover a migration de tokens não exclui uma tabela já criada; a FK de sessões também precisa de uma migration de atualização se a tabela já existir.
 
@@ -139,7 +149,7 @@ Alterar migrations já executadas não altera o banco existente. Remover a migra
 ```sh
 composer test
 php artisan route:list --path=api
-vendor/bin/pint
+vendor/bin/pint --dirty --format agent
 ```
 
 Na raiz do repositório, verifique o frontend com:
@@ -149,6 +159,8 @@ node --test frontend/src/data/catalog.test.js
 npm --prefix frontend run build
 ```
 
-Os testes verificam respostas HTTP, autenticação, CORS, especificações JSON, persistência de definições de atributos, seeders fixas, timestamps, snapshots e restrições de exclusão. Executam migrations/rollback em SQLite na memória e compilam SQL MySQL sem servidor. A aplicação no MySQL do Docker deve ser verificada nesse ambiente. Os testes de filtros do frontend usam `node --test src/data/catalog.test.js` dentro de `frontend/`.
+Os testes verificam respostas HTTP, autenticação, CORS, especificações JSON, persistência de definições de atributos, seeders fixas, timestamps, snapshots e restrições de exclusão. Executam migrations/rollback em SQLite na memória e compilam SQL MySQL sem servidor. Os testes de contas, catálogo, pedidos, consultas públicas/pessoais e sessões também foram executados em um banco temporário isolado no MySQL 8.4 do Docker. A suíte padrão continua em SQLite; nunca aponte testes com `RefreshDatabase` para o banco de desenvolvimento. Os testes de filtros do frontend usam `node --test src/data/catalog.test.js` dentro de `frontend/`.
 
-Os testes usam dados explícitos e não dependem de factories ou do arquivo `database.sqlite`. O contrato dos oito GETs continua documental; a cobertura de implementação desses endpoints será adicionada quando os controllers e services forem desenvolvidos.
+Os testes usam dados explícitos e não dependem de factories ou do arquivo `database.sqlite`. `PublicGetEndpointsTest` e `PrivateGetEndpointsTest` cobrem os oito GETs, incluindo isolamento por usuário, sessão sem Bearer, filtros dinâmicos, paginação, proteção de custos/senhas/tokens, snapshots e timeline ordenada. Os totais de linhas dos pedidos usam `brick/math`, já incluído nas dependências do Laravel, para evitar arredondamento por ponto flutuante.
+
+`AccountWriteEndpointsTest`, `CatalogWriteEndpointsTest` e `OrderWriteEndpointsTest` cobrem validação das escritas, permissões, auditoria de senha, CSRF, limites de login, snapshots, valores decimais, saldo insuficiente, transições de status, cancelamento repetido e rollback de operações compostas. Não foram necessárias novas dependências ou alterações no esquema para esses fluxos.

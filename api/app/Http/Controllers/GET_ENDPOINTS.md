@@ -1,8 +1,8 @@
-# Contrato proposto dos GETs — usuário padrão
+# Contrato dos GETs — usuário padrão
 
-Documento de planejamento da API REST, usando MSC como Model–Service–Controller. Não implementa controllers, services, validações nem novas rotas. Os exemplos usam registros ilustrativos; IDs e datas não são valores garantidos pelas seeders.
+Contrato dos oito GETs implementados em Model–Service–Controller, com Form Requests para validação da consulta e API Resources para selecionar campos públicos. Os exemplos usam registros ilustrativos; IDs e datas não são valores garantidos pelas seeders.
 
-Os caminhos abaixo preservam os nomes solicitados. Atualmente a aplicação registra `/api/v1/catalog`, `/api/v1/health` e `/api/v1/user`. Adotar `/api/product`, `/api/categoria` e os demais caminhos deste documento é uma mudança proposta; o prefixo `/v1` e a transição do catálogo atual precisam ser definidos na implementação.
+Os caminhos `/api/product`, `/api/categoria`, `/api/address`, `/api/user` e `/api/order` estão registrados sob o prefixo único `/api`. Os controllers estão em `app/Http/Controllers/Api`. A pesquisa atual usa `/api/catalog`, e o endpoint de saúde é `/api/health`.
 
 ## Responsabilidades no MSC
 
@@ -13,30 +13,30 @@ Fluxo: requisição → controller → service → model/banco → service → c
 - Model: representa os dados, casts e relacionamentos. Permanece sem validação de entrada.
 - API Resource: seleciona os campos de saída; não retorna automaticamente todas as colunas ou relacionamentos do model.
 
-Os nomes das classes e dos métodos abaixo são propostas para orientar a implementação.
+As classes abaixo estão em `app/Http/Controllers/Api`, `app/Services`, `app/Http/Requests` e `app/Http/Resources`. Os models permanecem sem validação de entrada.
 
 ## Mapa de endpoints
 
 Todos os endpoints usam GET e retornam JSON.
 
-| Caminho | Controller | Service | Acesso proposto | Resultado |
+| Caminho | Controller | Service | Acesso | Resultado |
 | --- | --- | --- | --- | --- |
 | `/api/product` | `ProductController::index` | `ProductService::listPublicProducts` | Público | Produtos para os cards |
 | `/api/product/{id}` | `ProductController::show` | `ProductService::getPublicProduct` | Público | Detalhes públicos de um produto |
 | `/api/categoria` | `CategoryController::index` | `CategoryService::listPublicCategories` | Público | Categorias existentes e ativas |
-| `/api/categoria/filter` | `CategoryController::filter` | `ProductService::filterPublicProducts` | Público | Cards dos produtos que correspondem ao filtro |
+| `/api/categoria/filter` | `ProductFilterController::__invoke` | `ProductService::filterPublicProducts` | Público | Cards dos produtos que correspondem ao filtro |
 | `/api/address` | `AddressController::index` | `AddressService::listUserAddresses` | Autenticado | Somente os endereços do próprio usuário |
 | `/api/user` | `UserController::show` | `UserService::getProfile` | Autenticado | Dados públicos do próprio perfil |
 | `/api/order` | `OrderController::index` | `OrderService::listUserOrders` | Autenticado | Resumo das compras do próprio usuário |
 | `/api/order/{id}` | `OrderController::show` | `OrderService::getUserOrder` | Autenticado | Compra do próprio usuário, itens, entrega e timeline |
 
-Produtos, categorias e filtros podem ser consultados por um usuário padrão sem privilégios de administrador. Torná-los públicos é a proposta para permitir a navegação de visitantes. Endereços, perfil e pedidos exigem sessão autenticada. A configuração completa de autenticação da SPA continua fora desta etapa documental.
+Produtos, categorias e filtros podem ser consultados por um usuário padrão sem privilégios de administrador. Os endpoints públicos permitem a navegação de visitantes. Endereços, perfil e pedidos exigem sessão autenticada. As rotas pessoais iniciam sessão com o middleware `web` e exigem `auth:web`. `POST /api/login` cria a sessão e `POST /api/logout` a encerra; consulte o [contrato de escritas](../../../BUSINESS_RULES.md) para o handshake CSRF. Para persistência entre requisições HTTP, configure um driver de sessão persistente, como `SESSION_DRIVER=database`.
 
 ## Convenções de resposta
 
 - Recurso único: `{ "data": { ... } }`.
 - Coleção: `{ "data": [ ... ] }`; uma coleção vazia é `200` com `data: []`.
-- Proposta para produtos, resultados filtrados e pedidos: paginação por `page` e `per_page`, padrão de 20 itens e limite de 100, com `links` e `meta`. Todas as compras permanecem acessíveis pelas páginas.
+- Produtos, resultados filtrados e pedidos: paginação por `page` e `per_page`, padrão de 20 itens e limite de 100, com `links` e `meta`. Todas as compras permanecem acessíveis pelas páginas.
 - Categorias e endereços podem ser retornados integralmente nesta primeira versão.
 - Valores monetários: strings com duas casas decimais, por exemplo `"749.90"`.
 - Datas: ISO 8601, com fuso explícito.
@@ -46,7 +46,7 @@ Os IDs entram nas listagens como identificadores técnicos para selecionar categ
 
 ## GET /api/product
 
-Consulta `Product`, considerando somente produtos ativos cuja categoria também esteja ativa. Ordenação inicial proposta: nome e ID, para manter paginação estável.
+Consulta `Product`, considerando somente produtos ativos cuja categoria também esteja ativa. Ordenação: nome e ID, para manter paginação estável.
 
 Cada card contém apenas `id`, `name`, `price` e `image_url`. Imagens ainda não cadastradas retornam `null`.
 
@@ -95,15 +95,15 @@ Retorna as categorias ativas, ordenadas por nome, com `id` e `name`.
 }
 ```
 
-As definições de atributos ficam em `categories.attributes`, mas não fazem parte desta listagem mínima. O frontend atual as recebe por `/api/v1/catalog`. Ao substituir esse endpoint, será preciso manter uma forma de carregar essas definições para montar os filtros; não removê-la silenciosamente.
+As definições de atributos ficam em `categories.attributes`, mas não fazem parte desta listagem mínima. O frontend atual as recebe por `/api/catalog`. Ao substituir esse endpoint, será preciso manter uma forma de carregar essas definições para montar os filtros; não removê-la silenciosamente.
 
 ## GET /api/categoria/filter
 
-Objetivo: receber os critérios e retornar os mesmos campos de card de `/api/product`, com a paginação proposta.
+Objetivo: receber os critérios e retornar os mesmos campos de card de `/api/product`, com paginação.
 
-O pedido original prevê um corpo JSON. Para fechar o contrato, a recomendação é manter GET e enviar o JSON codificado no parâmetro `filter` da URL. Conteúdo no corpo de GET não tem semântica geral definida e pode ser rejeitado por implementações HTTP. Referência: [RFC 9110, seção 9.3.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.3.1).
+O JSON é recebido no parâmetro `filter` da URL, não no corpo da requisição GET. JSON inválido ou ausente retorna `422`. Conteúdo no corpo de GET não tem semântica geral definida; referência: [RFC 9110, seção 9.3.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.3.1).
 
-Estrutura lógica proposta do JSON, não um corpo GET:
+Estrutura do JSON enviado em `filter`:
 
 ```json
 {
@@ -124,9 +124,9 @@ Exemplo reduzido de URL com JSON codificado:
 GET /api/categoria/filter?filter=%7B%22category_id%22%3A1%2C%22specifications%22%3A%7B%22ram_capacity_gb%22%3A%5B16%2C32%5D%7D%7D&page=1&per_page=20
 ```
 
-Se receber o JSON no corpo for obrigatório, a alternativa a discutir é uma consulta por POST. Nenhuma rota POST está sendo definida ou implementada aqui.
+Esta implementação não recebe filtros pelo corpo GET e não registra uma consulta por POST.
 
-Regras propostas para a futura implementação:
+Regras implementadas no `FilterProductsRequest`:
 
 - `category_id` é obrigatório nesta consulta; a categoria deve estar ativa.
 - Preços e marcas são opcionais. Lista de marcas vazia não restringe os resultados.
@@ -137,7 +137,7 @@ Regras propostas para a futura implementação:
 - A marca é filtrada por `brand_id`; não é duplicada em `specifications`.
 - Sem correspondências, retornar `200` com coleção vazia.
 
-Esta rota propõe filtragem remota. Isso difere da pesquisa atual, que carrega `/api/v1/catalog` uma vez e filtra no navegador. A implementação deverá escolher quando enviar os critérios; esta etapa não altera o frontend nem inicia consultas a cada clique.
+Esta rota executa filtragem remota quando chamada. A pesquisa atual continua carregando `/api/catalog` uma vez e filtrando no navegador; ela não foi migrada para o novo endpoint.
 
 ## GET /api/address
 
@@ -194,7 +194,7 @@ Não expor `unit_cost` dos itens ou custos internos. Nomes, categorias e preços
 
 O esquema atual não guarda snapshots de imagem, marca ou especificações completas do produto nos itens. O detalhe da compra não deve prometer versões históricas desses dados. Endereço de entrega ausente retorna `null`; timeline ausente retorna `[]`. A leitura não inventa eventos para preencher o histórico.
 
-## Status HTTP previstos
+## Status HTTP
 
 | Status | Situação |
 | --- | --- |
@@ -203,4 +203,22 @@ O esquema atual não guarda snapshots de imagem, marca ou especificações compl
 | `404` | Recurso inexistente, indisponível ao público ou pedido fora do escopo do usuário |
 | `422` | Parâmetros de consulta ou filtros inválidos |
 
-As rotas GET permanecem somente leitura. Cadastro de categorias/atributos, escritas administrativas, checkout e mudanças de status serão tratados em etapas posteriores.
+As rotas GET permanecem somente leitura. Cadastro, administração, checkout e mudanças de status são implementados por operações de escrita descritas em [BUSINESS_RULES.md](../../../BUSINESS_RULES.md).
+
+## Verificação
+
+`PublicGetEndpointsTest` cobre cards, detalhes, paginação, visibilidade e filtros, incluindo booleanos, números decimais, opções e entradas inválidas. `PrivateGetEndpointsTest` cobre sessão, isolamento por usuário, proteção de campos, snapshots, timeline e leituras sem alteração de dados do domínio. Os testes criam dados explícitos e usam SQLite em memória.
+
+A listagem completa pode ser conferida com `php artisan route:list --path=api`. Os contratos de saída dos oito GETs originais foram preservados; a implementação das escritas não exigiu alterações nos models/migrations.
+
+## Consultas adicionais
+
+- `GET /api/categoria/{id}`: detalhe de categoria ativa, com descrição, definições de atributos e `is_active`.
+- `GET /api/address/{id}`: detalhe de endereço do usuário autenticado; outro proprietário retorna `404`.
+- `GET /api/admin/product` e `/{id}`: produtos ativos/inativos, incluindo custo e estado de publicação; somente administrador. A listagem é paginada.
+- `GET /api/admin/categoria` e `/{id}`: categorias ativas/inativas com definições; somente administrador.
+- `GET /api/brand` e `/{brand}`: marcas; somente administrador.
+- `GET /api/product/{id}/stock-movements`: histórico paginado de estoque; somente administrador.
+- `GET /api/admin/order` e `/{id}`: pedidos de todos os clientes; somente administrador. A listagem usa os resumos paginados e o detalhe inclui `user_id`.
+
+As API Resources usam relacionamentos carregados pelos services (`whenLoaded`), evitando consultas implícitas na apresentação. `/api/catalog` mantém o formato consumido pelo frontend e também usa Resources.
