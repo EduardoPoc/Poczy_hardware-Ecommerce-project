@@ -10,7 +10,6 @@ class StockMovement extends Model
     protected $fillable = [
         'type',
         'quantity',
-        'change',
         'reason',
     ];
 
@@ -18,7 +17,6 @@ class StockMovement extends Model
     {
         return [
             'quantity' => 'integer',
-            'change' => 'integer',
             'created_at' => 'datetime',
         ];
     }
