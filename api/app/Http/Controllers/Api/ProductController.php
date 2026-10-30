@@ -3,28 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, ProductService $products): JsonResponse
     {
-        $products = Product::where('is_active', true)
-            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true))
-            ->orderBy('name')->orderBy('id')
-            ->paginate($request->input('per_page', 20))->withQueryString();
+        $products = $products->listPublicProducts($request->input('per_page', 20), $request->query());
 
         return response()->json($products);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(int $id, ProductService $products): JsonResponse
     {
-        $product = Product::where('is_active', true)
-            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true))
-            ->with(['category', 'brand'])->findOrFail($id);
+        $product = $products->getPublicProduct((string) $id);
 
         return response()->json($product);
     }

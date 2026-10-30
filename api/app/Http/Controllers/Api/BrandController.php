@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
+use App\Services\BrandService;
 use Illuminate\Http\JsonResponse;
 
 class BrandController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(BrandService $brands): JsonResponse
     {
-        $brands = Brand::orderBy('name')->get();
+        $brands = $brands->listAll();
 
         return response()->json($brands);
     }
 
-    public function show(int $brand): JsonResponse
+    public function show(int $brand, BrandService $brands): JsonResponse
     {
-        $brand = Brand::findOrFail($brand);
+        $brand = $brands->findById($brand);
 
         return response()->json($brand);
     }

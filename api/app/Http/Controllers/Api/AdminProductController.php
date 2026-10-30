@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,17 +10,16 @@ use Illuminate\Http\Response;
 
 class AdminProductController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, ProductService $products): JsonResponse
     {
-        $records = Product::query()->with(['category', 'brand'])->orderBy('name')->orderBy('id')
-            ->paginate($request->input('per_page', 20))->withQueryString();
+        $records = $products->listAll($request->input('per_page', 20), $request->query());
 
         return response()->json($records);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(int $id, ProductService $products): JsonResponse
     {
-        $record = Product::query()->with(['category', 'brand'])->findOrFail($id);
+        $record = $products->findById($id);
 
         return response()->json($record);
     }
