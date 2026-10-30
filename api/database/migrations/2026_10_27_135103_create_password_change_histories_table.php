@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('password_change_history', function (Blueprint $table): void {
+        Schema::create('password_change_histories', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('id_user')->constrained('users')->restrictOnDelete();
             $table->timestamps();
@@ -17,6 +17,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('password_change_history');
+        Schema::dropIfExists('password_change_histories');
     }
 };

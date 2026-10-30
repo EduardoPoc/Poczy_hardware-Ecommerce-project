@@ -98,7 +98,7 @@ Esta base foi remodelada para instalações novas. Um banco que já executou as 
 
 `User` possui vários endereços e pedidos. O model gera o hash da senha e oculta `password` e `remember_token` na serialização automática. `role` não permite atribuição em massa. A coluna de confirmação de e-mail está disponível, mas o fluxo de verificação ainda precisa ser implementado. A autenticação escolhida usa sessões do Laravel com cookies e proteção CSRF; não há tabela de tokens Bearer no esquema atual.
 
-**`password_change_history` — model `PasswordChangeHistory`**
+**`password_change_histories` — model `PasswordChangeHistory`**
 
 | Campo | Tipo no MySQL | Regra |
 | --- | --- | --- |
@@ -258,7 +258,7 @@ Essa tabela guarda uma cópia do endereço usado na compra, com no máximo um re
 
 Os snapshots e valores unitários preservam os dados da compra mesmo após alterações no catálogo. O model se relaciona com `order`, `product` e `category`.
 
-**`order_status_history` — model `OrderStatusHistory`**
+**`order_status_histories` — model `OrderStatusHistory`**
 
 | Campo | Tipo no MySQL | Regra |
 | --- | --- | --- |
@@ -301,7 +301,7 @@ Além das chaves primárias, estrangeiras e restrições de unicidade, existem o
 - `products(category_id)`, criado na migration de produtos.
 - `orders(user_id, created_at)` e `orders(status, created_at)`, criados na própria migration de pedidos.
 - `stock_movements(product_id, created_at)`, criado na própria migration de movimentações.
-- `order_status_history(order_id, changed_at)`, criado na migration de pedidos.
+- `order_status_histories(order_id, changed_at)`, criado na migration de pedidos.
 - `failed_jobs(connection, queue, failed_at)`, criado na migration de filas.
 
 ### Tabelas de suporte do Laravel

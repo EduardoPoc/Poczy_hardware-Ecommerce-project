@@ -36,7 +36,7 @@ As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que 
 
 O cadastro retorna `201` com `role=CUSTOMER`, sem autenticar automaticamente. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens nunca entram na Resource.
 
-Mudanças de e-mail limpam `email_verified_at`. A troca de senha verifica novamente a senha atual com o usuário bloqueado, altera o hash e cria `password_change_history` na mesma transação. Depois, encerra a sessão corrente. Com `SESSION_DRIVER=database`, também remove as sessões desse usuário e preserva as de outras contas. Para esse fluxo, mantenha a conexão das sessões no mesmo banco da aplicação. O histórico impede exclusão física posterior da conta, conforme a FK existente; anonimização exige uma política e um fluxo próprios.
+Mudanças de e-mail limpam `email_verified_at`. A troca de senha verifica novamente a senha atual com o usuário bloqueado, altera o hash e cria `password_change_histories` na mesma transação. Depois, encerra a sessão corrente. Com `SESSION_DRIVER=database`, também remove as sessões desse usuário e preserva as de outras contas. Para esse fluxo, mantenha a conexão das sessões no mesmo banco da aplicação. O histórico impede exclusão física posterior da conta, conforme a FK existente; anonimização exige uma política e um fluxo próprios.
 
 Login permite cinco tentativas por minuto por combinação e-mail/IP e vinte por IP. Cadastro permite cinco requisições por hora por IP. Credenciais inválidas retornam uma mensagem genérica em `422`.
 

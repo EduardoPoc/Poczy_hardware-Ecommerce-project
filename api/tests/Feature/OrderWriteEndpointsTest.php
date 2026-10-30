@@ -121,7 +121,7 @@ class OrderWriteEndpointsTest extends TestCase
         }
         $this->assertSame(10, $this->product->fresh()->stock);
         $this->assertSame(10, $second->fresh()->stock);
-        foreach (['orders', 'order_items', 'order_shipping_addresses', 'order_status_history', 'stock_movements'] as $table) {
+        foreach (['orders', 'order_items', 'order_shipping_addresses', 'order_status_histories', 'stock_movements'] as $table) {
             $this->assertDatabaseCount($table, 0);
         }
     }
@@ -156,7 +156,7 @@ class OrderWriteEndpointsTest extends TestCase
         }
         $this->patchJson($uri, ['status' => 'CANCELLED'])->assertConflict();
         $this->assertSame(7, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('order_status_history', 5);
+        $this->assertDatabaseCount('order_status_histories', 5);
     }
 
     public function test_admin_can_cancel_a_paid_order_and_stock_is_only_restored_once(): void

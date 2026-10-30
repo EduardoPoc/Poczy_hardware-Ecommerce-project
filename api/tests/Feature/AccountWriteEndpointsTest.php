@@ -79,10 +79,10 @@ class AccountWriteEndpointsTest extends TestCase
         $user = $this->customer();
         $this->actingAs($user, 'web');
         $this->putJson('/api/user/password', ['current_password' => 'wrong', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026'])->assertUnprocessable();
-        $this->assertDatabaseCount('password_change_history', 0);
+        $this->assertDatabaseCount('password_change_histories', 0);
         $this->putJson('/api/user/password', ['current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026'])->assertNoContent();
         $this->assertTrue(Hash::check('NovaSenha!2026', $user->fresh()->password));
-        $this->assertDatabaseHas('password_change_history', ['id_user' => $user->id]);
+        $this->assertDatabaseHas('password_change_histories', ['id_user' => $user->id]);
         $this->assertGuest('web');
     }
 
@@ -100,7 +100,7 @@ class AccountWriteEndpointsTest extends TestCase
             PasswordChangeHistory::flushEventListeners();
         }
         $this->assertSame($hash, $user->fresh()->password);
-        $this->assertDatabaseCount('password_change_history', 0);
+        $this->assertDatabaseCount('password_change_histories', 0);
     }
 
     public function test_address_crud_is_scoped_to_the_session_and_validates_partial_updates(): void
