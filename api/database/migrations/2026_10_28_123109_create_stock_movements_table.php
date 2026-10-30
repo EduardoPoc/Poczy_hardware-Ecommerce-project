@@ -11,9 +11,8 @@ return new class extends Migration
         Schema::create('stock_movements', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('product_id')->constrained('products')->restrictOnDelete();
-            $table->unsignedInteger('quantity');
+            $table->integer('quantity');
             $table->enum('type', ['INBOUND', 'OUTBOUND', 'ADJUSTMENT']);
-            $table->integer('change');
             $table->string('reason', 150)->nullable();
             $table->timestamps();
             $table->index(['product_id', 'created_at']);
