@@ -27,6 +27,21 @@ class CatalogSeeder extends Seeder
             'cooling' => 'Refrigeração',
         ];
 
+        $descriptions = [
+            'notebooks' => 'Computadores portáteis para estudos, trabalho e jogos.',
+            'pcs' => 'Computadores montados para escritório, jogos e criação de conteúdo.',
+            'monitors' => 'Monitores para produtividade, entretenimento e configurações gamer.',
+            'peripherals' => 'Mouses, teclados, headsets e controles para o dia a dia.',
+            'processors' => 'Processadores para montagem e atualização de computadores desktop.',
+            'memory' => 'Módulos de memória RAM para plataformas DDR4 e DDR5.',
+            'graphics' => 'Placas de vídeo dedicadas para jogos e aplicações gráficas.',
+            'motherboards' => 'Placas-mãe para diferentes soquetes, formatos e gerações de memória.',
+            'storage' => 'SSDs e discos rígidos para sistemas, jogos e arquivos.',
+            'power-supplies' => 'Fontes de alimentação com diferentes potências e níveis de eficiência.',
+            'cases' => 'Gabinetes para montagens compactas e computadores de maior porte.',
+            'cooling' => 'Coolers, sistemas de refrigeração líquida e ventoinhas para desktop.',
+        ];
+
         $definitions = [
             'notebooks' => [
                 ['storage_capacity_gb', 'Armazenamento', 'integer', 'GB'],
@@ -111,7 +126,10 @@ class CatalogSeeder extends Seeder
                 }
             }
 
-            Category::firstOrCreate(['name' => $name], ['attributes' => $attributes]);
+            Category::firstOrCreate(['name' => $name], [
+                'description' => $descriptions[$code],
+                'attributes' => $attributes,
+            ]);
         }
     }
 }
