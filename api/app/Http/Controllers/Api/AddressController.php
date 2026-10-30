@@ -3,41 +3,45 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreAddressRequest;
-use App\Http\Requests\UpdateAddressRequest;
-use App\Http\Resources\AddressResource;
-use App\Services\AddressService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class AddressController extends Controller
 {
-    public function __construct(private AddressService $service) {}
-
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        return AddressResource::collection($this->service->listUserAddresses($request->user()));
+        $addresses = $request->user()->addresses()->orderBy('id')->get();
+
+        return response()->json($addresses);
     }
 
-    public function show(Request $request, int $id): AddressResource
+    public function show(Request $request, int $id): JsonResponse
     {
-        return new AddressResource($this->service->getUserAddress($request->user(), $id));
+        $address = $request->user()->addresses()->findOrFail($id);
+
+        return response()->json($address);
     }
 
-    public function store(StoreAddressRequest $request): AddressResource
+    public function store(Request $request): JsonResponse
     {
-        return new AddressResource($this->service->create($request->user(), $request->validated()));
+        $address = $request->user()->addresses()->create($request->all());
+
+        return response()->json($address, 201);
     }
 
-    public function update(UpdateAddressRequest $request, int $id): AddressResource
+    public function update(Request $request, int $id): JsonResponse
     {
-        return new AddressResource($this->service->update($request->user(), $id, $request->validated()));
+        $address = $request->user()->addresses()->findOrFail($id);
+        $address->update($request->all());
+
+        return response()->json($address);
     }
 
     public function destroy(Request $request, int $id): Response
     {
-        $this->service->delete($request->user(), $id);
+        $address = $request->user()->addresses()->findOrFail($id);
+        $address->delete();
 
         return response()->noContent();
     }

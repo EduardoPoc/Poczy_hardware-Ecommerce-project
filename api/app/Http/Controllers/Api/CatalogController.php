@@ -3,17 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\CatalogResource;
-use App\Services\CategoryService;
-use App\Services\ProductService;
+use App\Models\Category;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 
 class CatalogController extends Controller
 {
-    public function __invoke(CategoryService $categories, ProductService $products): CatalogResource
+    public function __invoke(): JsonResponse
     {
-        return new CatalogResource([
-            'categories' => $categories->listPublicCategories(),
-            'products' => $products->listAllPublicProducts(),
-        ]);
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
+        $products = Product::where('is_active', true)
+            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true))
+            ->with('brand')->orderBy('name')->orderBy('id')->get();
+
+        return response()->json(['data' => ['categories' => $categories, 'products' => $products]]);
     }
 }

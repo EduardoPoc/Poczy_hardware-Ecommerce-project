@@ -3,15 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\FilterProductsRequest;
-use App\Http\Resources\ProductCardResource;
 use App\Services\ProductService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductFilterController extends Controller
 {
-    public function __invoke(FilterProductsRequest $request, ProductService $products): AnonymousResourceCollection
+    public function __invoke(Request $request, ProductService $products): JsonResponse
     {
-        return ProductCardResource::collection($products->filterPublicProducts($request->validated('filter'), $request->perPage()));
+        $filter = $request->query('filter');
+        if (is_string($filter)) {
+            $filter = json_decode($filter, true);
+        }
+        $products = $products->filterPublicProducts($filter, $request->input('per_page', 20));
+
+        return response()->json($products);
     }
 }

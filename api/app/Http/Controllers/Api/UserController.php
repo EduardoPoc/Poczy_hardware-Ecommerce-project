@@ -3,37 +3,38 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\DeleteUserRequest;
-use App\Http\Requests\RegisterUserRequest;
-use App\Http\Requests\UpdateUserRequest;
-use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use App\Services\UserService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class UserController extends Controller
 {
-    public function __construct(private UserService $service) {}
-
-    public function show(Request $request): UserResource
+    public function show(Request $request): JsonResponse
     {
-        return new UserResource($this->service->getProfile($request->user()));
+        $user = $request->user();
+
+        return response()->json($user);
     }
 
-    public function store(RegisterUserRequest $request): UserResource
+    public function store(Request $request, UserService $users): JsonResponse
     {
-        return new UserResource($this->service->register($request->validated()));
+        $user = $users->register($request->all());
+
+        return response()->json($user, 201);
     }
 
-    public function update(UpdateUserRequest $request): UserResource
+    public function update(Request $request, UserService $users): JsonResponse
     {
-        return new UserResource($this->service->update($request->user(), $request->validated()));
+        $user = $users->update($request->user(), $request->all());
+
+        return response()->json($user);
     }
 
-    public function destroy(DeleteUserRequest $request, AuthService $auth): Response
+    public function destroy(Request $request, UserService $users, AuthService $auth): Response
     {
-        $this->service->delete($request->user(), $request->validated('current_password'));
+        $users->delete($request->user(), $request->input('current_password'));
         $auth->logout($request->session());
 
         return response()->noContent();

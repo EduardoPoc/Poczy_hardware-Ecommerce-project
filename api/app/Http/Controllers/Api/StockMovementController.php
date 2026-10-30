@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\PaginationRequest;
-use App\Http\Requests\StoreStockMovementRequest;
-use App\Http\Resources\StockMovementResource;
 use App\Services\StockService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class StockMovementController extends Controller
 {
-    public function __construct(private StockService $stock) {}
-
-    public function index(PaginationRequest $request, int $id): AnonymousResourceCollection
+    public function index(Request $request, int $id, StockService $stock): JsonResponse
     {
-        return StockMovementResource::collection($this->stock->listMovements($id, $request->perPage()));
+        $movements = $stock->listMovements($id, $request->input('per_page', 20));
+
+        return response()->json($movements);
     }
 
-    public function store(StoreStockMovementRequest $request, int $id): StockMovementResource
+    public function store(Request $request, int $id, StockService $stock): JsonResponse
     {
-        return new StockMovementResource($this->stock->create($id, $request->validated()));
+        $movement = $stock->create($id, $request->all());
+
+        return response()->json($movement, 201);
     }
 }

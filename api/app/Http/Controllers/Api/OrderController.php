@@ -3,37 +3,37 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\PaginationRequest;
-use App\Http\Requests\StoreOrderRequest;
-use App\Http\Resources\OrderDetailResource;
-use App\Http\Resources\OrderSummaryResource;
 use App\Services\OrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class OrderController extends Controller
 {
-    public function __construct(private OrderService $orders) {}
-
-    public function index(PaginationRequest $request): AnonymousResourceCollection
+    public function index(Request $request, OrderService $orders): JsonResponse
     {
-        return OrderSummaryResource::collection($this->orders->listUserOrders($request->user(), $request->perPage()));
+        $orders = $orders->listUserOrders($request->user(), $request->input('per_page', 20));
+
+        return response()->json($orders);
     }
 
-    public function show(Request $request, string $id): OrderDetailResource
+    public function show(Request $request, int $id, OrderService $orders): JsonResponse
     {
-        return new OrderDetailResource($this->orders->getUserOrder($request->user(), $id));
+        $order = $orders->getUserOrder($request->user(), (string) $id);
+
+        return response()->json($order);
     }
 
-    public function store(StoreOrderRequest $request): OrderDetailResource
+    public function store(Request $request, OrderService $orders): JsonResponse
     {
-        return new OrderDetailResource($this->orders->create($request->user(), $request->validated()));
+        $order = $orders->create($request->user(), $request->all());
+
+        return response()->json($order, 201);
     }
 
-    public function destroy(Request $request, int $id): Response
+    public function destroy(Request $request, int $id, OrderService $orders): Response
     {
-        $this->orders->cancel($request->user(), $id);
+        $orders->cancel($request->user(), $id);
 
         return response()->noContent();
     }

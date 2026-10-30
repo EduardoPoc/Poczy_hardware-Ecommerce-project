@@ -3,29 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\PaginationRequest;
-use App\Http\Requests\UpdateOrderStatusRequest;
-use App\Http\Resources\AdminOrderResource;
-use App\Http\Resources\OrderSummaryResource;
 use App\Services\OrderService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AdminOrderController extends Controller
 {
-    public function __construct(private OrderService $orders) {}
-
-    public function index(PaginationRequest $request): AnonymousResourceCollection
+    public function index(Request $request, OrderService $orders): JsonResponse
     {
-        return OrderSummaryResource::collection($this->orders->listAll($request->perPage()));
+        $orders = $orders->listAll($request->input('per_page', 20));
+
+        return response()->json($orders);
     }
 
-    public function show(int $id): AdminOrderResource
+    public function show(int $id, OrderService $orders): JsonResponse
     {
-        return new AdminOrderResource($this->orders->findById($id));
+        $order = $orders->findById($id);
+
+        return response()->json($order);
     }
 
-    public function update(UpdateOrderStatusRequest $request, int $id): AdminOrderResource
+    public function update(Request $request, int $id, OrderService $orders): JsonResponse
     {
-        return new AdminOrderResource($this->orders->updateStatus($id, $request->validated('status')));
+        $order = $orders->updateStatus($id, $request->input('status'));
+
+        return response()->json($order);
     }
 }

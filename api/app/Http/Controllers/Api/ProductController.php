@@ -3,44 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\PaginationRequest;
-use App\Http\Requests\StoreProductRequest;
-use App\Http\Requests\UpdateProductRequest;
-use App\Http\Resources\AdminProductResource;
-use App\Http\Resources\ProductCardResource;
-use App\Http\Resources\ProductDetailResource;
-use App\Services\ProductService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\Response;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function __construct(private ProductService $products) {}
-
-    public function index(PaginationRequest $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        return ProductCardResource::collection($this->products->listPublicProducts($request->perPage()));
+        $products = Product::where('is_active', true)
+            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true))
+            ->orderBy('name')->orderBy('id')
+            ->paginate($request->input('per_page', 20))->withQueryString();
+
+        return response()->json($products);
     }
 
-    public function show(string $id): ProductDetailResource
+    public function show(int $id): JsonResponse
     {
-        return new ProductDetailResource($this->products->getPublicProduct($id));
-    }
+        $product = Product::where('is_active', true)
+            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true))
+            ->with(['category', 'brand'])->findOrFail($id);
 
-    public function store(StoreProductRequest $request): AdminProductResource
-    {
-        return new AdminProductResource($this->products->create($request->validated()));
-    }
-
-    public function update(UpdateProductRequest $request, int $id): AdminProductResource
-    {
-        return new AdminProductResource($this->products->update($id, $request->validated()));
-    }
-
-    public function destroy(int $id): Response
-    {
-        $this->products->delete($id);
-
-        return response()->noContent();
+        return response()->json($product);
     }
 }
