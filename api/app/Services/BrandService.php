@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Collection;
 
 class BrandService
 {
-    /** @return Collection<int, Brand> */
     public function listAll(): Collection
     {
         return Brand::orderBy('name')->orderBy('id')->get();
@@ -18,13 +17,11 @@ class BrandService
         return Brand::findOrFail($id);
     }
 
-    /** @param array{name: string} $data */
     public function create(array $data): Brand
     {
         return Brand::create($data);
     }
 
-    /** @param array{name: string} $data */
     public function update(int $id, array $data): Brand
     {
         $brand = $this->findById($id);

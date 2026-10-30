@@ -16,17 +16,15 @@ class ProductService
 {
     public function __construct(private SpecificationService $specifications, private StockService $stock) {}
 
-    /** @return Builder<Product> */
     private function publicProducts(): Builder
     {
         return Product::where('is_active', true)
-            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true));
+            ->whereHas('category', fn(Builder $query): Builder => $query->where('is_active', true));
     }
 
-    public function listPublicProducts(int $perPage): LengthAwarePaginator
+    public function listPublicProducts(int $perPage = 20, array $filter = []): LengthAwarePaginator
     {
-        return $this->publicProducts()->orderBy('name')->orderBy('id')
-            ->paginate($perPage, ['id', 'name', 'price', 'image_url'])->withQueryString();
+        return $this->filterPublicProducts($filter, $perPage);
     }
 
     public function getPublicProduct(string $id): Product
@@ -34,16 +32,37 @@ class ProductService
         return $this->publicProducts()->with(['category', 'brand'])->findOrFail($id);
     }
 
-    /** @return Collection<int, Product> */
     public function listAllPublicProducts(): Collection
     {
         return $this->publicProducts()->with('brand')->orderBy('name')->orderBy('id')->get();
     }
 
-    /** @param array{category_id: int, min_price?: numeric-string|int|float, max_price?: numeric-string|int|float, brand_ids?: list<int>, specifications?: array<string, list<bool|int|float|string>>} $filter */
-    public function filterPublicProducts(array $filter, int $perPage): LengthAwarePaginator
+    public function filterPublicProducts(array $filter = [], int $perPage = 20): LengthAwarePaginator
     {
-        $query = $this->publicProducts()->where('category_id', $filter['category_id']);
+        return $this->applyFilters($this->publicProducts(), $filter)
+            ->with(['category', 'brand'])->orderBy('name')->orderBy('id')
+            ->paginate($perPage)->withQueryString();
+    }
+
+    public function listAll(int $perPage = 20, array $filter = []): LengthAwarePaginator
+    {
+        $query = $this->applyFilters(Product::query(), $filter);
+        if (array_key_exists('is_active', $filter) && $filter['is_active'] !== null) {
+            $query->where('is_active', $filter['is_active']);
+        }
+
+        return $query->with(['category', 'brand'])->orderBy('name')->orderBy('id')
+            ->paginate($perPage)->withQueryString();
+    }
+
+    private function applyFilters(Builder $query, array $filter): Builder
+    {
+        if (isset($filter['q']) && $filter['q'] !== '') {
+            $query->whereLike('name', '%' . $filter['q'] . '%');
+        }
+        if (isset($filter['category_id'])) {
+            $query->where('category_id', $filter['category_id']);
+        }
         if (isset($filter['min_price'])) {
             $query->where('price', '>=', $filter['min_price']);
         }
@@ -61,22 +80,16 @@ class ProductService
                 foreach ($values as $value) {
                     if (is_float($value) && $alternatives->getConnection()->getDriverName() === 'sqlite') {
                         // PDO binds floats as text; decode JSON to preserve numeric comparison in SQLite.
-                        $alternatives->orWhereJsonContains('specifications->'.$key, new Expression("json_extract(?, '$')"));
+                        $alternatives->orWhereJsonContains('specifications->' . $key, new Expression("json_extract(?, '$')"));
                         $alternatives->getQuery()->addBinding(json_encode($value, JSON_THROW_ON_ERROR), 'where');
                     } else {
-                        $alternatives->orWhereJsonContains('specifications->'.$key, $value);
+                        $alternatives->orWhereJsonContains('specifications->' . $key, $value);
                     }
                 }
             });
         }
 
-        return $query->orderBy('name')->orderBy('id')
-            ->paginate($perPage, ['id', 'name', 'price', 'image_url'])->withQueryString();
-    }
-
-    public function listAll(int $perPage): LengthAwarePaginator
-    {
-        return Product::with(['category', 'brand'])->orderBy('name')->orderBy('id')->paginate($perPage)->withQueryString();
+        return $query;
     }
 
     public function findById(int $id): Product
@@ -84,7 +97,6 @@ class ProductService
         return Product::with(['category', 'brand'])->findOrFail($id);
     }
 
-    /** @param array<string, mixed> $data */
     public function create(array $data): Product
     {
         return DB::transaction(function () use ($data): Product {
@@ -103,7 +115,6 @@ class ProductService
         }, 3);
     }
 
-    /** @param array<string, mixed> $data */
     public function update(int $id, array $data): Product
     {
         return DB::transaction(function () use ($id, $data): Product {

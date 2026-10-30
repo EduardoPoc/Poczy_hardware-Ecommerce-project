@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -31,6 +33,34 @@ class CategoryService
     public function findById(int $id): Category
     {
         return Category::findOrFail($id);
+    }
+
+    /** @return array{brands: array, attributes: array, min_price: ?string, max_price: ?string} */
+    public function availableFilters(int $categoryId): array
+    {
+        $category = $this->getPublicCategory($categoryId);
+        $products = $category->products()->where('is_active', true)->with('brand')
+            ->get(['id', 'brand_id', 'price', 'specifications']);
+        $attributes = [];
+        foreach ($category->getAttribute('attributes') ?? [] as $key => $definition) {
+            if ($key === 'brand' || ! ($definition['is_filterable'] ?? true)) {
+                continue;
+            }
+            $values = $products->map(fn (Product $product): mixed => $product->specifications[$key] ?? null)
+                ->filter(fn (mixed $value): bool => $value !== null && $value !== '')
+                ->uniqueStrict()->sort()->values()->all();
+            if ($values !== []) {
+                $attributes[$key] = array_merge($definition, ['values' => $values]);
+            }
+        }
+
+        return [
+            'brands' => $products->pluck('brand')->filter()->unique('id')->sortBy('name')
+                ->map(fn (Brand $brand): array => $brand->only(['id', 'name']))->values()->all(),
+            'attributes' => $attributes,
+            'min_price' => $products->min('price'),
+            'max_price' => $products->max('price'),
+        ];
     }
 
     /** @param array{name: string, description?: ?string, attributes?: ?array, is_active?: bool} $data */

@@ -12,7 +12,7 @@ class AuthService
     /** @param array{email: string, password: string} $credentials */
     public function login(array $credentials, Session $session): User
     {
-        if (! Auth::guard('web')->attempt($credentials)) {
+        if (! Auth::guard('web')->attempt(array_intersect_key($credentials, array_flip(['email', 'password'])))) {
             throw ValidationException::withMessages(['email' => 'As credenciais informadas são inválidas.']);
         }
         $session->regenerate();

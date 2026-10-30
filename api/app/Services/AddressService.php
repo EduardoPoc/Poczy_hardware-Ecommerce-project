@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Collection;
 
 class AddressService
 {
-    /** @return Collection<int, Address> */
     public function listUserAddresses(User $user): Collection
     {
         return $user->addresses()->orderBy('id')->get();
@@ -19,13 +18,11 @@ class AddressService
         return $user->addresses()->findOrFail($id);
     }
 
-    /** @param array{postal_code: string, street: string, number: string, complement?: ?string, city: string, state: string} $data */
     public function create(User $user, array $data): Address
     {
         return $user->addresses()->create($data);
     }
 
-    /** @param array<string, mixed> $data */
     public function update(User $user, int $id, array $data): Address
     {
         $address = $this->getUserAddress($user, $id);

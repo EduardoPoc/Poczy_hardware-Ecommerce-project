@@ -31,7 +31,7 @@ class OrderService
         return $user->orders()->withCount('items')->withSum('items as items_quantity', 'quantity');
     }
 
-    public function listUserOrders(User $user, int $perPage): LengthAwarePaginator
+    public function listUserOrders(User $user, int $perPage = 20): LengthAwarePaginator
     {
         return $this->userOrders($user)->orderByDesc('created_at')->orderByDesc('id')
             ->paginate($perPage)->withQueryString();
@@ -42,7 +42,7 @@ class OrderService
         return $this->details($user->orders()->findOrFail($id));
     }
 
-    public function listAll(int $perPage): LengthAwarePaginator
+    public function listAll(int $perPage = 20): LengthAwarePaginator
     {
         return Order::withCount('items')->withSum('items as items_quantity', 'quantity')
             ->orderByDesc('created_at')->orderByDesc('id')->paginate($perPage)->withQueryString();
@@ -60,6 +60,7 @@ class OrderService
             'shippingAddress',
             'statusHistory' => fn (HasMany $query): HasMany => $query->orderBy('changed_at')->orderBy('id'),
         ]);
+        $order->items_quantity = (int) ($order->items_quantity ?? 0);
         foreach ($order->items as $item) {
             $item->setAttribute('line_total', (string) BigDecimal::of($item->unit_price)->multipliedBy($item->quantity)->toScale(2));
         }
@@ -106,7 +107,7 @@ class OrderService
                     'category_name_snapshot' => $categories->get($product->category_id)->name,
                     'quantity' => $item['quantity'], 'unit_price' => $product->price, 'unit_cost' => $product->cost,
                 ]);
-                $this->stock->move($product, 'OUTBOUND', -$item['quantity'], 'Pedido #'.$order->id);
+                $this->stock->move($product, 'OUTBOUND', $item['quantity'], 'Pedido #'.$order->id);
             }
             $order->statusHistory()->create(['status' => 'PENDING', 'changed_at' => now()]);
 
