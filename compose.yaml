@@ -17,13 +17,20 @@ services:
       retries: 10
 
   api:
-    build: ./api
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+      args:
+        LOCAL_UID: ${LOCAL_UID:-1000}
+        LOCAL_GID: ${LOCAL_GID:-1000}
     depends_on:
       mysql:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
     environment:
+      APP_ENV: local
+      DB_URL: ""
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
