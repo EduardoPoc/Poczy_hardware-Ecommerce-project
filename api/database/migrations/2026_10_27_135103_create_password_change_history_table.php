@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('password_change_history', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('id_user')->constrained('users')->restrictOnDelete();
+            $table->timestamps();
         });
     }
 

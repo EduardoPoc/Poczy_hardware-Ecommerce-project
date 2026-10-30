@@ -18,6 +18,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('attempts');
             $table->unsignedInteger('reserved_at')->nullable();
             $table->unsignedInteger('available_at');
+            $table->unsignedInteger('created_at');
+            $table->timestamp('updated_at')->nullable();
         });
 
         Schema::create('job_batches', function (Blueprint $table) {
@@ -31,6 +33,8 @@ return new class extends Migration
             $table->integer('cancelled_at')->nullable();
 
             $table->integer('finished_at')->nullable();
+            $table->integer('created_at');
+            $table->timestamp('updated_at')->nullable();
         });
 
         Schema::create('failed_jobs', function (Blueprint $table) {
@@ -43,6 +47,7 @@ return new class extends Migration
             $table->timestamp('failed_at')->useCurrent();
 
             $table->index(['connection', 'queue', 'failed_at']);
+            $table->timestamps();
         });
     }
 

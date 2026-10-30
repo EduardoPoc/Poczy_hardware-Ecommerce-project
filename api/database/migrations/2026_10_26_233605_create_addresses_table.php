@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('complement', 100)->nullable();
             $table->string('city', 100);
             $table->char('state', 2);
+            $table->timestamps();
         });
     }
 
