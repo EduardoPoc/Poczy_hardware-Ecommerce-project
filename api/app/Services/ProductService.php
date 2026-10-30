@@ -8,7 +8,6 @@ use App\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -19,7 +18,7 @@ class ProductService
     private function publicProducts(): Builder
     {
         return Product::where('is_active', true)
-            ->whereHas('category', fn(Builder $query): Builder => $query->where('is_active', true));
+            ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true));
     }
 
     public function listPublicProducts(int $perPage = 20, array $filter = []): LengthAwarePaginator
@@ -58,7 +57,7 @@ class ProductService
     private function applyFilters(Builder $query, array $filter): Builder
     {
         if (isset($filter['q']) && $filter['q'] !== '') {
-            $query->whereLike('name', '%' . $filter['q'] . '%');
+            $query->whereLike('name', '%'.$filter['q'].'%');
         }
         if (isset($filter['category_id'])) {
             $query->where('category_id', $filter['category_id']);
@@ -78,13 +77,7 @@ class ProductService
             }
             $query->where(function (Builder $alternatives) use ($key, $values): void {
                 foreach ($values as $value) {
-                    if (is_float($value) && $alternatives->getConnection()->getDriverName() === 'sqlite') {
-                        // PDO binds floats as text; decode JSON to preserve numeric comparison in SQLite.
-                        $alternatives->orWhereJsonContains('specifications->' . $key, new Expression("json_extract(?, '$')"));
-                        $alternatives->getQuery()->addBinding(json_encode($value, JSON_THROW_ON_ERROR), 'where');
-                    } else {
-                        $alternatives->orWhereJsonContains('specifications->' . $key, $value);
-                    }
+                    $alternatives->orWhereJsonContains('specifications->'.$key, $value);
                 }
             });
         }
