@@ -3,39 +3,42 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterProductsRequest;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
+use App\Http\Resources\AdminProductResource;
 use App\Services\ProductService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class AdminProductController extends Controller
 {
-    public function index(Request $request, ProductService $products): JsonResponse
+    public function index(FilterProductsRequest $request, ProductService $products): AnonymousResourceCollection
     {
-        $records = $products->listAll($request->input('per_page', 20), $request->query());
+        $records = $products->listAll((int) $request->validated('per_page', 20), $request->validated());
 
-        return response()->json($records);
+        return AdminProductResource::collection($records);
     }
 
-    public function show(int $id, ProductService $products): JsonResponse
+    public function show(int $id, ProductService $products): AdminProductResource
     {
         $record = $products->findById($id);
 
-        return response()->json($record);
+        return new AdminProductResource($record);
     }
 
-    public function store(Request $request, ProductService $products): JsonResponse
+    public function store(StoreProductRequest $request, ProductService $products): AdminProductResource
     {
-        $product = $products->create($request->all());
+        $product = $products->create($request->validated());
 
-        return response()->json($product, 201);
+        return new AdminProductResource($product);
     }
 
-    public function update(Request $request, int $id, ProductService $products): JsonResponse
+    public function update(UpdateProductRequest $request, int $id, ProductService $products): AdminProductResource
     {
-        $product = $products->update($id, $request->all());
+        $product = $products->update($id, $request->validated());
 
-        return response()->json($product);
+        return new AdminProductResource($product);
     }
 
     public function destroy(int $id, ProductService $products): Response

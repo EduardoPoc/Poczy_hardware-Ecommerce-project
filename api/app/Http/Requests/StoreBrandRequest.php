@@ -9,12 +9,13 @@ class StoreBrandRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage-shop') ?? false;
+        return true;
     }
 
-    /** @return array<string, mixed> */
     public function rules(): array
     {
-        return ['name' => ['required', 'string', 'max:100', Rule::unique('brands', 'name')]];
+        return [
+            'name' => ['required', 'string', 'max:100', Rule::unique('brands', 'name')],
+        ];
     }
 }

@@ -3,39 +3,41 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreBrandRequest;
+use App\Http\Requests\UpdateBrandRequest;
+use App\Http\Resources\BrandResource;
 use App\Services\BrandService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class AdminBrandController extends Controller
 {
-    public function index(BrandService $brands): JsonResponse
+    public function index(BrandService $brands): AnonymousResourceCollection
     {
         $brands = $brands->listAll();
 
-        return response()->json($brands);
+        return BrandResource::collection($brands);
     }
 
-    public function show(int $brand, BrandService $brands): JsonResponse
+    public function show(int $brand, BrandService $brands): BrandResource
     {
         $brand = $brands->findById($brand);
 
-        return response()->json($brand);
+        return new BrandResource($brand);
     }
 
-    public function store(Request $request, BrandService $brands): JsonResponse
+    public function store(StoreBrandRequest $request, BrandService $brands): BrandResource
     {
-        $brand = $brands->create($request->all());
+        $brand = $brands->create($request->validated());
 
-        return response()->json($brand, 201);
+        return new BrandResource($brand);
     }
 
-    public function update(Request $request, int $brand, BrandService $brands): JsonResponse
+    public function update(UpdateBrandRequest $request, int $brand, BrandService $brands): BrandResource
     {
-        $brand = $brands->update($brand, $request->all());
+        $brand = $brands->update($brand, $request->validated());
 
-        return response()->json($brand);
+        return new BrandResource($brand);
     }
 
     public function destroy(int $brand, BrandService $brands): Response

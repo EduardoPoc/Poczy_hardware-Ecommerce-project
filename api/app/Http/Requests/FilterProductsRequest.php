@@ -2,75 +2,62 @@
 
 namespace App\Http\Requests;
 
-use App\Services\CategoryService;
-use App\Services\SpecificationService;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Validation\Validator;
-use JsonException;
+use Closure;
+use Illuminate\Foundation\Http\FormRequest;
 
-class FilterProductsRequest extends PaginationRequest
+class FilterProductsRequest extends FormRequest
 {
-    protected function prepareForValidation(): void
+    public function authorize(): bool
     {
-        $filter = $this->query('filter');
-        if (is_string($filter)) {
-            try {
-                $filter = json_decode($filter, true, 32, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                throw ValidationException::withMessages(['filter' => 'O filtro deve ser um JSON válido.']);
+        return true;
+    }
+
+    public function validationData(): array
+    {
+        $data = parent::validationData();
+        $specifications = $data['specifications'] ?? null;
+        if (is_string($specifications)) {
+            $decoded = json_decode($specifications, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $data['specifications'] = $decoded;
             }
         }
-        $this->merge(['filter' => $filter]);
+
+        return $data;
     }
 
-    /** @return array<string, mixed> */
     public function rules(): array
     {
-        return array_merge(parent::rules(), [
-            'filter' => ['required', 'array:category_id,min_price,max_price,brand_ids,specifications'],
-            'filter.category_id' => ['required', 'integer', Rule::exists('categories', 'id')->where('is_active', true)],
-            'filter.min_price' => ['sometimes', 'numeric', 'min:0', 'max:99999999.99'],
-            'filter.max_price' => ['sometimes', 'numeric', 'min:0', 'max:99999999.99'],
-            'filter.brand_ids' => ['sometimes', 'array', 'list', 'max:100'],
-            'filter.brand_ids.*' => ['integer', 'distinct', Rule::exists('brands', 'id')],
-            'filter.specifications' => ['sometimes', 'array'],
-            'filter.specifications.*' => ['array', 'list', 'max:100'],
-        ]);
-    }
-
-    public function withValidator(Validator $validator): void
-    {
-        $validator->after(function (Validator $validator): void {
-            if ($validator->errors()->isNotEmpty()) {
-                return;
-            }
-            $filter = $this->input('filter');
-            if (isset($filter['min_price'], $filter['max_price']) && $filter['min_price'] > $filter['max_price']) {
-                $validator->errors()->add('filter.max_price', 'O preço máximo deve ser maior ou igual ao mínimo.');
-            }
-            $category = app(CategoryService::class)->getPublicCategory((int) $filter['category_id']);
-            $definitions = $category->getAttribute('attributes') ?? [];
-            if (! is_array($definitions)) {
-                $validator->errors()->add('filter.category_id', 'A categoria não possui definições válidas de filtros.');
-
-                return;
-            }
-            foreach ($filter['specifications'] ?? [] as $key => $values) {
-                $field = 'filter.specifications.'.$key;
-                $definition = $definitions[$key] ?? null;
-                if (! is_string($key) || ! preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key)
-                    || $key === 'brand' || ! is_array($definition) || ! ($definition['is_filterable'] ?? true)) {
-                    $validator->errors()->add($field, 'Este atributo não está disponível como filtro.');
-
-                    continue;
-                }
-                foreach ($values as $index => $value) {
-                    if (! app(SpecificationService::class)->matchesDefinition($value, $definition)) {
-                        $validator->errors()->add($field.'.'.$index, 'O valor não corresponde ao tipo, opções ou limites do atributo.');
+        $rules = [
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'between:1,100'],
+            'q' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'category_id' => ['sometimes', 'integer', 'min:1'],
+            'brand_ids' => ['sometimes', 'array', 'max:100'],
+            'brand_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
+            'min_price' => ['sometimes', 'numeric', 'min:0', 'max:99999999.99'],
+            'max_price' => ['sometimes', 'numeric', 'min:0', 'max:99999999.99'],
+            'specifications' => ['bail', 'sometimes', 'array', 'max:100', function (string $attribute, mixed $value, Closure $fail): void {
+                foreach (array_keys($value) as $key) {
+                    if (! is_string($key) || ! preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key)) {
+                        $fail('As chaves das especificações devem usar snake_case e ter até 60 caracteres.');
                     }
                 }
-            }
-        });
+            }],
+            'specifications.*' => ['array', 'max:100'],
+            'specifications.*.*' => [function (string $attribute, mixed $value, Closure $fail): void {
+                if (! is_string($value) && ! is_int($value) && ! is_float($value) && ! is_bool($value)) {
+                    $fail('O valor do filtro deve ser texto, número ou booleano.');
+                }
+            }],
+        ];
+        if ($this->filled('min_price')) {
+            $rules['max_price'][] = 'gte:min_price';
+        }
+        if ($this->routeIs('admin.*')) {
+            $rules['is_active'] = ['sometimes', 'boolean'];
+        }
+
+        return $rules;
     }
 }

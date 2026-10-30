@@ -3,23 +3,24 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FilterProductsRequest;
+use App\Http\Resources\ProductResource;
 use App\Services\ProductService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
 {
-    public function index(Request $request, ProductService $products): JsonResponse
+    public function index(FilterProductsRequest $request, ProductService $products): AnonymousResourceCollection
     {
-        $products = $products->listPublicProducts($request->input('per_page', 20), $request->query());
+        $products = $products->listPublicProducts((int) $request->validated('per_page', 20), $request->validated());
 
-        return response()->json($products);
+        return ProductResource::collection($products);
     }
 
-    public function show(int $id, ProductService $products): JsonResponse
+    public function show(int $id, ProductService $products): ProductResource
     {
         $product = $products->getPublicProduct((string) $id);
 
-        return response()->json($product);
+        return new ProductResource($product);
     }
 }
