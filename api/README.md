@@ -63,7 +63,7 @@ A suíte cobre:
 - Transações, snapshots, cancelamentos e movimentações de estoque.
 - Reexecução dos seeders sem duplicação ou sobrescrita dos registros existentes.
 
-Produtos, marcas, categorias, estoque, pedidos, carrinho, login e cadastro usam Form Requests nas entradas correspondentes. Produtos, marcas, pedidos e carrinhos usam Resources; os controllers restantes ainda não aplicam essas camadas integralmente. Os testes de services verificam suas regras diretamente.
+Os controllers estão conectados aos services, Form Requests e Resources existentes. As escritas de perfil, endereços e senha também encaminham somente dados validados. Os testes HTTP de conexão das camadas usam services simulados para verificar delegação e formato sem banco; testes de persistência, unicidade e isolamento usam MySQL.
 
 Para conferir manualmente o ciclo de migrations somente no ambiente de testes:
 
@@ -113,7 +113,7 @@ O Nginx publica HTTP em `127.0.0.1:8080` por padrão. Use um proxy HTTPS do serv
 
 As rotas administrativas usam sessão Laravel (`web`, `auth:web`) e o Gate `manage-shop`, que exige `role=ADMIN`. Perfil, endereços e pedidos exigem `auth:web`. As rotas de sessão e as escritas usam o middleware `web`, com CSRF. Login e cadastro usam os limitadores `login` e `registration` definidos em `bootstrap/app.php`.
 
-Os controllers de produtos e marcas chamam seus services e retornam Resources com envelope `data` e paginação em `links`/`meta`. Os demais controllers ainda retornam JSON diretamente. Os models representam dados, casts e relacionamentos; os services coordenam consultas, transações e regras de negócio. `CatalogService` está preparado para reutilizar as consultas públicas, mas o controller de catálogo ainda faz as consultas diretamente.
+Os controllers delegam consultas e escritas aos services e usam os Resources existentes. Perfil, endereços, categorias, produtos, marcas, estoque, pedidos, carrinho e catálogo retornam envelope `data`; listagens paginadas usam `links` e `meta`. Login e cadastro preservam os campos da conta na raiz, serializados por `UserResource`, e o campo opcional `cart_merge`. Operações sem corpo continuam retornando `204`. Os models representam dados, casts e relacionamentos; os services coordenam consultas, transações e regras de negócio. O catálogo agora utiliza `CatalogService` e `CatalogResource`, omitindo custos internos dos produtos.
 
 A pesquisa do frontend ainda usa o catálogo local de demonstração. No backend, os filtros de produtos aceitam `q` (nome), `category_id`, `brand_ids`, `min_price`, `max_price` e `specifications`. Valores de especificações JSON usam os tipos definidos pela categoria. Categorias e marcas não exigem paginação; produtos usam `page` e `per_page`.
 
@@ -138,7 +138,7 @@ O fluxo dos pedidos é `PENDING → PAID → SHIPPED → DELIVERED`, com cancela
 
 ## Banco e seeders
 
-São 18 tabelas da aplicação, além de `migrations`. Consulte o [esquema no README principal](../README.md#banco-de-dados). As migrations usam nomes em inglês, relações por chaves estrangeiras e dados técnicos em JSON. A coluna `stock_movements.quantity` aceita sinal em ajustes; não há coluna `change`.
+São 20 tabelas da aplicação, além de `migrations`. Consulte o [esquema no README principal](../README.md#banco-de-dados). As migrations usam nomes em inglês, relações por chaves estrangeiras e dados técnicos em JSON. A coluna `stock_movements.quantity` aceita sinal em ajustes; não há coluna `change`.
 
 Os seeders criam 12 categorias, 30 marcas, 48 produtos, cinco clientes, um administrador e seis endereços fictícios. Produtos novos com saldo recebem uma movimentação de entrada inicial. A carga usa dados fixos, preserva registros existentes e não cria pedidos.
 

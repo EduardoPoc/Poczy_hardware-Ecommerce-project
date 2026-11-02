@@ -75,7 +75,7 @@ Uma regra alternativa, como prevalecer a maior quantidade, só é aceita se esti
 
 As respostas de erro devem usar um formato JSON consistente, com `message` e, quando aplicável, `errors` por campo. Entradas inválidas devem ser tratadas pela validação, sem se tornarem erros internos `500`. Uma transição de pedido não permitida retorna `409`.
 
-Produtos, marcas, pedidos e carrinhos retornam Resources com envelope `data`; produtos e pedidos paginados incluem `links` e `meta`. Os demais controllers retornam objetos ou arrays diretamente, e suas listas paginadas usam o formato nativo do Laravel: `data`, `total`, `current_page`, `per_page` e URLs de navegação na raiz. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). `/api/catalog` mantém seu envelope `data` para compatibilidade com o frontend. Valores monetários são strings com duas casas decimais. Os Resources públicos de produtos e itens de pedidos omitem custos internos. O controller de catálogo ainda retorna models diretamente; a ocultação de custos nesse endpoint depende da integração pendente de seu Resource.
+Perfil, endereços, categorias, produtos, marcas, estoque, pedidos, carrinho e catálogo usam Resources com envelope `data`. Produtos, pedidos e movimentos de estoque são paginados com `page` e `per_page` (padrão 20, máximo 100) e retornam `links` e `meta`. Login e cadastro usam `UserResource` para serializar a conta, mantendo os campos na raiz e o campo opcional `cart_merge`. Operações sem corpo retornam `204`. Valores monetários são strings com duas casas decimais. Os Resources públicos omitem custos internos, inclusive no catálogo e nos itens dos pedidos.
 
 As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que aceita somente `role=ADMIN`. Cadastro e edição do perfil não aceitam `role`; a promoção de um administrador deve ocorrer por um processo confiável fora da API pública. Endereços e pedidos do cliente são buscados pelos relacionamentos do usuário da sessão, sem aceitar `user_id` fornecido pelo cliente.
 
@@ -90,7 +90,7 @@ As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que 
 | PUT | `/api/user/password` | `current_password`, `password`, `password_confirmation` |
 | DELETE | `/api/user` | Exige `current_password`; bloqueado se houver pedidos ou histórico de senha |
 
-O cadastro retorna `201` com `role=CUSTOMER`. Quando houver token de carrinho de visitante no fluxo de cadastro ou login, a fusão obrigatória descrita acima deve ser executada para a conta. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens de autenticação nunca entram na resposta JSON.
+O cadastro retorna `201` com `role=CUSTOMER`. Quando houver token de carrinho de visitante no fluxo de cadastro ou login, a fusão obrigatória descrita acima deve ser executada para a conta. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 bytes para compatibilidade com bcrypt. Senhas novas com caractere nulo são rejeitadas na validação, antes da geração do hash. O hash é aplicado pelo cast do model, e senha/tokens de autenticação nunca entram na resposta JSON.
 
 Mudanças de e-mail limpam `email_verified_at`. A troca de senha verifica novamente a senha atual com o usuário bloqueado, altera o hash e cria `password_change_histories` na mesma transação. Depois, encerra a sessão corrente. Com `SESSION_DRIVER=database`, também remove as sessões desse usuário e preserva as de outras contas. Para esse fluxo, mantenha a conexão das sessões no mesmo banco da aplicação. O histórico impede exclusão física posterior da conta, conforme a FK existente; anonimização exige uma política e um fluxo próprios.
 
@@ -125,6 +125,8 @@ Consultas públicas continuam omitindo produtos inativos ou de categoria inativa
 
 Categoria aceita `name` único (até 100 caracteres), `description`, `attributes` e `is_active`. Marca aceita `name` único com até 100 caracteres. Produto exige `category_id`, `name` e `price`; aceita `brand_id`, `description`, `specifications`, `cost`, `stock` inicial, `image_url` e `is_active`. Nome tem até 150 caracteres; imagem é URL HTTP/HTTPS com até 500 caracteres. Preço deve ser positivo, custo não negativo; ambos têm no máximo duas casas e limite de `99999999.99`.
 
+A descrição de categorias e produtos aceita até 65535 bytes, conforme o limite da coluna `TEXT`, inclusive quando o texto usa caracteres multibyte. IDs numéricos fora do intervalo representável por `int` no PHP retornam `404`, antes da chamada aos services.
+
 `stock` é permitido somente no cadastro, entre zero e `2147483647`. Saldo inicial positivo gera uma entrada na mesma transação do produto. Edições posteriores usam exclusivamente o endpoint de movimentações. Produto novo retorna os defaults efetivos de `is_active`, estoque e relacionamentos.
 
 Exclusões respeitam as FKs do domínio:
@@ -140,7 +142,7 @@ Exclusões respeitam as FKs do domínio:
 
 `attributes` é um objeto de até 100 definições, com chaves em snake_case de até 60 caracteres. Cada definição exige `name` e `type` (`text`, `integer`, `number` ou `boolean`), e pode informar `unit`, `options`, `required`, `is_filterable` e limites numéricos. Opções devem respeitar o próprio tipo e os limites; intervalos contraditórios são rejeitados. Limites são números JSON finitos, e indicadores são booleanos JSON.
 
-`SpecificationService` compartilha a validação com `FilterProductsRequest`. `integer` aceita inteiros JSON, `number` aceita inteiros/decimais finitos, `boolean` aceita `true`/`false` e `text` aceita texto de até 1.000 caracteres. Strings numéricas e `0/1` não substituem os tipos JSON. `required` verifica presença da chave, preservando `false` como valor válido. Atributos desconhecidos e valores nulos são rejeitados; atributos opcionais podem ser omitidos.
+`SpecificationService` valida as definições e os valores nas escritas de categorias e produtos. `FilterProductsRequest` valida a estrutura de entrada dos filtros. `integer` aceita inteiros JSON, `number` aceita inteiros/decimais finitos, `boolean` aceita `true`/`false` e `text` aceita texto de até 1.000 caracteres. Strings numéricas e `0/1` não substituem os tipos JSON. `required` verifica presença da chave, preservando `false` como valor válido. Atributos desconhecidos e valores nulos são rejeitados; atributos opcionais podem ser omitidos.
 
 `brand` é uma definição reservada para o filtro da marca: deve ser textual e não obrigatória; a marca do produto vem de `brand_id`, sem duplicação em `specifications`. Desativar `is_filterable` apenas remove a disponibilidade nos filtros; o atributo continua válido no cadastro.
 
@@ -225,12 +227,11 @@ Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pin
 
 ### Situação da implementação
 
-Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; a fusão no login e cadastro, com avisos de ajustes e remoção de inativos; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de cadastro, login, checkout, status, categorias, estoque e filtros.
+Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; a fusão no login e cadastro, com avisos de ajustes e remoção de inativos; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de cadastro, login, perfil, senha, endereços, checkout, status, categorias, estoque e filtros. Os controllers utilizam os services e Resources existentes; o mecanismo de autenticação não foi reformulado.
 
 Permanecem pendentes:
 
 - Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão. O ambiente de execução atual não permite conexão ao banco de testes nem ao socket Docker; testes HTTP de validação e apresentação sem banco podem ser executados separadamente.
-- Integrar os Requests e Resources restantes de perfil, endereços e catálogo quando essas áreas forem tratadas. O mecanismo de autenticação não foi reformulado nesta implementação.
 
 O envio do token está definido no header `X-Cart-Token`, acompanhado da mesma sessão que criou o carrinho. Não há conversão automática de pedidos históricos em `PROCESSING`; uma eventual migração desses registros também exige uma política definida.
 
