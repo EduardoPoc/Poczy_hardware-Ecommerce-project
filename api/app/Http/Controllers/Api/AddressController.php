@@ -3,45 +3,45 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreAddressRequest;
+use App\Http\Requests\UpdateAddressRequest;
+use App\Http\Resources\AddressResource;
+use App\Services\AddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class AddressController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AddressService $addresses): JsonResponse
     {
-        $addresses = $request->user()->addresses()->orderBy('id')->get();
-
-        return response()->json($addresses);
+        return AddressResource::collection($addresses->listUserAddresses($request->user()))->response()->setStatusCode(200);
     }
 
-    public function show(Request $request, int $id): JsonResponse
+    public function show(Request $request, int $id, AddressService $addresses): JsonResponse
     {
-        $address = $request->user()->addresses()->findOrFail($id);
+        $address = $addresses->getUserAddress($request->user(), $id);
 
-        return response()->json($address);
+        return (new AddressResource($address))->response()->setStatusCode(200);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreAddressRequest $request, AddressService $addresses): JsonResponse
     {
-        $address = $request->user()->addresses()->create($request->all());
+        $address = $addresses->create($request->user(), $request->validated());
 
-        return response()->json($address, 201);
+        return (new AddressResource($address))->response()->setStatusCode(201);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(UpdateAddressRequest $request, int $id, AddressService $addresses): JsonResponse
     {
-        $address = $request->user()->addresses()->findOrFail($id);
-        $address->update($request->all());
+        $address = $addresses->update($request->user(), $id, $request->validated());
 
-        return response()->json($address);
+        return (new AddressResource($address))->response()->setStatusCode(200);
     }
 
-    public function destroy(Request $request, int $id): Response
+    public function destroy(Request $request, int $id, AddressService $addresses): Response
     {
-        $address = $request->user()->addresses()->findOrFail($id);
-        $address->delete();
+        $addresses->delete($request->user(), $id);
 
         return response()->noContent();
     }
