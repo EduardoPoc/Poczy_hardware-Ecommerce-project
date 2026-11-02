@@ -54,6 +54,8 @@ Route::middleware('web')->group(function (): void {
             ->only(['index', 'show', 'store', 'destroy'])
             ->parameters(['orders' => 'id'])
             ->whereNumber('id');
+        Route::post('orders/{id}/pay', [OrderController::class, 'pay'])
+            ->whereNumber('id')->name('orders.pay');
     });
 });
 

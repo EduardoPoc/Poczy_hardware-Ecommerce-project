@@ -3,32 +3,45 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PaginationRequest;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Resources\OrderResource;
 use App\Services\OrderService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    public function index(Request $request, OrderService $orders): JsonResponse
+    public function index(PaginationRequest $request, OrderService $orders): AnonymousResourceCollection
     {
-        $orders = $orders->listUserOrders($request->user(), $request->input('per_page', 20));
+        $records = $orders->listUserOrders($request->user(), (int) $request->validated('per_page', 20));
 
-        return response()->json($orders);
+        return OrderResource::collection($records);
     }
 
-    public function show(Request $request, int $id, OrderService $orders): JsonResponse
+    public function show(Request $request, int $id, OrderService $orders): OrderResource
     {
         $order = $orders->getUserOrder($request->user(), (string) $id);
 
-        return response()->json($order);
+        return new OrderResource($order);
     }
 
-    public function store(Request $request, OrderService $orders): JsonResponse
+    public function store(StoreOrderRequest $request, OrderService $orders): OrderResource
     {
-        $order = $orders->create($request->user(), $request->all());
+        $order = $orders->create($request->user(), $request->validated());
 
-        return response()->json($order, 201);
+        return new OrderResource($order);
+    }
+
+    public function pay(Request $request, int $id, OrderService $orders): OrderResource
+    {
+        if ($request->except('_token') !== []) {
+            throw ValidationException::withMessages(['payment' => 'O pagamento é simulado e não recebe dados de pagamento.']);
+        }
+
+        return new OrderResource($orders->pay($request->user(), $id));
     }
 
     public function destroy(Request $request, int $id, OrderService $orders): Response

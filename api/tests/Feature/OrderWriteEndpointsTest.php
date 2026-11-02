@@ -143,14 +143,14 @@ class OrderWriteEndpointsTest extends TestCase
         $order = $orders->create($this->customer, $this->checkoutData());
         try {
             $orders->updateStatus($order->id, 'SHIPPED');
-            $this->fail('Não deve pular o pagamento e processamento.');
+            $this->fail('Não deve pular o pagamento.');
         } catch (ConflictHttpException) {
             $this->assertSame('PENDING', $order->fresh()->status);
         }
-        foreach (['PAID', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED'] as $status) {
+        foreach (['PAID', 'PAID', 'SHIPPED', 'DELIVERED'] as $status) {
             $this->assertSame($status, $orders->updateStatus($order->id, $status)->status);
         }
-        $this->assertDatabaseCount('order_status_histories', 5);
+        $this->assertDatabaseCount('order_status_histories', 4);
         $this->assertSame(7, $this->product->fresh()->stock);
     }
 

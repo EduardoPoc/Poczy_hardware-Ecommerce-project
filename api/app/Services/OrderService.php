@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,8 +18,7 @@ class OrderService
 {
     private const TRANSITIONS = [
         'PENDING' => ['PAID', 'CANCELLED'],
-        'PAID' => ['PROCESSING', 'CANCELLED'],
-        'PROCESSING' => ['SHIPPED'],
+        'PAID' => ['SHIPPED'],
         'SHIPPED' => ['DELIVERED'],
         'DELIVERED' => [],
         'CANCELLED' => [],
@@ -39,7 +39,12 @@ class OrderService
 
     public function getUserOrder(User $user, string $id): Order
     {
-        return $this->details($user->orders()->findOrFail($id));
+        return $this->details($this->accessibleOrders($user)->findOrFail($id));
+    }
+
+    private function accessibleOrders(User $user): Builder
+    {
+        return Order::query()->when($user->role !== 'ADMIN', fn (Builder $query): Builder => $query->where('user_id', $user->id));
     }
 
     public function listAll(int $perPage = 20): LengthAwarePaginator
@@ -128,19 +133,32 @@ class OrderService
     public function cancel(User $user, int $id): void
     {
         DB::transaction(function () use ($user, $id): void {
-            $order = $user->orders()->lockForUpdate()->findOrFail($id);
+            $order = $this->accessibleOrders($user)->lockForUpdate()->findOrFail($id);
             if ($order->status === 'CANCELLED') {
                 return;
             }
             if ($order->status !== 'PENDING') {
-                throw new ConflictHttpException('O cliente só pode cancelar pedidos pendentes.');
+                throw new ConflictHttpException('Somente pedidos aguardando pagamento podem ser cancelados.');
             }
             $this->transition($order, 'CANCELLED');
         }, 3);
     }
 
+    public function pay(User $user, int $id): Order
+    {
+        return DB::transaction(function () use ($user, $id): Order {
+            $order = $this->accessibleOrders($user)->lockForUpdate()->findOrFail($id);
+            $this->transition($order, 'PAID');
+
+            return $this->details($order);
+        }, 3);
+    }
+
     private function transition(Order $order, string $status): void
     {
+        if (! array_key_exists($status, self::TRANSITIONS)) {
+            throw new ConflictHttpException('Transição de status não permitida.');
+        }
         if ($order->status === $status) {
             return;
         }
