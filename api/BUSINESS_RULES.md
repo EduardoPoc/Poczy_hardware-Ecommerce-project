@@ -2,7 +2,7 @@
 
 A Poczy vende produtos de hardware organizados por categoria e marca. Cada categoria define os atributos técnicos aceitos no JSON de especificações. Clientes mantêm seu perfil e endereços e realizam pedidos; administradores mantêm catálogo, estoque e andamento das compras.
 
-A implementação aplica o tutorial BookShelf anexado ao domínio existente: MVC com Service Layer, Form Requests, dados de entrada obtidos por `validated()`, API Resources, Eloquent, injeção de dependências e estilo Laravel/Pint. Os caminhos anteriores foram preservados para compatibilidade com o frontend. Os models continuam responsáveis por dados, casts e relacionamentos; as regras descritas aqui são executadas pelos services, sem eventos de negócio nos models.
+A implementação usa MVC com Service Layer, Eloquent e injeção de dependências. Produtos e marcas já usam Form Requests e API Resources. As classes dessas camadas para os demais controllers estão preparadas, mas ainda não foram conectadas: suas regras de entrada descritas abaixo representam o contrato previsto, não uma garantia da validação HTTP atual. Os models continuam responsáveis por dados, casts e relacionamentos; os services executam as regras de negócio existentes.
 
 ## Respostas e acesso
 
@@ -19,7 +19,7 @@ A implementação aplica o tutorial BookShelf anexado ao domínio existente: MVC
 | `422` | Dados inválidos, especificações incompatíveis ou estoque insuficiente |
 | `429` | Limite de requisições atingido |
 
-Recursos e coleções são envelopados em `data`. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). Valores monetários são strings com duas casas decimais. Custos internos aparecem apenas nas respostas administrativas de produtos, nunca no catálogo público nem nos itens das compras do cliente.
+Produtos e marcas retornam Resources com envelope `data`; produtos paginados incluem `links` e `meta`. Os demais controllers retornam objetos ou arrays diretamente, e suas listas paginadas usam o formato nativo do Laravel: `data`, `total`, `current_page`, `per_page` e URLs de navegação na raiz. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). `/api/catalog` mantém seu envelope `data` para compatibilidade com o frontend. Valores monetários são strings com duas casas decimais. Os Resources públicos de produtos e itens de pedidos omitem custos internos. Como catálogo e pedidos ainda retornam models diretamente, a ocultação de custos nesses endpoints depende da integração pendente dos Resources.
 
 As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que aceita somente `role=ADMIN`. Cadastro e edição do perfil não aceitam `role`; a promoção de um administrador deve ocorrer por um processo confiável fora da API pública. Endereços e pedidos do cliente são buscados pelos relacionamentos do usuário da sessão, sem aceitar `user_id` fornecido pelo cliente.
 
@@ -34,7 +34,7 @@ As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que 
 | PUT | `/api/user/password` | `current_password`, `password`, `password_confirmation` |
 | DELETE | `/api/user` | Exige `current_password`; bloqueado se houver pedidos ou histórico de senha |
 
-O cadastro retorna `201` com `role=CUSTOMER`, sem autenticar automaticamente. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens nunca entram na Resource.
+O cadastro retorna `201` com `role=CUSTOMER`, sem autenticar automaticamente. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens nunca entram na resposta JSON.
 
 Mudanças de e-mail limpam `email_verified_at`. A troca de senha verifica novamente a senha atual com o usuário bloqueado, altera o hash e cria `password_change_histories` na mesma transação. Depois, encerra a sessão corrente. Com `SESSION_DRIVER=database`, também remove as sessões desse usuário e preserva as de outras contas. Para esse fluxo, mantenha a conexão das sessões no mesmo banco da aplicação. O histórico impede exclusão física posterior da conta, conforme a FK existente; anonimização exige uma política e um fluxo próprios.
 
@@ -53,7 +53,7 @@ Use `SESSION_DRIVER=database`, execute as migrations e mantenha frontend/API no 
 
 ## Endereços
 
-CRUD em `/api/address` e `/api/address/{id}`, sempre do próprio usuário. POST exige `postal_code`, `street`, `number`, `city` e `state`; `complement` é opcional/anulável. PUT/PATCH aceitam atualização parcial. CEP aceita oito dígitos com ou sem hífen; estado deve ser uma UF brasileira em maiúsculas. Limites de tamanho acompanham as colunas do banco. `user_id` é proibido.
+CRUD em `/api/addresses` e `/api/addresses/{id}`, sempre do próprio usuário. POST exige `postal_code`, `street`, `number`, `city` e `state`; `complement` é opcional/anulável. PUT/PATCH aceitam atualização parcial. CEP aceita oito dígitos com ou sem hífen; estado deve ser uma UF brasileira em maiúsculas. Limites de tamanho acompanham as colunas do banco. `user_id` é proibido.
 
 Editar ou excluir um endereço cadastrado não modifica os snapshots já salvos nos pedidos. Endereços de outro usuário retornam `404` em leitura, atualização e exclusão.
 
@@ -61,11 +61,11 @@ Editar ou excluir um endereço cadastrado não modifica os snapshots já salvos 
 
 | Recurso | Criação | Atualização/exclusão | Consulta administrativa |
 | --- | --- | --- | --- |
-| Categoria | `POST /api/categoria` | `PUT/PATCH/DELETE /api/categoria/{id}` | `GET /api/admin/categoria` e `/{id}` |
-| Produto | `POST /api/product` | `PUT/PATCH/DELETE /api/product/{id}` | `GET /api/admin/product` e `/{id}` |
-| Marca | `POST /api/brand` | `PUT/PATCH/DELETE /api/brand/{brand}` | `GET /api/brand` e `/{brand}` |
+| Categoria | `POST /api/admin/categories` | `PUT/PATCH/DELETE /api/admin/categories/{category}` | `GET /api/admin/categories` e `/{category}` |
+| Produto | `POST /api/admin/products` | `PUT/PATCH/DELETE /api/admin/products/{product}` | `GET /api/admin/products` e `/{product}` |
+| Marca | `POST /api/admin/brands` | `PUT/PATCH/DELETE /api/admin/brands/{brand}` | `GET /api/admin/brands` e `/{brand}` |
 
-Consultas públicas continuam omitindo produtos inativos ou de categoria inativa. Consultas administrativas incluem registros desativados. As respostas públicas anteriores de cards/categorias e `/api/catalog` mantêm o formato original; o detalhe de categoria também está disponível em `GET /api/categoria/{id}`.
+Consultas públicas continuam omitindo produtos inativos ou de categoria inativa. Consultas administrativas incluem registros desativados. As respostas públicas anteriores de cards/categorias e `/api/catalog` mantêm o formato original; o detalhe de categoria também está disponível em `GET /api/categories/{category}`.
 
 Categoria aceita `name` único (até 100 caracteres), `description`, `attributes` e `is_active`. Marca aceita `name` único com até 100 caracteres. Produto exige `category_id`, `name` e `price`; aceita `brand_id`, `description`, `specifications`, `cost`, `stock` inicial, `image_url` e `is_active`. Nome tem até 150 caracteres; imagem é URL HTTP/HTTPS com até 500 caracteres. Preço deve ser positivo, custo não negativo; ambos têm no máximo duas casas e limite de `99999999.99`.
 
@@ -77,7 +77,7 @@ Exclusões respeitam as FKs do domínio:
 - Produto com movimentações retorna `409`; preserve-o desativado para manter auditoria.
 - Produto sem movimentações pode ser removido; referências em itens de pedidos tornam-se nulas e os snapshots permanecem.
 - Excluir marca mantém os produtos e torna `brand_id` nulo.
-- Pedido não possui exclusão física pela API: `DELETE /api/order/{id}` cancela conforme as regras abaixo.
+- Pedido não possui exclusão física pela API: `DELETE /api/orders/{id}` cancela conforme as regras abaixo.
 
 ### Atributos dinâmicos
 
@@ -91,19 +91,19 @@ No PUT/PATCH, o objeto `specifications` enviado substitui o objeto anterior. Se 
 
 ## Estoque
 
-`GET /api/product/{id}/stock-movements` lista o histórico paginado. `POST` no mesmo caminho exige administrador e recebe:
+`GET /api/admin/products/{id}/stock-movements` lista o histórico paginado. `POST` no mesmo caminho exige administrador e recebe:
 
 ```json
-{"type":"INBOUND","change":5,"reason":"Reposição de estoque"}
+{"type":"INBOUND","quantity":5,"reason":"Reposição de estoque"}
 ```
 
-`INBOUND` exige variação positiva; `OUTBOUND`, negativa; `ADJUSTMENT` aceita ambos os sinais. Zero é inválido. `reason` é obrigatório e tem até 150 caracteres. O servidor deriva `quantity=abs(change)` e restringe o saldo final ao intervalo de zero a `2147483647`. Movimentações são imutáveis pela API.
+`INBOUND` soma `quantity` ao estoque; `OUTBOUND` subtrai. Ambos exigem quantidade positiva. `ADJUSTMENT` soma a quantidade com sinal, permitindo correções positivas ou negativas. Zero é inválido. `reason` é obrigatório e tem até 150 caracteres. O servidor restringe o saldo final ao intervalo de zero a `2147483647`. Movimentações são imutáveis pela API.
 
 `StockService` usa transação e bloqueio de linha para alterar o saldo e registrar a movimentação juntos. Pedidos geram saídas; cancelamentos geram entradas. O estoque inicial das seeders continua sendo a base ilustrativa existente, sem criação retroativa de históricos.
 
 ## Checkout
 
-`POST /api/order`, autenticado e com CSRF:
+`POST /api/orders`, autenticado e com CSRF:
 
 ```json
 {
@@ -132,9 +132,9 @@ O frete vem de `config/shop.php`, configurado por `SHOP_SHIPPING_TOTAL`, inicial
 
 ## Cancelamento e andamento
 
-Cliente: `DELETE /api/order/{id}` cancela somente pedido próprio em `PENDING`, retorna `204` e preserva pedido, itens, endereço e histórico. O estoque retorna por movimentações `INBOUND`. Repetir o cancelamento não duplica entradas nem eventos. Pedido próprio em outro status retorna `409`; pedido alheio retorna `404`.
+Cliente: `DELETE /api/orders/{id}` cancela somente pedido próprio em `PENDING`, retorna `204` e preserva pedido, itens, endereço e histórico. O estoque retorna por movimentações `INBOUND`. Repetir o cancelamento não duplica entradas nem eventos. Pedido próprio em outro status retorna `409`; pedido alheio retorna `404`.
 
-Administrador: `PUT/PATCH /api/admin/order/{id}` recebe somente o status desejado, por exemplo `{"status":"PROCESSING"}`. Transições aceitas:
+Administrador: `PUT/PATCH /api/admin/orders/{id}` recebe somente o status desejado, por exemplo `{"status":"PROCESSING"}`. Transições aceitas:
 
 | Atual | Próximos estados |
 | --- | --- |
@@ -151,8 +151,8 @@ Repetir o estado atual é uma operação sem efeito e não duplica histórico. A
 
 ## Validação e limites atuais
 
-`composer test` executa a suíte padrão em SQLite em memória. Os testes de escrita verificam permissões, validações dinâmicas, auditoria, CSRF, revogação de sessões, totais, snapshots, rollback e cancelamento repetido. Os testes HTTP de escrita/consulta e de sessões também foram executados em um banco temporário isolado no MySQL 8.4. SQLite não reproduz bloqueios de linha; os testes atuais não simulam múltiplos checkouts em processos concorrentes.
+`composer test` executa a suíte com MySQL no banco isolado `ecommerce_test`, conforme `phpunit.xml` e a proteção em `Tests\TestCase`. A suíte verifica permissões, validação HTTP de produtos e marcas, especificações dinâmicas, auditoria, revogação de sessões, totais, snapshots, rollback e cancelamento repetido. Os testes com banco podem ser executados pelo Compose de testes com MySQL 8.4. Os testes atuais não simulam múltiplos checkouts em processos concorrentes.
 
 Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pint --dirty --format agent` para padronizar PHP. Os testes usam `RefreshDatabase`: nunca os aponte para o banco de desenvolvimento ou produção. Esta implementação não exigiu novas dependências, mudanças de schema nem recriação dos dados locais.
 
-Permanecem para evolução: provedor de pagamento/reembolso, cotação de frete, recuperação de senha, confirmação de e-mail, política de anonimização, compatibilidade entre componentes, interface administrativa e integração do frontend com sessão/checkout. `POST /api/order` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
+Permanecem para evolução: provedor de pagamento/reembolso, cotação de frete, recuperação de senha, confirmação de e-mail, política de anonimização, compatibilidade entre componentes, interface administrativa e integração do frontend com sessão/checkout. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
