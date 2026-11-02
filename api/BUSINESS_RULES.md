@@ -24,6 +24,19 @@ A arquitetura usa MVC com Service Layer, Eloquent e injeção de dependências. 
 - O carrinho de visitante é identificado por um token opaco gerado pelo servidor, imprevisível e protegido contra reutilização por outro visitante.
 - O carrinho não congela preços: suas consultas e totais refletem o preço atual do produto no banco. O congelamento ocorre apenas ao criar o pedido.
 
+### Interface do carrinho
+
+| Método | Rota | Ação |
+| --- | --- | --- |
+| GET | `/api/cart` | Obtém ou cria o carrinho da sessão ou conta |
+| POST | `/api/cart/items` | Recebe `product_id` e `quantity`; soma ao item existente |
+| PATCH | `/api/cart/items/{product}` | Substitui a quantidade pelo valor de `quantity` |
+| DELETE | `/api/cart/items/{product}` | Remove o item |
+
+O token de visitante é emitido em `data.cart_token` quando o carrinho é criado. O frontend deve guardá-lo e enviá-lo em `X-Cart-Token`, mantendo também os cookies da mesma sessão. O servidor armazena somente o hash do token e o vincula a um segredo independente da sessão; o token isolado não permite acessar o carrinho em outra sessão. O token deve ser enviado também no login ou cadastro para solicitar a fusão, cuja integração permanece pendente conforme a seção final.
+
+As rotas de carrinho usam sessão e CSRF nas escritas. Operações da mesma sessão são serializadas por bloqueio de sessão para evitar criação concorrente e perda do vínculo do visitante. O cache usado pelo ambiente precisa suportar locks compartilhados entre os processos da aplicação. As migrations de `carts` e `cart_items` adicionam as restrições de unicidade sem recriar as tabelas existentes.
+
 ### Fusão de carrinhos no login ou cadastro — obrigatória
 
 Esta é a regra central do projeto e deve poder ser explicada pelo aluno na avaliação.
@@ -57,7 +70,7 @@ Uma regra alternativa, como prevalecer a maior quantidade, só é aceita se esti
 
 As respostas de erro devem usar um formato JSON consistente, com `message` e, quando aplicável, `errors` por campo. Entradas inválidas devem ser tratadas pela validação, sem se tornarem erros internos `500`. Uma transição de pedido não permitida retorna `409`.
 
-Produtos e marcas retornam Resources com envelope `data`; produtos paginados incluem `links` e `meta`. Os demais controllers retornam objetos ou arrays diretamente, e suas listas paginadas usam o formato nativo do Laravel: `data`, `total`, `current_page`, `per_page` e URLs de navegação na raiz. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). `/api/catalog` mantém seu envelope `data` para compatibilidade com o frontend. Valores monetários são strings com duas casas decimais. Os Resources públicos de produtos e itens de pedidos omitem custos internos. Como catálogo e pedidos ainda retornam models diretamente, a ocultação de custos nesses endpoints depende da integração pendente dos Resources.
+Produtos, marcas, pedidos e carrinhos retornam Resources com envelope `data`; produtos e pedidos paginados incluem `links` e `meta`. Os demais controllers retornam objetos ou arrays diretamente, e suas listas paginadas usam o formato nativo do Laravel: `data`, `total`, `current_page`, `per_page` e URLs de navegação na raiz. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). `/api/catalog` mantém seu envelope `data` para compatibilidade com o frontend. Valores monetários são strings com duas casas decimais. Os Resources públicos de produtos e itens de pedidos omitem custos internos. O controller de catálogo ainda retorna models diretamente; a ocultação de custos nesse endpoint depende da integração pendente de seu Resource.
 
 As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que aceita somente `role=ADMIN`. Cadastro e edição do perfil não aceitam `role`; a promoção de um administrador deve ocorrer por um processo confiável fora da API pública. Endereços e pedidos do cliente são buscados pelos relacionamentos do usuário da sessão, sem aceitar `user_id` fornecido pelo cliente.
 
@@ -179,6 +192,8 @@ A escolha do projeto é `DECIMAL(10,2)` no banco, com representação decimal em
 
 O pagamento é uma simulação disponível somente ao dono do pedido ou a um administrador, para pedidos aguardando pagamento. Não há integração com provedor financeiro, cobrança real nem solicitação ou armazenamento de dados de cartão. O pagamento simulado concluído leva o pedido de `PENDING` para `PAID`.
 
+`POST /api/orders/{id}/pay` executa o pagamento simulado e não recebe dados de pagamento. Repetir a operação em um pedido já pago não duplica o histórico nem altera o estoque. O dono ou administrador também pode consultar e cancelar pelo endpoint comum do pedido, respeitando os estados permitidos.
+
 Cliente: `DELETE /api/orders/{id}` cancela somente pedido próprio em `PENDING`, retorna `204` e preserva pedido, itens, endereço e histórico. O estoque retorna por movimentações `INBOUND`. Repetir o cancelamento não duplica entradas nem eventos. Pedido próprio em outro status retorna `409`; pedido alheio retorna `404`.
 
 O administrador também pode cancelar um pedido, desde que ele esteja em `PENDING`. Pedidos pagos, enviados ou entregues não podem ser cancelados por este fluxo. O cancelamento deve devolver o estoque dos itens e preservar o histórico.
@@ -203,17 +218,17 @@ Repetir o estado atual é uma operação sem efeito e não duplica histórico. A
 
 Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pint --dirty --format agent` para padronizar PHP. Os testes usam `RefreshDatabase`: nunca os aponte para o banco de desenvolvimento ou produção.
 
-### Pendências conhecidas de implementação
+### Situação da implementação
 
-- Implementar o carrinho de visitante e da conta, suas restrições, o token opaco e a atualização de preços.
-- Implementar a fusão obrigatória no login e cadastro, os avisos de ajuste e a invalidação do token de visitante.
-- Implementar o pagamento simulado pelo dono do pedido ou administrador.
-- Ajustar o mapa de status e os testes: remover `PROCESSING`, permitir `PAID → SHIPPED` e impedir `PAID → CANCELLED`.
-- Impedir exclusão física de produtos vinculados a pedidos, inclusive sem movimentações de estoque.
-- Conectar os Requests e Resources preparados aos controllers restantes. Produtos e marcas já utilizam essas camadas; os demais controllers ainda não as aplicam integralmente.
-- Corrigir entradas inválidas que hoje podem resultar em `500`, como filtros malformados e atualização de pedido sem status válido.
-- Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão.
+Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de checkout, status, categorias, estoque e filtros.
 
-O formato de envio do token, o vínculo que impede seu uso por outro visitante e o tratamento de produtos que se tornaram inativos antes da fusão ainda precisam ser definidos antes da implementação desses detalhes. Esta documentação não escolhe silenciosamente uma política para esses casos.
+Permanecem pendentes:
+
+- Concluir a fusão no login e cadastro, seus avisos de ajuste e a invalidação do token de visitante. Os cenários de testes estão preparados, mas a integração ainda não foi concluída.
+- Definir o tratamento de produtos que se tornaram inativos antes da fusão: remover esses itens e avisar, ou rejeitar a fusão. Essa decisão de negócio depende de consulta, sem adoção silenciosa de uma política.
+- Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão. O ambiente de execução atual não permite conexão ao banco de testes nem ao socket Docker; testes HTTP de validação e apresentação sem banco podem ser executados separadamente.
+- Integrar os Requests e Resources restantes de perfil, endereços e catálogo quando essas áreas forem tratadas. O mecanismo de autenticação não foi reformulado nesta implementação.
+
+O envio do token está definido no header `X-Cart-Token`, acompanhado da mesma sessão que criou o carrinho. Não há conversão automática de pedidos históricos em `PROCESSING`; uma eventual migração desses registros também exige uma política definida.
 
 Permanecem fora do contrato atual: integração financeira real, cotação de frete por transportadora, recuperação de senha, confirmação de e-mail, política de anonimização e compatibilidade entre componentes. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
