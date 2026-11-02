@@ -1,8 +1,44 @@
-# Regras de negócio e contrato de escritas
+# Regras de negócio esperadas do backend
 
 A Poczy vende produtos de hardware organizados por categoria e marca. Cada categoria define os atributos técnicos aceitos no JSON de especificações. Clientes mantêm seu perfil e endereços e realizam pedidos; administradores mantêm catálogo, estoque e andamento das compras.
 
-A implementação usa MVC com Service Layer, Eloquent e injeção de dependências. Produtos e marcas já usam Form Requests e API Resources. As classes dessas camadas para os demais controllers estão preparadas, mas ainda não foram conectadas: suas regras de entrada descritas abaixo representam o contrato previsto, não uma garantia da validação HTTP atual. Os models continuam responsáveis por dados, casts e relacionamentos; os services executam as regras de negócio existentes.
+Este documento define o contrato esperado do projeto. As regras de carrinho, fusão, pagamento simulado, transições de pedidos e preservação de produtos descritas aqui prevalecem sobre os comportamentos anteriores que estiverem em conflito. Documentar uma regra não significa que ela já esteja implementada; as pendências conhecidas estão registradas ao final.
+
+A arquitetura usa MVC com Service Layer, Eloquent e injeção de dependências. Os models representam dados, casts e relacionamentos; os services coordenam regras de negócio e transações. Requests validam entradas HTTP e Resources organizam respostas. A implementação do mecanismo de autenticação fica fora do escopo desta revisão, mas as regras de acesso esperadas permanecem documentadas.
+
+## Acesso e autorização
+
+- Catálogo, detalhe do produto e carrinho de visitante são públicos.
+- Checkout, pedidos, perfil e administração exigem autenticação.
+- Somente administradores criam, editam ou excluem produtos e categorias e alteram administrativamente o status dos pedidos.
+- Somente o dono do pedido ou um administrador pode visualizá-lo, pagá-lo ou cancelá-lo. Essas ações também devem respeitar o estado atual do pedido.
+- O pagamento simulado pelo dono do pedido é uma ação de negócio permitida; isso não lhe concede permissão para editar livremente o status.
+
+## Carrinho
+
+- Um usuário autenticado possui no máximo um carrinho ativo.
+- A combinação carrinho + produto é única. Adicionar novamente um produto existente soma a quantidade ao item atual.
+- Itens mantidos no carrinho têm quantidade mínima de 1. Informar quantidade 0 remove o item.
+- A quantidade de um item não pode ultrapassar o estoque disponível.
+- Produtos inativos ou sem estoque não podem ser adicionados ao carrinho.
+- O carrinho de visitante é identificado por um token opaco gerado pelo servidor, imprevisível e protegido contra reutilização por outro visitante.
+- O carrinho não congela preços: suas consultas e totais refletem o preço atual do produto no banco. O congelamento ocorre apenas ao criar o pedido.
+
+### Fusão de carrinhos no login ou cadastro — obrigatória
+
+Esta é a regra central do projeto e deve poder ser explicada pelo aluno na avaliação.
+
+Ao autenticar pelo fluxo de login ou registro, se o frontend enviar um token de carrinho de visitante, a API deve fundir esse carrinho ao carrinho da conta, esteja ele vazio ou não. A regra adotada é somar as quantidades e limitá-las ao estoque disponível:
+
+1. Produto presente apenas no carrinho de visitante é copiado para o carrinho do usuário, respeitando o estoque disponível.
+2. Produto presente nos dois carrinhos tem as quantidades somadas, mantendo um único item.
+3. Se a quantidade resultante exceder o estoque, ela é ajustada para o máximo disponível e a resposta deve avisar o usuário sobre o ajuste.
+4. Quantidade final 0 não mantém um item no carrinho, conforme a regra de remoção por quantidade zero.
+5. Concluída a fusão, o carrinho de visitante é descartado e seu token é invalidado, impedindo seu uso posterior.
+
+Exemplo: a conta tem 2 unidades e o visitante tem 3. Com estoque de 4, o carrinho da conta termina com 4 unidades, e o usuário recebe um aviso de ajuste. Com estoque de 5 ou mais, termina com 5 unidades.
+
+Uma regra alternativa, como prevalecer a maior quantidade, só é aceita se estiver documentada no README e implementada de forma consistente. O contrato atual adota a soma limitada ao estoque.
 
 ## Respostas e acesso
 
@@ -19,6 +55,8 @@ A implementação usa MVC com Service Layer, Eloquent e injeção de dependênci
 | `422` | Dados inválidos, especificações incompatíveis ou estoque insuficiente |
 | `429` | Limite de requisições atingido |
 
+As respostas de erro devem usar um formato JSON consistente, com `message` e, quando aplicável, `errors` por campo. Entradas inválidas devem ser tratadas pela validação, sem se tornarem erros internos `500`. Uma transição de pedido não permitida retorna `409`.
+
 Produtos e marcas retornam Resources com envelope `data`; produtos paginados incluem `links` e `meta`. Os demais controllers retornam objetos ou arrays diretamente, e suas listas paginadas usam o formato nativo do Laravel: `data`, `total`, `current_page`, `per_page` e URLs de navegação na raiz. Produtos, pedidos e movimentos de estoque têm paginação com `page` e `per_page` (padrão 20, máximo 100). `/api/catalog` mantém seu envelope `data` para compatibilidade com o frontend. Valores monetários são strings com duas casas decimais. Os Resources públicos de produtos e itens de pedidos omitem custos internos. Como catálogo e pedidos ainda retornam models diretamente, a ocultação de custos nesses endpoints depende da integração pendente dos Resources.
 
 As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que aceita somente `role=ADMIN`. Cadastro e edição do perfil não aceitam `role`; a promoção de um administrador deve ocorrer por um processo confiável fora da API pública. Endereços e pedidos do cliente são buscados pelos relacionamentos do usuário da sessão, sem aceitar `user_id` fornecido pelo cliente.
@@ -34,7 +72,7 @@ As operações administrativas exigem sessão `web` e o Gate `manage-shop`, que 
 | PUT | `/api/user/password` | `current_password`, `password`, `password_confirmation` |
 | DELETE | `/api/user` | Exige `current_password`; bloqueado se houver pedidos ou histórico de senha |
 
-O cadastro retorna `201` com `role=CUSTOMER`, sem autenticar automaticamente. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens nunca entram na resposta JSON.
+O cadastro retorna `201` com `role=CUSTOMER`. Quando houver token de carrinho de visitante no fluxo de cadastro ou login, a fusão obrigatória descrita acima deve ser executada para a conta. E-mails recebidos são normalizados para minúsculas; são únicos e limitados a 150 caracteres. Nome aceita até 100 caracteres. Senhas novas exigem ao menos 12 caracteres, maiúsculas, minúsculas, números, símbolo e confirmação, com limite de 72 caracteres. O hash é aplicado pelo cast do model, e senha/tokens de autenticação nunca entram na resposta JSON.
 
 Mudanças de e-mail limpam `email_verified_at`. A troca de senha verifica novamente a senha atual com o usuário bloqueado, altera o hash e cria `password_change_histories` na mesma transação. Depois, encerra a sessão corrente. Com `SESSION_DRIVER=database`, também remove as sessões desse usuário e preserva as de outras contas. Para esse fluxo, mantenha a conexão das sessões no mesmo banco da aplicação. O histórico impede exclusão física posterior da conta, conforme a FK existente; anonimização exige uma política e um fluxo próprios.
 
@@ -75,7 +113,8 @@ Exclusões respeitam as FKs do domínio:
 
 - Categoria com produtos retorna `409`; use `is_active=false` para retirá-la do catálogo.
 - Produto com movimentações retorna `409`; preserve-o desativado para manter auditoria.
-- Produto sem movimentações pode ser removido; referências em itens de pedidos tornam-se nulas e os snapshots permanecem.
+- Produto que já pertence a um pedido não pode ser removido fisicamente, mesmo que não tenha movimentações registradas. Deve ser desativado com `is_active=false` ou preservado por exclusão lógica, mantendo o vínculo e o histórico do pedido.
+- A ausência de movimentações, isoladamente, não autoriza a exclusão física: é necessário verificar também os vínculos com pedidos.
 - Excluir marca mantém os produtos e torna `brand_id` nulo.
 - Pedido não possui exclusão física pela API: `DELETE /api/orders/{id}` cancela conforme as regras abaixo.
 
@@ -116,7 +155,7 @@ No PUT/PATCH, o objeto `specifications` enviado substitui o objeto anterior. Se 
 }
 ```
 
-Aceita de um a 100 produtos distintos, com quantidades inteiras de um a 10.000. Repetir um produto na mesma lista retorna `422`; consolide a quantidade antes de enviar. As formas de pagamento aceitas são `PIX`, `CREDIT_CARD` e `BOLETO`. A API registra a intenção e não coleta dados de cartão nem executa cobranças.
+Aceita de um a 100 produtos distintos, com quantidades inteiras de um a 10.000. Repetir um produto na mesma lista retorna `422`; consolide a quantidade antes de enviar. As formas de pagamento aceitas são `PIX`, `CREDIT_CARD` e `BOLETO`. Esses valores representam a modalidade informada; o pagamento é simulado, sem cobrança real nem coleta de dados de cartão.
 
 O service valida que o endereço é do cliente, bloqueia categorias/produtos em ordem de ID e exige produtos/categorias ativos e saldo suficiente. Preços, custos, nomes e categorias são obtidos do banco. A transação grava:
 
@@ -126,33 +165,55 @@ O service valida que o endereço é do cliente, bloqueia categorias/produtos em 
 4. Baixa do estoque e movimentações `OUTBOUND`.
 5. Primeiro evento do histórico de status.
 
-Qualquer falha desfaz o conjunto inteiro. `user_id`, `status`, `products_total`, `shipping_total` e `total` são proibidos na entrada. Campos adicionais nos itens, como preço ou custo, também são rejeitados. O total não pode exceder `99999999.99`.
+O total do pedido é sempre calculado no servidor a partir dos preços gravados no banco, e cada item guarda o nome e o preço unitário praticados no momento da compra. A criação valida o estoque e o decrementa dentro da mesma transação. Se qualquer item falhar, nada é gravado e nenhuma baixa de estoque permanece.
+
+`user_id`, `status`, `products_total`, `shipping_total` e `total` são proibidos na entrada. Campos adicionais nos itens, como preço ou custo, também são rejeitados. O total não pode exceder `99999999.99`.
 
 O frete vem de `config/shop.php`, configurado por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. Configure um valor monetário não negativo com duas casas. Esse valor é uma regra fixa provisória, sem cotação de transportadora. Frete e totais são congelados no pedido; futuras alterações de preço, catálogo ou endereço não mudam a compra.
 
-## Cancelamento e andamento
+## Valores monetários
+
+A escolha do projeto é `DECIMAL(10,2)` no banco, com representação decimal em strings e cálculos por `BigDecimal` na aplicação. Preços, custos, valores unitários, frete e totais devem seguir essa escolha de forma consistente. Valores monetários não devem usar ponto flutuante em cálculos. Não deve haver mistura entre valores decimais e inteiros em centavos sem uma conversão explícita.
+
+## Pagamento simulado, cancelamento e andamento
+
+O pagamento é uma simulação disponível somente ao dono do pedido ou a um administrador, para pedidos aguardando pagamento. Não há integração com provedor financeiro, cobrança real nem solicitação ou armazenamento de dados de cartão. O pagamento simulado concluído leva o pedido de `PENDING` para `PAID`.
 
 Cliente: `DELETE /api/orders/{id}` cancela somente pedido próprio em `PENDING`, retorna `204` e preserva pedido, itens, endereço e histórico. O estoque retorna por movimentações `INBOUND`. Repetir o cancelamento não duplica entradas nem eventos. Pedido próprio em outro status retorna `409`; pedido alheio retorna `404`.
 
-Administrador: `PUT/PATCH /api/admin/orders/{id}` recebe somente o status desejado, por exemplo `{"status":"PROCESSING"}`. Transições aceitas:
+O administrador também pode cancelar um pedido, desde que ele esteja em `PENDING`. Pedidos pagos, enviados ou entregues não podem ser cancelados por este fluxo. O cancelamento deve devolver o estoque dos itens e preservar o histórico.
+
+Administrador: `PUT/PATCH /api/admin/orders/{id}` recebe somente o status desejado, por exemplo `{"status":"SHIPPED"}`. O fluxo esperado é aguardando pagamento → pago → enviado → entregue, com cancelamento a partir de aguardando pagamento. Transições aceitas:
 
 | Atual | Próximos estados |
 | --- | --- |
 | `PENDING` | `PAID`, `CANCELLED` |
-| `PAID` | `PROCESSING`, `CANCELLED` |
-| `PROCESSING` | `SHIPPED` |
+| `PAID` | `SHIPPED` |
 | `SHIPPED` | `DELIVERED` |
 | `DELIVERED` | Nenhum |
 | `CANCELLED` | Nenhum |
 
-Repetir o estado atual é uma operação sem efeito e não duplica histórico. Alteração de status, histórico e eventual devolução de estoque usam a mesma transação, com bloqueio do pedido. Um produto removido em registros antigos bloqueia cancelamento com `409` até conciliar o estoque. Não há edição de itens/preços depois da compra.
+`PENDING` significa aguardando pagamento, `PAID` pago, `SHIPPED` enviado, `DELIVERED` entregue e `CANCELLED` cancelado. `PROCESSING` não faz parte do fluxo esperado. Uma transição fora da tabela retorna `409`.
 
-`PAID` é uma confirmação operacional manual por administrador; ainda não comprova uma cobrança por provedor. Cancelar um pedido pago não executa reembolso financeiro. Essas integrações precisam anteceder o uso comercial desse fluxo.
+Repetir o estado atual é uma operação sem efeito e não duplica histórico. Alteração de status, histórico e eventual devolução de estoque usam a mesma transação, com bloqueio do pedido. Um produto removido em registros antigos bloqueia cancelamento com `409` até conciliar o estoque. Não há edição de itens/preços depois da compra.
 
 ## Validação e limites atuais
 
 `composer test` executa a suíte com MySQL no banco isolado `ecommerce_test`, conforme `phpunit.xml` e a proteção em `Tests\TestCase`. A suíte verifica permissões, validação HTTP de produtos e marcas, especificações dinâmicas, auditoria, revogação de sessões, totais, snapshots, rollback e cancelamento repetido. Os testes com banco podem ser executados pelo Compose de testes com MySQL 8.4. Os testes atuais não simulam múltiplos checkouts em processos concorrentes.
 
-Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pint --dirty --format agent` para padronizar PHP. Os testes usam `RefreshDatabase`: nunca os aponte para o banco de desenvolvimento ou produção. Esta implementação não exigiu novas dependências, mudanças de schema nem recriação dos dados locais.
+Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pint --dirty --format agent` para padronizar PHP. Os testes usam `RefreshDatabase`: nunca os aponte para o banco de desenvolvimento ou produção.
 
-Permanecem para evolução: provedor de pagamento/reembolso, cotação de frete, recuperação de senha, confirmação de e-mail, política de anonimização, compatibilidade entre componentes, interface administrativa e integração do frontend com sessão/checkout. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
+### Pendências conhecidas de implementação
+
+- Implementar o carrinho de visitante e da conta, suas restrições, o token opaco e a atualização de preços.
+- Implementar a fusão obrigatória no login e cadastro, os avisos de ajuste e a invalidação do token de visitante.
+- Implementar o pagamento simulado pelo dono do pedido ou administrador.
+- Ajustar o mapa de status e os testes: remover `PROCESSING`, permitir `PAID → SHIPPED` e impedir `PAID → CANCELLED`.
+- Impedir exclusão física de produtos vinculados a pedidos, inclusive sem movimentações de estoque.
+- Conectar os Requests e Resources preparados aos controllers restantes. Produtos e marcas já utilizam essas camadas; os demais controllers ainda não as aplicam integralmente.
+- Corrigir entradas inválidas que hoje podem resultar em `500`, como filtros malformados e atualização de pedido sem status válido.
+- Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão.
+
+O formato de envio do token, o vínculo que impede seu uso por outro visitante e o tratamento de produtos que se tornaram inativos antes da fusão ainda precisam ser definidos antes da implementação desses detalhes. Esta documentação não escolhe silenciosamente uma política para esses casos.
+
+Permanecem fora do contrato atual: integração financeira real, cotação de frete por transportadora, recuperação de senha, confirmação de e-mail, política de anonimização e compatibilidade entre componentes. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
