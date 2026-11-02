@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AdminCategoryController;
 use App\Http\Controllers\Api\AdminOrderController;
 use App\Http\Controllers\Api\AdminProductController;
 use App\Http\Controllers\Api\BrandController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
@@ -33,10 +34,17 @@ Route::apiResource('categories', CategoryController::class)
     ->whereNumber('category');
 
 Route::middleware('web')->group(function (): void {
+    Route::get('cart', [CartController::class, 'show'])->block()->name('cart.show');
+    Route::post('cart/items', [CartController::class, 'storeItem'])->block()->name('cart.items.store');
+    Route::patch('cart/items/{product}', [CartController::class, 'updateItem'])
+        ->whereNumber('product')->block()->name('cart.items.update');
+    Route::delete('cart/items/{product}', [CartController::class, 'destroyItem'])
+        ->whereNumber('product')->block()->name('cart.items.destroy');
+
     Route::post('login', [SessionController::class, 'store'])
-        ->middleware('throttle:login')->name('login');
+        ->middleware('throttle:login')->block()->name('login');
     Route::post('user', [UserController::class, 'store'])
-        ->middleware('throttle:registration')->name('user.store');
+        ->middleware('throttle:registration')->block()->name('user.store');
 
     Route::middleware('auth:web')->group(function (): void {
         Route::post('logout', [SessionController::class, 'destroy'])->name('logout');
