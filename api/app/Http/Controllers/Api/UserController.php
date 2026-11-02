@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Resources\CartMergeResource;
 use App\Services\AuthService;
+use App\Services\CartMergeService;
 use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -18,11 +22,21 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    public function store(Request $request, UserService $users): JsonResponse
+    public function store(StoreUserRequest $request, UserService $users, CartMergeService $carts): JsonResponse
     {
-        $user = $users->register($request->all());
+        $carts->validateGuest($request);
+        $payload = DB::transaction(function () use ($request, $users, $carts): array {
+            $user = $users->register($request->validated());
+            $merge = $carts->merge($user, $request);
+            $payload = $user->toArray();
+            if ($merge !== null) {
+                $payload['cart_merge'] = new CartMergeResource($merge);
+            }
 
-        return response()->json($user, 201);
+            return $payload;
+        }, 3);
+
+        return response()->json($payload, 201);
     }
 
     public function update(Request $request, UserService $users): JsonResponse
