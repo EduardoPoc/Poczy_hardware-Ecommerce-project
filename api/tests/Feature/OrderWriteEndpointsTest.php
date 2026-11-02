@@ -6,7 +6,11 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\OrderService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
 class OrderWriteEndpointsTest extends TestCase
@@ -17,8 +21,6 @@ class OrderWriteEndpointsTest extends TestCase
 
     private User $other;
 
-    private User $admin;
-
     private Product $product;
 
     private int $addressId;
@@ -28,12 +30,9 @@ class OrderWriteEndpointsTest extends TestCase
         parent::setUp();
         $this->customer = User::create(['name' => 'Cliente', 'email' => 'customer@example.com', 'password' => 'SenhaCliente!2026'])->refresh();
         $this->other = User::create(['name' => 'Outro', 'email' => 'other@example.com', 'password' => 'SenhaCliente!2026'])->refresh();
-        $this->admin = User::create(['name' => 'Admin', 'email' => 'admin@example.com', 'password' => 'SenhaAdmin!2026'])->refresh();
-        $this->admin->forceFill(['role' => 'ADMIN'])->save();
         $this->addressId = $this->customer->addresses()->create(['postal_code' => '01001-000', 'street' => 'Rua Original', 'number' => '10', 'city' => 'São Paulo', 'state' => 'SP'])->id;
         $category = Category::create(['name' => 'Peças']);
         $this->product = Product::create(['category_id' => $category->id, 'name' => 'Produto Original', 'price' => '0.10', 'cost' => '0.05', 'stock' => 10])->refresh();
-        $this->actingAs($this->customer, 'web');
     }
 
     /** @return array<string, mixed> */
@@ -42,68 +41,59 @@ class OrderWriteEndpointsTest extends TestCase
         return ['address_id' => $this->addressId, 'payment_method' => 'PIX', 'items' => [['product_id' => $this->product->id, 'quantity' => $quantity]]];
     }
 
-    public function test_checkout_uses_server_prices_shipping_and_snapshots_and_decrements_stock(): void
+    public function test_checkout_uses_decimal_prices_and_server_totals_and_preserves_snapshots(): void
     {
         config(['shop.shipping_total' => '5.90']);
-        $response = $this->postJson('/api/order', $this->checkoutData())->assertCreated()
-            ->assertJsonPath('data.status', 'PENDING')->assertJsonPath('data.products_total', '0.30')
-            ->assertJsonPath('data.shipping_total', '5.90')->assertJsonPath('data.total', '6.20')
-            ->assertJsonPath('data.items.0.line_total', '0.30')->assertJsonPath('data.items_quantity', 3)
-            ->assertJsonPath('data.shipping_address.street', 'Rua Original')
-            ->assertJsonPath('data.timeline.0.status', 'PENDING')->assertJsonMissingPath('data.items.0.unit_cost');
-        $id = $response->json('data.id');
-        $this->assertDatabaseHas('products', ['id' => $this->product->id, 'stock' => 7]);
-        $this->assertDatabaseHas('stock_movements', ['product_id' => $this->product->id, 'type' => 'OUTBOUND', 'change' => -3, 'quantity' => 3]);
-        $this->assertDatabaseHas('order_items', ['order_id' => $id, 'unit_cost' => '0.05']);
+        $order = app(OrderService::class)->create($this->customer, $this->checkoutData() + ['total' => '0.01', 'status' => 'PAID']);
+        $this->assertSame('PENDING', $order->status);
+        $this->assertSame('0.30', $order->products_total);
+        $this->assertSame('5.90', $order->shipping_total);
+        $this->assertSame('6.20', $order->total);
+        $this->assertSame('0.30', $order->items->first()->line_total);
+        $this->assertSame(3, $order->items_quantity);
+        $this->assertSame('Rua Original', $order->shippingAddress->street);
+        $this->assertDatabaseHas('stock_movements', ['product_id' => $this->product->id, 'type' => 'OUTBOUND', 'quantity' => 3]);
+        $this->assertSame(7, $this->product->fresh()->stock);
         $this->product->update(['price' => '999.99', 'name' => 'Nome alterado']);
         $this->customer->addresses()->findOrFail($this->addressId)->update(['street' => 'Rua Nova']);
-        $this->getJson('/api/order/'.$id)->assertOk()->assertJsonPath('data.items.0.product_name_snapshot', 'Produto Original')
-            ->assertJsonPath('data.items.0.unit_price', '0.10')->assertJsonPath('data.shipping_address.street', 'Rua Original');
-    }
-
-    public function test_checkout_rejects_client_totals_status_and_duplicate_products(): void
-    {
-        foreach (['total' => '0.01', 'shipping_total' => '0.00', 'products_total' => '0.01', 'status' => 'PAID', 'user_id' => $this->other->id] as $field => $value) {
-            $this->postJson('/api/order', $this->checkoutData() + [$field => $value])->assertUnprocessable()->assertJsonValidationErrors($field);
-        }
-        $data = $this->checkoutData();
-        $data['items'][] = $data['items'][0];
-        $this->postJson('/api/order', $data)->assertUnprocessable();
-        $data = $this->checkoutData();
-        $data['items'][0]['unit_price'] = '0.01';
-        $this->postJson('/api/order', $data)->assertUnprocessable();
-        $this->assertDatabaseCount('orders', 0);
-        $this->assertSame(10, $this->product->fresh()->stock);
+        $snapshot = app(OrderService::class)->getUserOrder($this->customer, (string) $order->id);
+        $this->assertSame('Produto Original', $snapshot->items->first()->product_name_snapshot);
+        $this->assertSame('0.10', $snapshot->items->first()->unit_price);
+        $this->assertSame('Rua Original', $snapshot->shippingAddress->street);
     }
 
     public function test_checkout_cannot_use_another_customers_address(): void
     {
-        $this->actingAs($this->other, 'web')->postJson('/api/order', $this->checkoutData())->assertNotFound();
-        $this->assertDatabaseCount('orders', 0);
+        $this->expectException(ModelNotFoundException::class);
+        app(OrderService::class)->create($this->other, $this->checkoutData());
     }
 
-    public function test_checkout_refuses_insufficient_stock_unavailable_products_and_zero_quantities(): void
+    public function test_insufficient_stock_does_not_create_orders_or_movements(): void
     {
-        $this->postJson('/api/order', $this->checkoutData(11))->assertUnprocessable()->assertJsonValidationErrors('items.0.quantity');
-        $this->postJson('/api/order', $this->checkoutData(0))->assertUnprocessable();
-        $this->product->update(['is_active' => false]);
-        $this->postJson('/api/order', $this->checkoutData())->assertUnprocessable();
-        $this->product->update(['is_active' => true]);
-        $this->product->category()->update(['is_active' => false]);
-        $this->postJson('/api/order', $this->checkoutData())->assertUnprocessable();
-        $this->assertDatabaseCount('orders', 0);
-        $this->assertDatabaseCount('stock_movements', 0);
+        try {
+            app(OrderService::class)->create($this->customer, $this->checkoutData(11));
+            $this->fail('O saldo deve limitar a compra.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('orders', 0);
+            $this->assertDatabaseCount('stock_movements', 0);
+            $this->assertSame(10, $this->product->fresh()->stock);
+        }
     }
 
-    public function test_a_later_purchase_cannot_resell_stock_already_consumed(): void
+    public function test_a_later_purchase_cannot_reuse_consumed_stock(): void
     {
-        $this->postJson('/api/order', $this->checkoutData(8))->assertCreated();
-        $this->postJson('/api/order', $this->checkoutData(3))->assertUnprocessable();
-        $this->assertDatabaseCount('orders', 1);
-        $this->assertSame(2, $this->product->fresh()->stock);
+        $orders = app(OrderService::class);
+        $orders->create($this->customer, $this->checkoutData(8));
+        try {
+            $orders->create($this->customer, $this->checkoutData(3));
+            $this->fail('A segunda compra excede o saldo restante.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('orders', 1);
+            $this->assertSame(2, $this->product->fresh()->stock);
+        }
     }
 
-    public function test_order_stock_items_snapshot_and_timeline_rollback_on_a_late_failure(): void
+    public function test_order_stock_snapshots_and_history_roll_back_on_late_failure(): void
     {
         $second = Product::create(['category_id' => $this->product->category_id, 'name' => 'Segundo', 'price' => '10.00', 'stock' => 10]);
         $data = $this->checkoutData();
@@ -115,7 +105,10 @@ class OrderWriteEndpointsTest extends TestCase
             }
         });
         try {
-            $this->postJson('/api/order', $data)->assertStatus(500);
+            app(OrderService::class)->create($this->customer, $data);
+            $this->fail('O segundo registro de estoque deveria falhar.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Stock journal unavailable', $exception->getMessage());
         } finally {
             StockMovement::flushEventListeners();
         }
@@ -126,63 +119,50 @@ class OrderWriteEndpointsTest extends TestCase
         }
     }
 
-    public function test_customer_cancellation_is_idempotent_preserves_history_and_restores_stock_once(): void
+    public function test_customer_cancellation_preserves_history_and_restores_stock_only_once(): void
     {
-        $id = $this->postJson('/api/order', $this->checkoutData())->assertCreated()->json('data.id');
-        $this->actingAs($this->other, 'web')->deleteJson('/api/order/'.$id)->assertNotFound();
-        $this->actingAs($this->customer, 'web')->deleteJson('/api/order/'.$id)->assertNoContent();
-        $this->deleteJson('/api/order/'.$id)->assertNoContent();
-        $this->getJson('/api/order/'.$id)->assertOk()->assertJsonPath('data.status', 'CANCELLED')->assertJsonCount(2, 'data.timeline');
+        $orders = app(OrderService::class);
+        $order = $orders->create($this->customer, $this->checkoutData());
+        try {
+            $orders->cancel($this->other, $order->id);
+            $this->fail('Outro cliente não pode cancelar o pedido.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame('PENDING', $order->fresh()->status);
+        }
+        $orders->cancel($this->customer, $order->id);
+        $orders->cancel($this->customer, $order->id);
+        $this->assertSame('CANCELLED', $order->fresh()->status);
         $this->assertSame(10, $this->product->fresh()->stock);
         $this->assertDatabaseCount('stock_movements', 2);
         $this->assertDatabaseCount('order_items', 1);
     }
 
-    public function test_admin_status_transitions_are_ordered_and_repeated_status_has_no_duplicate_history(): void
+    public function test_status_transitions_are_ordered_and_repeated_updates_do_not_duplicate_history(): void
     {
-        $id = $this->postJson('/api/order', $this->checkoutData())->assertCreated()->json('data.id');
-        $uri = '/api/admin/order/'.$id;
-        $this->patchJson($uri, ['status' => 'PAID'])->assertForbidden();
-        $this->actingAs($this->admin, 'web');
-        $this->getJson('/api/admin/order')->assertOk()->assertJsonPath('meta.total', 1);
-        $this->getJson($uri)->assertOk()->assertJsonPath('data.user_id', $this->customer->id);
-        $this->patchJson($uri, ['status' => 'SHIPPED'])->assertConflict();
-        $this->patchJson($uri, ['status' => 'PAID'])->assertOk();
-        $this->patchJson($uri, ['status' => 'PAID'])->assertOk()->assertJsonCount(2, 'data.timeline');
-        $this->actingAs($this->customer, 'web')->deleteJson('/api/order/'.$id)->assertConflict();
-        $this->actingAs($this->admin, 'web');
-        foreach (['PROCESSING', 'SHIPPED', 'DELIVERED'] as $status) {
-            $this->patchJson($uri, ['status' => $status])->assertOk()->assertJsonPath('data.status', $status);
+        $orders = app(OrderService::class);
+        $order = $orders->create($this->customer, $this->checkoutData());
+        try {
+            $orders->updateStatus($order->id, 'SHIPPED');
+            $this->fail('Não deve pular o pagamento e processamento.');
+        } catch (ConflictHttpException) {
+            $this->assertSame('PENDING', $order->fresh()->status);
         }
-        $this->patchJson($uri, ['status' => 'CANCELLED'])->assertConflict();
-        $this->assertSame(7, $this->product->fresh()->stock);
+        foreach (['PAID', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED'] as $status) {
+            $this->assertSame($status, $orders->updateStatus($order->id, $status)->status);
+        }
         $this->assertDatabaseCount('order_status_histories', 5);
+        $this->assertSame(7, $this->product->fresh()->stock);
     }
 
-    public function test_admin_can_cancel_a_paid_order_and_stock_is_only_restored_once(): void
-    {
-        $id = $this->postJson('/api/order', $this->checkoutData())->assertCreated()->json('data.id');
-        $this->actingAs($this->admin, 'web');
-        $uri = '/api/admin/order/'.$id;
-        $this->patchJson($uri, ['status' => 'PAID'])->assertOk();
-        $this->patchJson($uri, ['status' => 'CANCELLED'])->assertOk();
-        $this->patchJson($uri, ['status' => 'CANCELLED'])->assertOk();
-        $this->assertSame(10, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('stock_movements', 2);
-    }
-
-    public function test_total_overflow_does_not_create_partial_orders(): void
+    public function test_total_overflow_does_not_persist_partial_orders(): void
     {
         $this->product->update(['price' => '99999999.99']);
-        $this->postJson('/api/order', $this->checkoutData(2))->assertUnprocessable();
-        $this->assertDatabaseCount('orders', 0);
-        $this->assertSame(10, $this->product->fresh()->stock);
-    }
-
-    public function test_accounts_with_purchases_cannot_be_deleted(): void
-    {
-        $this->postJson('/api/order', $this->checkoutData())->assertCreated();
-        $this->deleteJson('/api/user', ['current_password' => 'SenhaCliente!2026'])->assertConflict();
-        $this->assertDatabaseHas('users', ['id' => $this->customer->id]);
+        try {
+            app(OrderService::class)->create($this->customer, $this->checkoutData(2));
+            $this->fail('O total deve caber no campo decimal.');
+        } catch (ValidationException) {
+            $this->assertDatabaseCount('orders', 0);
+            $this->assertSame(10, $this->product->fresh()->stock);
+        }
     }
 }

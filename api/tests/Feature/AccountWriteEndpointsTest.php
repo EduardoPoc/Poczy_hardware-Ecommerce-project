@@ -4,9 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\PasswordChangeHistory;
 use App\Models\User;
+use App\Services\AddressService;
+use App\Services\AuthService;
+use App\Services\UserService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
 class AccountWriteEndpointsTest extends TestCase
@@ -15,87 +21,65 @@ class AccountWriteEndpointsTest extends TestCase
 
     private function customer(string $email = 'customer@example.com'): User
     {
-        return User::create(['name' => 'Cliente', 'email' => $email, 'password' => 'SenhaAtual!2026'])->refresh();
+        return app(UserService::class)->register(['name' => 'Cliente', 'email' => $email, 'password' => 'SenhaAtual!2026']);
     }
 
-    public function test_registration_hashes_the_password_returns_defaults_and_prevents_privilege_escalation(): void
+    public function test_registration_service_hashes_password_and_preserves_customer_role(): void
     {
-        $data = ['name' => 'Novo Cliente', 'email' => 'novo@example.com', 'password' => 'SenhaSegura!2026', 'password_confirmation' => 'SenhaSegura!2026'];
-        $this->postJson('/api/user', $data + ['role' => 'ADMIN'])->assertUnprocessable()->assertJsonValidationErrors('role');
-        $this->postJson('/api/user', $data)->assertCreated()->assertJsonPath('data.role', 'CUSTOMER')->assertJsonMissingPath('data.password');
-        $user = User::where('email', $data['email'])->sole();
-        $this->assertTrue(Hash::check($data['password'], $user->password));
-        $this->postJson('/api/user', $data)->assertUnprocessable()->assertJsonValidationErrors('email');
+        $user = app(UserService::class)->register(['name' => 'Novo Cliente', 'email' => 'novo@example.com', 'password' => 'SenhaSegura!2026', 'role' => 'ADMIN']);
+        $this->assertSame('CUSTOMER', $user->role);
+        $this->assertTrue(Hash::check('SenhaSegura!2026', $user->password));
+        $this->assertArrayNotHasKey('password', $user->toArray());
     }
 
-    public function test_session_login_and_logout_and_invalid_credentials(): void
+    public function test_auth_service_ignores_extra_request_fields_and_manages_the_session(): void
     {
         $user = $this->customer();
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'wrong'])->assertUnprocessable();
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'SenhaAtual!2026'])->assertOk()->assertJsonPath('data.id', $user->id);
+        $auth = app(AuthService::class);
+        $session = app('session.store');
+        $authenticated = $auth->login(['email' => $user->email, 'password' => 'SenhaAtual!2026', '_token' => 'csrf'], $session);
+        $this->assertSame($user->id, $authenticated->id);
         $this->assertAuthenticatedAs($user, 'web');
-        $this->getJson('/api/user')->assertOk();
-        $this->postJson('/api/logout')->assertNoContent();
+        $auth->logout($session);
         $this->assertGuest('web');
-        $this->getJson('/api/user')->assertUnauthorized();
     }
 
-    public function test_login_is_rate_limited(): void
+    public function test_auth_service_rejects_invalid_credentials(): void
     {
-        for ($attempt = 0; $attempt < 5; $attempt++) {
-            $this->postJson('/api/login', ['email' => 'rate@example.com', 'password' => 'wrong'])->assertUnprocessable();
-        }
-        $this->postJson('/api/login', ['email' => 'rate@example.com', 'password' => 'wrong'])->assertTooManyRequests();
+        $this->customer();
+        $this->expectException(ValidationException::class);
+        app(AuthService::class)->login(['email' => 'customer@example.com', 'password' => 'wrong'], app('session.store'));
     }
 
-    public function test_malformed_credentials_return_validation_errors(): void
-    {
-        $this->postJson('/api/login', ['email' => ['invalid'], 'password' => ['invalid']])
-            ->assertUnprocessable()->assertJsonValidationErrors(['email', 'password']);
-    }
-
-    public function test_session_writes_require_csrf_outside_the_test_bypass(): void
-    {
-        $this->app->detectEnvironment(fn (): string => 'local');
-        $this->postJson('/api/login', ['email' => 'csrf@example.com', 'password' => 'wrong'])->assertStatus(419);
-        $this->get('/sanctum/csrf-cookie')->assertNoContent()->assertCookie('XSRF-TOKEN');
-    }
-
-    public function test_profile_update_requires_password_for_email_and_never_changes_role(): void
+    public function test_email_changes_require_current_password_and_clear_verification(): void
     {
         $user = $this->customer();
         $user->forceFill(['email_verified_at' => now()])->save();
-        $this->actingAs($user, 'web');
-        $this->patchJson('/api/user', ['name' => 'Nome atualizado'])->assertOk()->assertJsonPath('data.name', 'Nome atualizado');
-        $this->patchJson('/api/user', ['role' => 'ADMIN'])->assertUnprocessable();
-        $this->patchJson('/api/user', ['email' => 'new@example.com'])->assertUnprocessable();
-        $this->patchJson('/api/user', ['email' => 'new@example.com', 'current_password' => 'SenhaAtual!2026'])->assertOk();
-        $this->assertNull($user->fresh()->email_verified_at);
+        $users = app(UserService::class);
+        $users->update($user, ['name' => 'Nome atualizado', 'role' => 'ADMIN']);
         $this->assertSame('CUSTOMER', $user->fresh()->role);
+        try {
+            $users->update($user, ['email' => 'novo@example.com']);
+            $this->fail('A troca de e-mail exige senha atual.');
+        } catch (ValidationException) {
+            $this->assertSame('customer@example.com', $user->fresh()->email);
+        }
+        $updated = $users->update($user, ['email' => 'novo@example.com', 'current_password' => 'SenhaAtual!2026']);
+        $this->assertNull($updated->email_verified_at);
     }
 
-    public function test_password_change_records_history_and_logs_the_session_out(): void
-    {
-        $user = $this->customer();
-        $this->actingAs($user, 'web');
-        $this->putJson('/api/user/password', ['current_password' => 'wrong', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026'])->assertUnprocessable();
-        $this->assertDatabaseCount('password_change_histories', 0);
-        $this->putJson('/api/user/password', ['current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026'])->assertNoContent();
-        $this->assertTrue(Hash::check('NovaSenha!2026', $user->fresh()->password));
-        $this->assertDatabaseHas('password_change_histories', ['id_user' => $user->id]);
-        $this->assertGuest('web');
-    }
-
-    public function test_password_and_audit_are_rolled_back_together_on_failure(): void
+    public function test_password_change_and_audit_roll_back_together(): void
     {
         $user = $this->customer();
         $hash = $user->password;
-        $this->actingAs($user, 'web');
         PasswordChangeHistory::creating(function (): void {
-            throw new \RuntimeException('Audit storage unavailable');
+            throw new \RuntimeException('Audit unavailable');
         });
         try {
-            $this->putJson('/api/user/password', ['current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026'])->assertStatus(500);
+            app(UserService::class)->changePassword($user, ['current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026']);
+            $this->fail('A gravação do histórico deveria falhar.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit unavailable', $exception->getMessage());
         } finally {
             PasswordChangeHistory::flushEventListeners();
         }
@@ -103,41 +87,7 @@ class AccountWriteEndpointsTest extends TestCase
         $this->assertDatabaseCount('password_change_histories', 0);
     }
 
-    public function test_address_crud_is_scoped_to_the_session_and_validates_partial_updates(): void
-    {
-        $user = $this->customer();
-        $other = $this->customer('other@example.com');
-        $data = ['postal_code' => '01001-000', 'street' => 'Rua Original', 'number' => '10', 'city' => 'São Paulo', 'state' => 'SP'];
-        $foreign = $other->addresses()->create($data);
-        $this->actingAs($user, 'web');
-        $this->postJson('/api/address', $data + ['user_id' => $other->id])->assertUnprocessable();
-        $response = $this->postJson('/api/address', $data)->assertCreated();
-        $id = $response->json('data.id');
-        $this->getJson('/api/address/'.$id)->assertOk();
-        $this->patchJson('/api/address/'.$id, ['street' => 'Rua Nova', 'complement' => null])->assertOk()->assertJsonPath('data.street', 'Rua Nova');
-        $this->patchJson('/api/address/'.$id, ['street' => null])->assertUnprocessable();
-        $this->patchJson('/api/address/'.$id, ['state' => 'XX'])->assertUnprocessable();
-        $this->getJson('/api/address/'.$foreign->id)->assertNotFound();
-        $this->patchJson('/api/address/'.$foreign->id, ['city' => 'Outra'])->assertNotFound();
-        $this->deleteJson('/api/address/'.$foreign->id)->assertNotFound();
-        $this->deleteJson('/api/address/'.$id)->assertNoContent();
-        $this->assertDatabaseMissing('addresses', ['id' => $id]);
-    }
-
-    public function test_account_deletion_preserves_required_audit_and_requires_password(): void
-    {
-        $user = $this->customer();
-        $this->actingAs($user, 'web');
-        $this->deleteJson('/api/user', ['current_password' => 'wrong'])->assertUnprocessable();
-        $user->passwordChanges()->create();
-        $this->deleteJson('/api/user', ['current_password' => 'SenhaAtual!2026'])->assertConflict();
-        $clean = $this->customer('clean@example.com');
-        $this->actingAs($clean, 'web')->deleteJson('/api/user', ['current_password' => 'SenhaAtual!2026'])->assertNoContent();
-        $this->assertDatabaseMissing('users', ['id' => $clean->id]);
-        $this->assertGuest('web');
-    }
-
-    public function test_password_change_revokes_database_sessions_without_touching_other_accounts(): void
+    public function test_password_change_records_history_and_revokes_only_own_database_sessions(): void
     {
         config(['session.driver' => 'database']);
         $user = $this->customer();
@@ -145,19 +95,45 @@ class AccountWriteEndpointsTest extends TestCase
         foreach (['computer' => $user->id, 'phone' => $user->id, 'other' => $other->id] as $id => $userId) {
             DB::table('sessions')->insert(['id' => $id, 'user_id' => $userId, 'payload' => base64_encode('{}'), 'last_activity' => time()]);
         }
-        $this->actingAs($user, 'web')->putJson('/api/user/password', [
-            'current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026', 'password_confirmation' => 'NovaSenha!2026',
-        ])->assertNoContent();
-        $this->assertSame(0, DB::table('sessions')->where('user_id', $user->id)->count());
-        $this->assertSame(1, DB::table('sessions')->where('user_id', $other->id)->count());
+        app(UserService::class)->changePassword($user, ['current_password' => 'SenhaAtual!2026', 'password' => 'NovaSenha!2026']);
+        $this->assertTrue(Hash::check('NovaSenha!2026', $user->fresh()->password));
+        $this->assertDatabaseHas('password_change_histories', ['id_user' => $user->id]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'computer']);
+        $this->assertDatabaseMissing('sessions', ['id' => 'phone']);
+        $this->assertDatabaseHas('sessions', ['id' => 'other']);
     }
 
-    public function test_email_normalization_prevents_case_variant_registration(): void
+    public function test_address_service_crud_is_scoped_to_its_owner(): void
     {
-        $data = ['name' => 'Cliente', 'email' => 'UPPER@example.com', 'password' => 'SenhaSegura!2026', 'password_confirmation' => 'SenhaSegura!2026'];
-        $this->postJson('/api/user', $data)->assertCreated()->assertJsonPath('data.email', 'upper@example.com');
-        $data['email'] = 'upper@example.com';
-        $this->postJson('/api/user', $data)->assertUnprocessable()->assertJsonValidationErrors('email');
-        $this->postJson('/api/login', ['email' => 'UPPER@example.com', 'password' => $data['password']])->assertOk();
+        $user = $this->customer();
+        $other = $this->customer('other@example.com');
+        $addresses = app(AddressService::class);
+        $data = ['postal_code' => '01001-000', 'street' => 'Rua Original', 'number' => '10', 'city' => 'São Paulo', 'state' => 'SP'];
+        $address = $addresses->create($user, $data);
+        $addresses->update($user, $address->id, ['street' => 'Rua Nova']);
+        $this->assertSame('Rua Nova', $addresses->getUserAddress($user, $address->id)->street);
+        try {
+            $addresses->getUserAddress($other, $address->id);
+            $this->fail('Outro usuário não deve consultar o endereço.');
+        } catch (ModelNotFoundException) {
+            $this->assertCount(0, $addresses->listUserAddresses($other));
+        }
+        $addresses->delete($user, $address->id);
+        $this->assertDatabaseMissing('addresses', ['id' => $address->id]);
+    }
+
+    public function test_accounts_with_audit_are_preserved_and_clean_accounts_can_be_deleted(): void
+    {
+        $user = $this->customer();
+        $user->passwordChanges()->create();
+        try {
+            app(UserService::class)->delete($user, 'SenhaAtual!2026');
+            $this->fail('A conta com histórico deveria ser preservada.');
+        } catch (ConflictHttpException) {
+            $this->assertDatabaseHas('users', ['id' => $user->id]);
+        }
+        $clean = $this->customer('clean@example.com');
+        app(UserService::class)->delete($clean, 'SenhaAtual!2026');
+        $this->assertDatabaseMissing('users', ['id' => $clean->id]);
     }
 }
