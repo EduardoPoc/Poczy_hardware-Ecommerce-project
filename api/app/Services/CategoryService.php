@@ -13,7 +13,6 @@ class CategoryService
 {
     public function __construct(private SpecificationService $specifications) {}
 
-    /** @return Collection<int, Category> */
     public function listPublicCategories(): Collection
     {
         return Category::where('is_active', true)->orderBy('name')->orderBy('id')->get();
