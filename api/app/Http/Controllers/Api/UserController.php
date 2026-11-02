@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DeleteUserRequest;
 use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\CartMergeResource;
+use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use App\Services\CartMergeService;
 use App\Services\UserService;
@@ -15,11 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, UserService $users): JsonResponse
     {
-        $user = $request->user();
+        $user = $users->getProfile($request->user());
 
-        return response()->json($user);
+        return (new UserResource($user))->response()->setStatusCode(200);
     }
 
     public function store(StoreUserRequest $request, UserService $users, CartMergeService $carts): JsonResponse
@@ -28,7 +31,7 @@ class UserController extends Controller
         $payload = DB::transaction(function () use ($request, $users, $carts): array {
             $user = $users->register($request->validated());
             $merge = $carts->merge($user, $request);
-            $payload = $user->toArray();
+            $payload = (new UserResource($user))->resolve($request);
             if ($merge !== null) {
                 $payload['cart_merge'] = new CartMergeResource($merge);
             }
@@ -39,16 +42,16 @@ class UserController extends Controller
         return response()->json($payload, 201);
     }
 
-    public function update(Request $request, UserService $users): JsonResponse
+    public function update(UpdateUserRequest $request, UserService $users): JsonResponse
     {
-        $user = $users->update($request->user(), $request->all());
+        $user = $users->update($request->user(), $request->validated());
 
-        return response()->json($user);
+        return (new UserResource($user))->response()->setStatusCode(200);
     }
 
-    public function destroy(Request $request, UserService $users, AuthService $auth): Response
+    public function destroy(DeleteUserRequest $request, UserService $users, AuthService $auth): Response
     {
-        $users->delete($request->user(), $request->input('current_password'));
+        $users->delete($request->user(), $request->validated('current_password'));
         $auth->logout($request->session());
 
         return response()->noContent();

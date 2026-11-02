@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSessionRequest;
 use App\Http\Resources\CartMergeResource;
+use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use App\Services\CartMergeService;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,7 @@ class SessionController extends Controller
 
             throw $exception;
         }
-        $payload = $user->toArray();
+        $payload = (new UserResource($user))->resolve($request);
         if ($merge !== null) {
             $payload['cart_merge'] = new CartMergeResource($merge);
         }
