@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 use App\Models\Category;
 use App\Services\CategoryService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class AdminCategoryController extends Controller
@@ -25,16 +26,16 @@ class AdminCategoryController extends Controller
         return response()->json($record);
     }
 
-    public function store(Request $request, CategoryService $categories): JsonResponse
+    public function store(StoreCategoryRequest $request, CategoryService $categories): JsonResponse
     {
-        $category = $categories->create($request->all());
+        $category = $categories->create($request->validated());
 
         return response()->json($category, 201);
     }
 
-    public function update(Request $request, int $id, CategoryService $categories): JsonResponse
+    public function update(UpdateCategoryRequest $request, int $id, CategoryService $categories): JsonResponse
     {
-        $category = $categories->update($id, $request->all());
+        $category = $categories->update($id, $request->validated());
 
         return response()->json($category);
     }
