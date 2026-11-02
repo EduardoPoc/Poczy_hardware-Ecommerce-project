@@ -133,6 +133,9 @@ class ProductService
     {
         DB::transaction(function () use ($id): void {
             $product = Product::lockForUpdate()->findOrFail($id);
+            if ($product->orderItems()->exists()) {
+                throw new ConflictHttpException('O produto pertence a pedidos. Use is_active para desativá-lo e preservar o histórico.');
+            }
             if ($product->stockMovements()->exists()) {
                 throw new ConflictHttpException('O produto possui movimentações de estoque. Use is_active para desativá-lo.');
             }
