@@ -63,7 +63,7 @@ A suíte cobre:
 - Transações, snapshots, cancelamentos e movimentações de estoque.
 - Reexecução dos seeders sem duplicação ou sobrescrita dos registros existentes.
 
-Produtos e marcas usam Form Requests e Resources nos controllers. As demais classes de requests e resources estão preparadas, mas ainda não foram conectadas aos controllers. Os testes de services verificam suas regras diretamente.
+Produtos, marcas, categorias, estoque, pedidos, carrinho, login e cadastro usam Form Requests nas entradas correspondentes. Produtos, marcas, pedidos e carrinhos usam Resources; os controllers restantes ainda não aplicam essas camadas integralmente. Os testes de services verificam suas regras diretamente.
 
 Para conferir manualmente o ciclo de migrations somente no ambiente de testes:
 
@@ -116,6 +116,25 @@ As rotas administrativas usam sessão Laravel (`web`, `auth:web`) e o Gate `mana
 Os controllers de produtos e marcas chamam seus services e retornam Resources com envelope `data` e paginação em `links`/`meta`. Os demais controllers ainda retornam JSON diretamente. Os models representam dados, casts e relacionamentos; os services coordenam consultas, transações e regras de negócio. `CatalogService` está preparado para reutilizar as consultas públicas, mas o controller de catálogo ainda faz as consultas diretamente.
 
 A pesquisa do frontend ainda usa o catálogo local de demonstração. No backend, os filtros de produtos aceitam `q` (nome), `category_id`, `brand_ids`, `min_price`, `max_price` e `specifications`. Valores de especificações JSON usam os tipos definidos pela categoria. Categorias e marcas não exigem paginação; produtos usam `page` e `per_page`.
+
+## Carrinho e fusão
+
+`GET /api/cart` obtém ou cria o carrinho da sessão ou da conta. Visitantes recebem `data.cart_token` somente na criação; o frontend deve guardar esse token e enviar `X-Cart-Token` junto aos cookies da mesma sessão. O token isolado não funciona em outra sessão. As escritas também exigem CSRF (`X-XSRF-TOKEN`), obtido pelo fluxo de `/sanctum/csrf-cookie`.
+
+- `POST /api/cart/items`: recebe `product_id` e `quantity`, somando ao item existente.
+- `PATCH /api/cart/items/{product}`: substitui a quantidade; zero remove o item.
+- `DELETE /api/cart/items/{product}`: remove o item.
+- `POST /api/orders/{id}/pay`: pagamento simulado pelo dono ou admin, sem dados de pagamento ou cartão.
+
+O carrinho não reserva estoque nem congela preços. Quantidades devem respeitar a disponibilidade; preços e totais usam os valores atuais do banco e aritmética decimal.
+
+Ao enviar `X-Cart-Token` no login (`POST /api/login`) ou cadastro (`POST /api/user`), a API funde os itens do visitante ao carrinho da conta. Produtos repetidos têm as quantidades somadas, limitadas ao estoque. Produtos do visitante que ficaram inativos, ou cuja categoria foi desativada, são removidos da fusão, inclusive o item correspondente da conta; os demais itens continuam sendo fundidos. Produtos exclusivos da conta são preservados.
+
+A resposta mantém os campos da conta na raiz e acrescenta `cart_merge.cart` e `cart_merge.adjustments`. Cada ajuste contém `product_id`, `requested_quantity`, `quantity`, `reason` e `message`: `stock_limit` indica redução por estoque, e `unavailable` indica remoção por indisponibilidade. O frontend deve exibir os avisos.
+
+Depois do sucesso, o carrinho de visitante é excluído, o token é invalidado e o frontend deve descartá-lo. Falhas preservam o carrinho e o vínculo do visitante para nova tentativa; cadastro e fusão são atômicos. O cadastro continua sem login automático. Sem o header do token, não ocorre fusão.
+
+O fluxo dos pedidos é `PENDING → PAID → SHIPPED → DELIVERED`, com cancelamento somente a partir de `PENDING`. Produtos vinculados a pedidos não podem ser excluídos fisicamente; use `is_active=false`.
 
 ## Banco e seeders
 

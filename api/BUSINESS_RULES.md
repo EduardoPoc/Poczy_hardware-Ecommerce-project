@@ -33,7 +33,7 @@ A arquitetura usa MVC com Service Layer, Eloquent e injeção de dependências. 
 | PATCH | `/api/cart/items/{product}` | Substitui a quantidade pelo valor de `quantity` |
 | DELETE | `/api/cart/items/{product}` | Remove o item |
 
-O token de visitante é emitido em `data.cart_token` quando o carrinho é criado. O frontend deve guardá-lo e enviá-lo em `X-Cart-Token`, mantendo também os cookies da mesma sessão. O servidor armazena somente o hash do token e o vincula a um segredo independente da sessão; o token isolado não permite acessar o carrinho em outra sessão. O token deve ser enviado também no login ou cadastro para solicitar a fusão, cuja integração permanece pendente conforme a seção final.
+O token de visitante é emitido em `data.cart_token` quando o carrinho é criado. O frontend deve guardá-lo e enviá-lo em `X-Cart-Token`, mantendo também os cookies da mesma sessão. O servidor armazena somente o hash do token e o vincula a um segredo independente da sessão; o token isolado não permite acessar o carrinho em outra sessão. O token deve ser enviado também no login ou cadastro para solicitar a fusão.
 
 As rotas de carrinho usam sessão e CSRF nas escritas. Operações da mesma sessão são serializadas por bloqueio de sessão para evitar criação concorrente e perda do vínculo do visitante. O cache usado pelo ambiente precisa suportar locks compartilhados entre os processos da aplicação. As migrations de `carts` e `cart_items` adicionam as restrições de unicidade sem recriar as tabelas existentes.
 
@@ -46,8 +46,13 @@ Ao autenticar pelo fluxo de login ou registro, se o frontend enviar um token de 
 1. Produto presente apenas no carrinho de visitante é copiado para o carrinho do usuário, respeitando o estoque disponível.
 2. Produto presente nos dois carrinhos tem as quantidades somadas, mantendo um único item.
 3. Se a quantidade resultante exceder o estoque, ela é ajustada para o máximo disponível e a resposta deve avisar o usuário sobre o ajuste.
-4. Quantidade final 0 não mantém um item no carrinho, conforme a regra de remoção por quantidade zero.
-5. Concluída a fusão, o carrinho de visitante é descartado e seu token é invalidado, impedindo seu uso posterior.
+4. Produtos do carrinho de visitante que se tornaram inativos ou cuja categoria ficou inativa são removidos da fusão, com aviso ao usuário. Se o produto também estiver no carrinho da conta, esse item correspondente é removido. Os demais produtos ativos continuam sendo fundidos.
+5. Quantidade final 0 não mantém um item no carrinho, conforme a regra de remoção por quantidade zero.
+6. Concluída a fusão, o carrinho de visitante é descartado e seu token é invalidado, impedindo seu uso posterior.
+
+Produtos presentes apenas no carrinho da conta são preservados. Login e cadastro retornam a conta no formato existente e adicionam `cart_merge`, com `cart` e `adjustments`. Cada aviso informa `product_id`, `requested_quantity`, `quantity`, `reason` (`stock_limit` ou `unavailable`) e uma `message` para o usuário. Sem envio explícito de `X-Cart-Token`, não ocorre fusão.
+
+A fusão usa transação e bloqueios, sem reservar ou baixar estoque. Falhas desfazem as alterações dos itens e preservam o carrinho de visitante e seu vínculo de sessão para nova tentativa. No cadastro, a criação da conta e a fusão são atômicas; o cadastro continua sem login automático. Uma falha de fusão no login restaura a identidade e os dados da sessão anterior. O carrinho de visitante e o token só são descartados após sucesso da transação.
 
 Exemplo: a conta tem 2 unidades e o visitante tem 3. Com estoque de 4, o carrinho da conta termina com 4 unidades, e o usuário recebe um aviso de ajuste. Com estoque de 5 ou mais, termina com 5 unidades.
 
@@ -220,12 +225,10 @@ Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pin
 
 ### Situação da implementação
 
-Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de checkout, status, categorias, estoque e filtros.
+Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; a fusão no login e cadastro, com avisos de ajustes e remoção de inativos; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de cadastro, login, checkout, status, categorias, estoque e filtros.
 
 Permanecem pendentes:
 
-- Concluir a fusão no login e cadastro, seus avisos de ajuste e a invalidação do token de visitante. Os cenários de testes estão preparados, mas a integração ainda não foi concluída.
-- Definir o tratamento de produtos que se tornaram inativos antes da fusão: remover esses itens e avisar, ou rejeitar a fusão. Essa decisão de negócio depende de consulta, sem adoção silenciosa de uma política.
 - Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão. O ambiente de execução atual não permite conexão ao banco de testes nem ao socket Docker; testes HTTP de validação e apresentação sem banco podem ser executados separadamente.
 - Integrar os Requests e Resources restantes de perfil, endereços e catálogo quando essas áreas forem tratadas. O mecanismo de autenticação não foi reformulado nesta implementação.
 
