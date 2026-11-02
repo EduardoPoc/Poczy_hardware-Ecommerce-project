@@ -5,39 +5,36 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
-use App\Models\Category;
+use App\Http\Resources\CategoryResource;
 use App\Services\CategoryService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
 class AdminCategoryController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(CategoryService $categories): AnonymousResourceCollection
     {
-        $categories = Category::orderBy('name')->get();
-
-        return response()->json($categories);
+        return CategoryResource::collection($categories->listAll());
     }
 
-    public function show(int $id): JsonResponse
+    public function show(int $id, CategoryService $categories): JsonResponse
     {
-        $record = Category::query()->findOrFail($id);
-
-        return response()->json($record);
+        return (new CategoryResource($categories->findById($id)))->response()->setStatusCode(200);
     }
 
     public function store(StoreCategoryRequest $request, CategoryService $categories): JsonResponse
     {
         $category = $categories->create($request->validated());
 
-        return response()->json($category, 201);
+        return (new CategoryResource($category))->response()->setStatusCode(201);
     }
 
     public function update(UpdateCategoryRequest $request, int $id, CategoryService $categories): JsonResponse
     {
         $category = $categories->update($id, $request->validated());
 
-        return response()->json($category);
+        return (new CategoryResource($category))->response()->setStatusCode(200);
     }
 
     public function destroy(int $id, CategoryService $categories): Response

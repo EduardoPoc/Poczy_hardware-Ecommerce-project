@@ -34,9 +34,9 @@ class CategoryStockValidationTest extends TestCase
     public function test_category_can_keep_its_name_and_partial_updates_reject_duplicates(): void
     {
         $this->patchJson('/api/admin/categories/'.$this->category->id, ['name' => 'Componentes'])
-            ->assertOk()->assertJsonPath('name', 'Componentes');
+            ->assertOk()->assertJsonPath('data.name', 'Componentes');
         $this->patchJson('/api/admin/categories/'.$this->category->id, ['description' => 'Peças de computador'])
-            ->assertOk()->assertJsonPath('name', 'Componentes')->assertJsonPath('description', 'Peças de computador');
+            ->assertOk()->assertJsonPath('data.name', 'Componentes')->assertJsonPath('data.description', 'Peças de computador');
 
         $other = Category::create(['name' => 'Periféricos']);
         $this->patchJson('/api/admin/categories/'.$other->id, ['name' => 'Componentes'])
@@ -61,16 +61,16 @@ class CategoryStockValidationTest extends TestCase
         $this->assertDatabaseCount('categories', 1);
     }
 
-    public function test_category_creation_only_persists_validated_fields_and_keeps_direct_json_format(): void
+    public function test_category_creation_only_persists_validated_fields_and_returns_a_resource(): void
     {
         $response = $this->postJson('/api/admin/categories', [
             'id' => 999999,
             'name' => 'Monitores',
             'attributes' => ['screen_size' => ['name' => 'Tela', 'type' => 'number', 'minimum' => 1]],
-        ])->assertCreated()->assertJsonPath('name', 'Monitores')
-            ->assertJsonPath('is_active', true)->assertJsonPath('attributes.screen_size.type', 'number');
+        ])->assertCreated()->assertJsonPath('data.name', 'Monitores')
+            ->assertJsonPath('data.is_active', true)->assertJsonPath('data.attributes.screen_size.type', 'number');
 
-        $this->assertNotSame(999999, $response->json('id'));
+        $this->assertNotSame(999999, $response->json('data.id'));
     }
 
     public function test_stock_movement_requires_all_fields_and_rejects_malformed_values(): void
@@ -97,13 +97,13 @@ class CategoryStockValidationTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 0);
     }
 
-    public function test_valid_signed_adjustment_and_stock_pagination_keep_existing_json_format(): void
+    public function test_valid_signed_adjustment_and_stock_pagination_return_resources(): void
     {
         $url = '/api/admin/products/'.$this->product->id.'/stock-movements';
         $this->postJson($url, ['type' => 'ADJUSTMENT', 'quantity' => -2, 'reason' => 'Correção'])
-            ->assertCreated()->assertJsonPath('type', 'ADJUSTMENT')->assertJsonPath('quantity', -2);
+            ->assertCreated()->assertJsonPath('data.type', 'ADJUSTMENT')->assertJsonPath('data.quantity', -2);
         $this->assertSame(8, $this->product->fresh()->stock);
-        $this->getJson($url.'?per_page=1')->assertOk()->assertJsonPath('total', 1)
+        $this->getJson($url.'?per_page=1')->assertOk()->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.quantity', -2);
 
         foreach (['per_page=0', 'per_page=101', 'per_page=invalid', 'page=0'] as $query) {

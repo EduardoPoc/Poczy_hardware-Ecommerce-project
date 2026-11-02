@@ -3,22 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Category;
+use App\Http\Resources\CategoryResource;
+use App\Services\CategoryService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CategoryController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(CategoryService $categories): AnonymousResourceCollection
     {
-        $categories = Category::where('is_active', true)->orderBy('name')->get();
-
-        return response()->json($categories);
+        return CategoryResource::collection($categories->listPublicCategories());
     }
 
-    public function show(int $id): JsonResponse
+    public function show(int $id, CategoryService $categories): JsonResponse
     {
-        $category = Category::where('is_active', true)->findOrFail($id);
-
-        return response()->json($category);
+        return (new CategoryResource($categories->getPublicCategory($id)))->response()->setStatusCode(200);
     }
 }

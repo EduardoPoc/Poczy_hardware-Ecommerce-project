@@ -57,6 +57,22 @@ class PublicGetEndpointsTest extends TestCase
         $this->getJson('/api/brands/'.$brand['id'])->assertOk()->assertJsonPath('data.name', $brand['name']);
     }
 
+    public function test_catalog_uses_public_service_filters_and_does_not_expose_internal_costs(): void
+    {
+        $product = Product::where('name', 'Monitor LG 23,8 IPS Full HD')->sole();
+        $product->update(['is_active' => false]);
+        $category = Category::where('name', 'Notebooks')->sole();
+        $category->update(['is_active' => false]);
+        $response = $this->getJson('/api/catalog')->assertOk()
+            ->assertJsonCount(11, 'data.categories')->assertJsonCount(43, 'data.products');
+        $this->assertNotContains($category->id, array_column($response->json('data.categories'), 'id'));
+        $this->assertNotContains($product->id, array_column($response->json('data.products'), 'id'));
+        foreach ($response->json('data.products') as $record) {
+            $this->assertArrayNotHasKey('cost', $record);
+            $this->assertIsString($record['price']);
+        }
+    }
+
     public function test_http_search_combines_name_brand_and_inclusive_price_limits_without_requiring_a_category(): void
     {
         $product = Product::where('name', 'Notebook Acer Gamer 15,6 IPS 16 GB SSD 1 TB')->sole();
