@@ -9,6 +9,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->booted(function (): void {
+        foreach (['id', 'product', 'category', 'brand'] as $parameter) {
+            Route::bind($parameter, function (string $value): int {
+                $identifier = ltrim($value, '0');
+                $maximum = (string) PHP_INT_MAX;
+                if (strlen($identifier) > strlen($maximum) ||
+                    (strlen($identifier) === strlen($maximum) && strcmp($identifier, $maximum) > 0)) {
+                    abort(404);
+                }
+
+                return (int) $identifier;
+            });
+        }
+
         Gate::define('manage-shop', fn (User $user): bool => $user->role === 'ADMIN');
 
         RateLimiter::for('login', function (Request $request): array {
