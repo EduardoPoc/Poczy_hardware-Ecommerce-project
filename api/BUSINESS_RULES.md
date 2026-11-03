@@ -4,7 +4,7 @@ A Poczy vende produtos de hardware organizados por categoria e marca. Cada categ
 
 Este documento define o contrato esperado do projeto. As regras de carrinho, fusão, pagamento simulado, transições de pedidos e preservação de produtos descritas aqui prevalecem sobre os comportamentos anteriores que estiverem em conflito. Documentar uma regra não significa que ela já esteja implementada; as pendências conhecidas estão registradas ao final.
 
-A arquitetura usa MVC com Service Layer, Eloquent e injeção de dependências. Os models representam dados, casts e relacionamentos; os services coordenam regras de negócio e transações. Requests validam entradas HTTP e Resources organizam respostas. A implementação do mecanismo de autenticação fica fora do escopo desta revisão, mas as regras de acesso esperadas permanecem documentadas.
+A arquitetura usa MVC com Service Layer, Eloquent e injeção de dependências. Os models representam dados, casts e relacionamentos; os services coordenam regras de negócio e transações. Requests validam entradas HTTP e Resources organizam respostas. A API implementa autenticação por sessão Laravel (`web`/`auth:web`), cookies e CSRF. Autenticação por token Bearer não está implementada.
 
 ## Acesso e autorização
 
@@ -227,12 +227,13 @@ Use `php artisan route:list --path=api` para conferir as rotas e `vendor/bin/pin
 
 ### Situação da implementação
 
-Estão implementados o carrinho de visitante e da conta, token vinculado à sessão, unicidade, quantidades e preços atuais; a fusão no login e cadastro, com avisos de ajustes e remoção de inativos; o pagamento simulado e o fluxo de pedidos sem `PROCESSING`; a proteção de produtos vendidos contra exclusão física; e a validação HTTP de cadastro, login, perfil, senha, endereços, checkout, status, categorias, estoque e filtros. Os controllers utilizam os services e Resources existentes; o mecanismo de autenticação não foi reformulado.
+Estão implementados e conectados por rotas os controllers, services, Form Requests e Resources dos fluxos de catálogo, perfil, endereços, carrinho, pedidos, administração e estoque. Também estão implementados o carrinho de visitante e da conta, token de visitante vinculado à sessão, fusão no login e cadastro com avisos, pagamento simulado, transições de pedido, snapshots, controle transacional de estoque e proteção contra exclusão física de produtos vendidos. A autenticação disponível é por sessão Laravel; autenticação por token Bearer não está implementada.
 
-Permanecem pendentes:
+### Verificação e itens sem confirmação integrada
 
-- Validar em MySQL as regras de estoque, rollback, concorrência e unicidade, incluindo os cenários de carrinho e fusão. O ambiente de execução atual não permite conexão ao banco de testes nem ao socket Docker; testes HTTP de validação e apresentação sem banco podem ser executados separadamente.
+- A suíte foi executada neste ambiente, mas os testes que precisam de banco pararam antes das asserções: o processo local tentou conectar a `127.0.0.1:3306`, onde não havia porta MySQL acessível. Isso não verifica nem invalida o MySQL usado pela API em outra rede. Execute `docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests` para usar o banco isolado `mysql_test`; até essa execução passar, estoque, rollback, unicidade e fusão não estão confirmados por integração neste ambiente.
+- `CategoryService::availableFilters()` não está conectado a uma rota/controller; as opções dinâmicas por categoria são testadas diretamente no Service. A API expõe a busca de produtos em `/api/products/filter`, mas não um endpoint próprio de opções de filtro por categoria.
 
 O envio do token está definido no header `X-Cart-Token`, acompanhado da mesma sessão que criou o carrinho. Não há conversão automática de pedidos históricos em `PROCESSING`; uma eventual migração desses registros também exige uma política definida.
 
-Permanecem fora do contrato atual: integração financeira real, cotação de frete por transportadora, recuperação de senha, confirmação de e-mail, política de anonimização e compatibilidade entre componentes. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.
+Permanecem fora do contrato atual: autenticação por token Bearer, integração financeira real, cotação de frete por transportadora, recuperação de senha, confirmação de e-mail, política de anonimização e compatibilidade entre componentes. `POST /api/orders` ainda não possui chave de idempotência: uma nova chamada válida cria outro pedido e baixa estoque novamente. A idempotência descrita acima se aplica a cancelamentos e repetição do status, não à criação.

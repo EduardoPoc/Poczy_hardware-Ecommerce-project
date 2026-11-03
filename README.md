@@ -4,59 +4,45 @@ Projeto de e-commerce de hardware, com frontend em `frontend/` e backend Laravel
 
 ## Estado atual e documentação
 
-O projeto possui migrations, models, seeders com dados fixos e uma pesquisa de produtos integrada ao catálogo da API. As categorias guardam as definições dos atributos em JSON, e os produtos guardam suas especificações em outro JSON. Os models mantêm casts e relacionamentos. Form Requests validam entradas; services aplicam as regras de negócio. A API oferece cadastro e sessão, edição do perfil, endereços, catálogo administrativo, checkout, cancelamento, mudanças de status e movimentações de estoque.
+O backend usa Laravel 12 e MySQL 8.4. Os fluxos previstos têm rotas e camadas HTTP conectadas, incluindo validação por Form Requests e respostas por Resources. A autenticação atual usa sessão, cookies e CSRF; autenticação por token Bearer não está implementada. A validação integrada de persistência depende de executar a suíte com o MySQL isolado, conforme o [guia da API](api/README.md#testes-com-mysql-isolado). A pesquisa do frontend ainda usa dados locais de demonstração.
 
-| Documento | Conteúdo |
-| --- | --- |
-| [Backend](api/README.md) | Execução local, rotas existentes, estrutura, seeders e verificação |
-| [Contrato dos GETs](api/app/Http/Controllers/GET_ENDPOINTS.md) | Consultas públicas e pessoais, filtros e formatos de resposta |
-| [Regras de negócio e escritas](api/BUSINESS_RULES.md) | Permissões, endpoints, validações, sessão/CSRF, checkout, estoque e status |
-| [Banco de dados](#banco-de-dados) | Tabelas, campos, relacionamentos, índices e regras de exclusão |
-
-A arquitetura segue MVC com Service Layer, conforme o tutorial anexado: controllers coordenam HTTP, Form Requests validam, services orquestram o negócio e API Resources apresentam o JSON. Os endpoints pessoais exigem sessão autenticada e restringem acesso ao próprio usuário; as operações administrativas exigem `role=ADMIN`. Os contratos anteriores de consulta foram preservados.
-
-Os novos caminhos são `/api/product`, `/api/product/{id}`, `/api/categoria`, `/api/categoria/filter`, `/api/address`, `/api/user`, `/api/order` e `/api/order/{id}`. Também estão disponíveis `/api/catalog`, `/api/health` e `/up`. Todas as rotas da API usam o prefixo `/api`. A pesquisa atual usa `/api/catalog` e filtra no navegador; `/api/categoria/filter` oferece a consulta remota por JSON no parâmetro `filter` da URL, sem mudar o frontend existente.
+O [README da API](api/README.md) reúne os comandos de desenvolvimento, testes MySQL isolados e produção com PHP-FPM/Nginx. O esquema do banco está descrito abaixo.
 
 ## Desenvolvimento com Docker
 
-O ambiente segue a estrutura do [tutorial BookShelf API](https://victor-raphael17.github.io/studies/laravel.html), adaptada para as pastas `api/` e `frontend/`. É um ambiente de desenvolvimento com PHP 8.5, Laravel 12, MySQL 8.4 e Node.js 24.
-
-Com o Docker Desktop/daemon iniciado, execute na raiz:
+Com Docker iniciado, prepare `.env` a partir de `.env.example` se ainda não existir. No Linux/WSL, configure `LOCAL_UID` e `LOCAL_GID` conforme `id -u` e `id -g`.
 
 ```sh
-cp .env.example .env
 docker compose up -d --build --wait
 docker compose exec api php artisan migrate
-```
-
-Em uma instalação nova de desenvolvimento, carregue o catálogo fixo e a cliente de demonstração:
-
-```sh
 docker compose exec api php artisan db:seed
 ```
 
 - Frontend: `http://localhost:5173`.
-- API: `http://localhost:8000/api/health`.
+- API: `http://localhost:8000/api/products`.
+- Saúde: `http://localhost:8000/up`.
 - MySQL: `127.0.0.1:3306`.
 
-As credenciais ficam no `.env` da raiz. O Compose configura a conexão da API com `mysql:3306`; as demais configurações do Laravel ficam em `api/.env`, criado automaticamente junto da chave da aplicação quando ausentes. As dependências são instaladas na inicialização, e as migrations são executadas explicitamente pelo comando acima.
+O Compose de desenvolvimento usa `api/Dockerfile.dev`, monta o código e mantém volumes para banco e dependências. As credenciais de banco ficam no `.env` da raiz. Dentro do container, a API conecta em `mysql:3306`; as demais configurações ficam em `api/.env`. As migrations e seeders são comandos explícitos.
 
-No Linux, configure `LOCAL_UID` e `LOCAL_GID` no `.env` da raiz com os valores de `id -u` e `id -g` antes de construir a API. Isso permite que o usuário do container escreva em `storage` e `bootstrap/cache`, montados da máquina local. Após alterar os IDs, reconstrua a imagem com `docker compose build api`. Se um volume de dependências já foi criado com outro usuário, ajuste somente a propriedade desse volume antes de reiniciar a API.
+## Testes MySQL
 
-O Compose usa a rede padrão e mantém volumes para o banco, `vendor/` e `node_modules/`. Os diretórios de código são montados para desenvolvimento. `docker compose down` para os serviços e mantém os dados. Alterar as variáveis de usuário/senha do MySQL não modifica as credenciais de um banco já inicializado.
-
-Para acompanhar a inicialização ou rodar os testes:
+O ambiente de testes usa um banco separado, sem portas publicadas e com dados temporários:
 
 ```sh
-docker compose logs -f api mysql
-docker compose exec api composer test
+docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
+docker compose -f compose.test.yaml down
 ```
 
-No WSL, habilite a integração com sua distribuição nas configurações do Docker Desktop. A pesquisa carrega o catálogo da API uma vez e aplica os filtros no navegador. `VITE_API_BASE_URL` define a origem da API (padrão `http://localhost:8000`). Os destaques da página inicial continuam demonstrativos.
+Não execute a suíte contra o banco de desenvolvimento. O banco e usuário de testes são `ecommerce_test`, e a suíte verifica essa configuração antes de recriar tabelas.
+
+## Produção
+
+`api/Dockerfile` gera imagens PHP-FPM e Nginx. Prepare `.env.production` a partir de `.env.production.example` com credenciais e `APP_KEY` próprias. Os passos de build, migrations e inicialização estão no [guia da API](api/README.md#produção). O Compose de produção é `compose.prod.yaml` e não executa seeders fictícios automaticamente.
 
 ## Desenvolvimento local
 
-Siga os [passos de instalação da API](api/README.md#executar-localmente). Em outro terminal, inicie o frontend:
+Siga os [passos da API](api/README.md#executar-localmente), usando PHP 8.5 com `pdo_mysql` e MySQL 8.4. Para o frontend:
 
 ```sh
 cd frontend
@@ -64,11 +50,9 @@ npm ci
 npm run dev
 ```
 
-O MySQL é usado pelo Compose. Na execução local, a API também aceita SQLite conforme o `.env`: `api/database/database.sqlite` só é necessário se essa conexão estiver configurada. O arquivo contém dados locais e não é versionado. Os testes da API usam SQLite em memória e não dependem dele. Usando somente MySQL, esse arquivo pode ser dispensado se não houver dados nele a preservar.
-
 ## Banco de dados
 
-O esquema está definido em [`api/database/migrations/`](api/database/migrations/), com nomes em inglês e `snake_case`. São **18 tabelas da aplicação: 11 do domínio e sete de suporte do Laravel**. A tabela `migrations`, criada pelo framework para controlar as execuções, não entra nessa contagem.
+O esquema está definido em [`api/database/migrations/`](api/database/migrations/), com nomes em inglês e `snake_case`. São **20 tabelas da aplicação**. A tabela `migrations`, criada pelo framework para controlar as execuções, não entra nessa contagem.
 
 Esta documentação descreve o resultado de executar todas as migrations atuais. Para conferir quais já foram aplicadas no seu banco:
 
@@ -277,12 +261,11 @@ Os snapshots e valores unitários preservam os dados da compra mesmo após alter
 | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Chave primária, auto incremento |
 | `product_id` | BIGINT UNSIGNED | Obrigatório; referência a `products.id` |
-| `quantity` | INT UNSIGNED | Obrigatório |
+| `quantity` | INT | Obrigatório; ajustes aceitam valores negativos |
 | `type` | ENUM('INBOUND', 'OUTBOUND', 'ADJUSTMENT') | Obrigatório |
-| `change` | INT | Variação com sinal, como `+5` ou `-2` |
 | `reason` | VARCHAR(150) | Anulável |
 
-Um produto possui várias movimentações. `StockService` altera o saldo e cria a movimentação na mesma transação, com bloqueio do produto. Entradas são positivas, saídas negativas e ajustes aceitam ambos os sinais; saldo negativo é rejeitado. Criar registros diretamente pelo model não executa essa regra.
+Um produto possui várias movimentações. `StockService` altera o saldo e cria a movimentação na mesma transação, com bloqueio do produto. Entradas somam e saídas subtraem uma quantidade positiva; ajustes usam quantidade com sinal; saldo negativo é rejeitado. Criar registros diretamente pelo model não executa essa regra.
 
 ### Regras de exclusão e índices
 
@@ -353,15 +336,14 @@ docker compose exec mysql sh -c 'mysql -u "$MYSQL_USER" -p "$MYSQL_DATABASE"'
 Os testes podem ser executados com:
 
 ```sh
-docker compose exec api php artisan test --compact
+docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
 ```
 
-Eles verificam os relacionamentos, timestamps automáticos, snapshots, restrições de exclusão, persistência e expiração de sessões e migrations com rollback. A suíte padrão usa SQLite em memória e também verifica a compilação do esquema MySQL. Os testes HTTP de escrita e consulta também foram executados em um banco temporário separado no MySQL 8.4 do Docker.
+Eles verificam os relacionamentos, timestamps automáticos, snapshots, restrições de exclusão, persistência e expiração de sessões e migrations com rollback. A suíte usa exclusivamente o MySQL 8.4 isolado de `compose.test.yaml`, com migrations reais e transações. O banco de desenvolvimento não é usado pelos testes.
 
 Os testes também verificam a carga fixa das seeders e sua reexecução sem duplicar ou sobrescrever registros. Não usam factories ou geração aleatória. Para verificar os filtros e o build do frontend a partir da raiz:
 
 ```sh
-node --test frontend/src/data/catalog.test.js
 npm --prefix frontend run build
 ```
 
@@ -369,6 +351,6 @@ npm --prefix frontend run build
 
 O [contrato de escritas](api/BUSINESS_RULES.md) descreve cadastro, login/logout, perfil, alteração de senha com auditoria, endereços, catálogo administrativo, checkout transacional, cancelamento e transições de status. Valores e snapshots são calculados e copiados no servidor, o estoque não pode ficar negativo e clientes não escolhem preços, frete, status ou privilégios. A exclusão de pedidos pela API representa cancelamento, preservando os registros da compra.
 
-O [contrato dos GETs](api/app/Http/Controllers/GET_ENDPOINTS.md) mantém consultas públicas e pessoais, paginação, isolamento por usuário e filtros por JSON na query string. A pesquisa continua filtrando no navegador e mantém o carrinho de visitantes em `localStorage`.
+O [guia da API](api/README.md) descreve as rotas atuais e os fluxos já disponíveis nos services. A pesquisa continua filtrando no navegador e mantém o carrinho de visitantes em `localStorage`.
 
-O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, interface administrativa, integração do frontend com sessão/checkout e chaves de idempotência para repetição de `POST /api/order`.
+O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes autenticação por token Bearer, recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, integração do frontend com sessão/checkout e chaves de idempotência para repetição de `POST /api/orders`.

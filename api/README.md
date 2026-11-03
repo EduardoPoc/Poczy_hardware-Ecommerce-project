@@ -50,7 +50,7 @@ O código de saída do primeiro comando é o resultado da suíte. O segundo remo
 
 O arquivo de testes é independente do Compose de desenvolvimento. Ele cria `mysql_test` sem publicar portas e com armazenamento temporário. A imagem `Dockerfile.dev` contém as dependências de teste e o comando executado é `php artisan test --compact`.
 
-O `phpunit.xml` fixa `APP_ENV=testing`, driver MySQL, banco `ecommerce_test` e usuário `ecommerce_test`. O host é `mysql_test` no Compose; para executar PHP diretamente na máquina, configure um MySQL separado com esse banco e usuário e exporte `DB_HOST`, `DB_PORT` e `DB_PASSWORD` para esse servidor.
+O `phpunit.xml` fixa `APP_ENV=testing`, driver MySQL, banco `ecommerce_test` e usuário `ecommerce_test`. Dentro do Compose de testes, o host é `mysql_test`; para executar PHP diretamente na máquina, é necessário que o MySQL de testes esteja acessível em `127.0.0.1:3306` (ou configure `DB_HOST`/`DB_PORT`) e tenha esse banco e usuário. O banco de desenvolvimento (`ecommerce`) e seu usuário não substituem essa configuração. Um MySQL pode estar saudável para a API dentro da rede Docker enquanto a porta local usada pelo PHP no host permanece inacessível.
 
 `Tests\TestCase` verifica o ambiente, a ausência de configuração em cache e o banco/usuário antes de qualquer `RefreshDatabase`. Os testes que usam esse trait recriam tabelas no banco de testes. Não compartilhe esse banco com dados de desenvolvimento ou produção.
 
@@ -94,24 +94,27 @@ O Nginx publica HTTP em `127.0.0.1:8080` por padrão. Use um proxy HTTPS do serv
 
 ## Rotas atuais
 
-| Acesso | Rotas |
-| --- | --- |
-| Público | `GET /api/products`, `GET /api/products/{product}` |
-| Público | `GET /api/brands`, `GET /api/brands/{brand}` |
-| Público | `GET /api/categories`, `GET /api/categories/{category}`, `GET /api/catalog` |
-| Público | `GET /api/products/filter?filter={...}` |
-| Sessão e cadastro | `POST /api/login`, `POST /api/user` |
-| Autenticado | `POST /api/logout`, `GET/PUT/PATCH/DELETE /api/user`, `PUT /api/user/password` |
-| Autenticado | CRUD em `/api/addresses` e `/api/addresses/{id}` |
-| Autenticado | `GET/POST /api/orders`, `GET/DELETE /api/orders/{id}` |
-| Administrador | CRUD em `/api/admin/products` e `/api/admin/products/{product}` |
-| Administrador | CRUD em `/api/admin/brands` e `/api/admin/brands/{brand}` |
-| Administrador | CRUD em `/api/admin/categories` e `/api/admin/categories/{category}` |
-| Administrador | `GET /api/admin/orders`, `GET/PUT/PATCH /api/admin/orders/{id}` |
-| Administrador | `GET/POST /api/admin/products/{id}/stock-movements` |
-| Saúde | `GET /up` |
+| Acesso            | Rotas                                                                          |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Público           | `GET /api/products`, `GET /api/products/{product}`                             |
+| Público           | `GET /api/brands`, `GET /api/brands/{brand}`                                   |
+| Público           | `GET /api/categories`, `GET /api/categories/{category}`, `GET /api/catalog`    |
+| Público           | `GET /api/products/filter?filter={...}`                                        |
+| Público e autenticado | `GET /api/cart`, `POST /api/cart/items`, `PATCH/DELETE /api/cart/items/{product}` |
+| Sessão e cadastro | `POST /api/login`, `POST /api/user`                                            |
+| Autenticado       | `POST /api/logout`, `GET/PUT/PATCH/DELETE /api/user`, `PUT /api/user/password` |
+| Autenticado       | CRUD em `/api/addresses` e `/api/addresses/{id}`                               |
+| Autenticado       | `GET/POST /api/orders`, `GET/DELETE /api/orders/{id}`, `POST /api/orders/{id}/pay` |
+| Administrador     | CRUD em `/api/admin/products` e `/api/admin/products/{product}`                |
+| Administrador     | CRUD em `/api/admin/brands` e `/api/admin/brands/{brand}`                      |
+| Administrador     | CRUD em `/api/admin/categories` e `/api/admin/categories/{category}`           |
+| Administrador     | `GET /api/admin/orders`, `GET/PUT/PATCH /api/admin/orders/{id}`                |
+| Administrador     | `GET/POST /api/admin/products/{id}/stock-movements`                            |
+| Saúde             | `GET /up`                                                                      |
 
 As rotas administrativas usam sessão Laravel (`web`, `auth:web`) e o Gate `manage-shop`, que exige `role=ADMIN`. Perfil, endereços e pedidos exigem `auth:web`. As rotas de sessão e as escritas usam o middleware `web`, com CSRF. Login e cadastro usam os limitadores `login` e `registration` definidos em `bootstrap/app.php`.
+
+A API usa autenticação por sessão/cookie e proteção CSRF. Autenticação por token Bearer não está implementada.
 
 Os controllers delegam consultas e escritas aos services e usam os Resources existentes. Perfil, endereços, categorias, produtos, marcas, estoque, pedidos, carrinho e catálogo retornam envelope `data`; listagens paginadas usam `links` e `meta`. Login e cadastro preservam os campos da conta na raiz, serializados por `UserResource`, e o campo opcional `cart_merge`. Operações sem corpo continuam retornando `204`. Os models representam dados, casts e relacionamentos; os services coordenam consultas, transações e regras de negócio. O catálogo agora utiliza `CatalogService` e `CatalogResource`, omitindo custos internos dos produtos.
 
@@ -135,6 +138,14 @@ A resposta mantém os campos da conta na raiz e acrescenta `cart_merge.cart` e `
 Depois do sucesso, o carrinho de visitante é excluído, o token é invalidado e o frontend deve descartá-lo. Falhas preservam o carrinho e o vínculo do visitante para nova tentativa; cadastro e fusão são atômicos. O cadastro continua sem login automático. Sem o header do token, não ocorre fusão.
 
 O fluxo dos pedidos é `PENDING → PAID → SHIPPED → DELIVERED`, com cancelamento somente a partir de `PENDING`. Produtos vinculados a pedidos não podem ser excluídos fisicamente; use `is_active=false`.
+
+## Estado da implementação e validação
+
+As rotas atuais estão conectadas a controllers, services, Form Requests e Resources. Os cálculos de preço e totais do carrinho são preparados pelo `CartService`; os Resources apenas formatam os valores para JSON. A implementação da autenticação disponível usa sessão Laravel, não token Bearer.
+
+A suíte exige MySQL e banco isolado `ecommerce_test`. A execução local do PHP conecta a `127.0.0.1:3306`; no Compose de testes a conexão usa `mysql_test`. Assim, o MySQL de desenvolvimento pode estar funcionando dentro da rede Docker sem estar acessível a um processo de teste executado no host. Se a porta local não aceitar conexão, use o Compose de testes acima. Enquanto os testes de persistência não passarem, as regras de transação, estoque, unicidade e fusão não devem ser consideradas integradamente validadas.
+
+O método `CategoryService::availableFilters()` existe e tem cobertura direta de Service, mas não possui rota/controller conectado. O endpoint público de filtro disponível é `/api/products/filter`; não há endpoint de opções de filtro por categoria.
 
 ## Banco e seeders
 
