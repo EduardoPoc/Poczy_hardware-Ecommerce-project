@@ -31,6 +31,9 @@ class CartMergePresentationTest extends TestCase
         $cart = new Cart(['user_id' => $user->id]);
         $cart->id = 2;
         $cart->setRelation('items', new Collection);
+        $cart->setAttribute('products_total', '0.00');
+        $cart->setAttribute('items_count', 0);
+        $cart->setAttribute('items_quantity', 0);
         $adjustment = [
             'product_id' => 3, 'requested_quantity' => 2, 'quantity' => 0,
             'reason' => 'unavailable', 'message' => 'O produto foi removido porque está indisponível.',

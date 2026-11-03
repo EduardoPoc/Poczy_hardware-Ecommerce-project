@@ -7,6 +7,7 @@ use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -109,7 +110,19 @@ class CartService
     public function details(Cart $cart): Cart
     {
         $cart->load(['items' => fn (HasMany $query): HasMany => $query->orderBy('id'), 'items.product']);
-        $cart->setRelation('items', $cart->items->filter(fn (CartItem $item): bool => $item->product !== null)->values());
+        $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null)->values();
+        $productsTotal = BigDecimal::zero()->toScale(2);
+        foreach ($items as $item) {
+            $unitPrice = (string) $item->product->price;
+            $lineTotal = (string) BigDecimal::of($unitPrice)->multipliedBy($item->quantity)->toScale(2);
+            $item->setAttribute('unit_price', $unitPrice);
+            $item->setAttribute('line_total', $lineTotal);
+            $productsTotal = $productsTotal->plus($lineTotal);
+        }
+        $cart->setRelation('items', $items);
+        $cart->setAttribute('items_count', $items->count());
+        $cart->setAttribute('items_quantity', $items->sum(fn (CartItem $item): int => $item->quantity));
+        $cart->setAttribute('products_total', (string) $productsTotal->toScale(2));
 
         return $cart;
     }

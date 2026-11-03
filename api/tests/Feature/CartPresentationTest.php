@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Services\CartService;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Tests\TestCase;
@@ -17,8 +18,14 @@ class CartPresentationTest extends TestCase
     {
         $item = new CartItem(['product_id' => 1, 'quantity' => $quantity]);
         $item->setRelation('product', $product);
+        $item->setAttribute('unit_price', $product->price);
+        $lineTotal = (string) BigDecimal::of($product->price)->multipliedBy($quantity)->toScale(2);
+        $item->setAttribute('line_total', $lineTotal);
         $cart = new Cart(['token_hash' => 'private-hash', 'session_binding_hash' => 'private-binding']);
         $cart->setRelation('items', new Collection([$item]));
+        $cart->setAttribute('products_total', $lineTotal);
+        $cart->setAttribute('items_count', 1);
+        $cart->setAttribute('items_quantity', $quantity);
 
         return $cart;
     }
@@ -35,6 +42,7 @@ class CartPresentationTest extends TestCase
         $this->assertArrayNotHasKey('cost', $data['items'][0]['product']);
 
         $product->price = '0.20';
+        $cart = $this->cart($product, 3);
         $data = (new CartResource($cart))->response($request)->getData(true)['data'];
         $this->assertSame('0.60', $data['products_total']);
         $this->assertSame('0.20', $data['items'][0]['unit_price']);
@@ -45,6 +53,9 @@ class CartPresentationTest extends TestCase
     {
         $cart = new Cart(['token_hash' => 'private-hash', 'session_binding_hash' => 'private-binding']);
         $cart->setRelation('items', new Collection);
+        $cart->setAttribute('products_total', '0.00');
+        $cart->setAttribute('items_count', 0);
+        $cart->setAttribute('items_quantity', 0);
         $request = Request::create('/api/cart');
         $data = (new CartResource($cart))->response($request)->getData(true)['data'];
         $this->assertSame('0.00', $data['products_total']);
@@ -78,6 +89,9 @@ class CartPresentationTest extends TestCase
         $cart = new Cart;
         $cart->wasRecentlyCreated = true;
         $cart->setRelation('items', new Collection);
+        $cart->setAttribute('products_total', '0.00');
+        $cart->setAttribute('items_count', 0);
+        $cart->setAttribute('items_quantity', 0);
         $this->mock(CartService::class)->shouldReceive('getForRequest')->once()->andReturn($cart);
         $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.products_total', '0.00');
     }
