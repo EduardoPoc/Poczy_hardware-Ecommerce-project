@@ -1,3 +1,23 @@
+import { currentUser } from './session.js';
+import { getCartCount, subscribeCart } from './cart-store.js';
+
+function updateCartBadge() {
+  const count = getCartCount();
+  document.querySelectorAll('[data-cart-count]').forEach(badge => {
+    badge.textContent = String(count);
+    badge.hidden = count === 0;
+  });
+}
+subscribeCart(updateCartBadge);
+updateCartBadge();
+
+currentUser().then(user => {
+  if (user) document.querySelectorAll('[data-account-label]').forEach(label => {
+    label.textContent = user.role === 'ADMIN' ? 'Administração' : 'Minha conta';
+    if (user.role === 'ADMIN') label.closest('a').href = 'admin.html';
+  });
+});
+
 const searchInput = document.getElementById('product-search');
 const clearSearchButton = document.querySelector('.search-clear');
 

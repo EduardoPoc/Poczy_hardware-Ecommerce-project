@@ -1,49 +1,14 @@
 import './shared.js';
+import { catalog } from '../data/catalog.js';
+import { productCard, productUrl, money } from './products.js';
 const notebookImage = new URL('../../assets/notebook.png', import.meta.url).href;
 const cpuIcon = new URL('../../assets/cpu-icon.svg', import.meta.url).href;
 const gpuIcon = new URL('../../assets/gpu-icon.svg', import.meta.url).href;
 
-const productImages = {
-  'notebook.png': notebookImage,
-  'cpu-icon.svg': cpuIcon,
-  'gpu-icon.svg': gpuIcon
-};
-
-const products = {
-  processors: [
-    ['Processador AMD Ryzen 5 5600, 6 núcleos', 'cpu-icon.svg'],
-    ['Core i5 12400F', 'cpu-icon.svg'],
-    ['Ryzen 7 5700X', 'cpu-icon.svg'],
-    ['Core i7 12700F', 'cpu-icon.svg'],
-    ['Ryzen 5 7600', 'cpu-icon.svg'],
-    ['Core i5 13400F', 'cpu-icon.svg']
-  ],
-  graphics: [
-    ['GeForce RTX 4060', 'gpu-icon.svg'],
-    ['Radeon RX 7600', 'gpu-icon.svg'],
-    ['GeForce RTX 3060', 'gpu-icon.svg'],
-    ['Arc A750', 'gpu-icon.svg'],
-    ['GeForce RTX 4070', 'gpu-icon.svg'],
-    ['Radeon RX 7800 XT', 'gpu-icon.svg']
-  ]
-};
-
-function renderProducts(targetId, items) {
-  const target = document.getElementById(targetId);
-  if (!target) return;
-  target.innerHTML = items.map(([name, image]) => `
-    <article class="product-card">
-      <div class="product-card-inner">
-        <div class="product-image"><img src="${productImages[image]}" alt="" /></div>
-        <p class="product-name" title="${name}">${name}</p>
-        <p class="product-price"><span class="product-price-label">A partir de</span><span class="product-price-value">R$ 1.299,90</span></p>
-      </div>
-    </article>
-  `).join('');
+for (const category of ['processors', 'graphics']) {
+  document.getElementById(category).innerHTML = catalog
+    .filter(product => product.category === category).map(productCard).join('');
 }
-
-renderProducts('processors', products.processors);
-renderProducts('graphics', products.graphics);
 
 const featuredOffers = [
   {
@@ -55,7 +20,7 @@ const featuredOffers = [
     image: notebookImage,
     isIcon: false,
     alt: 'Notebook Alienware 15',
-    href: '#products'
+    href: productUrl(catalog.find(item => item.name === 'Notebook Gamer Alienware 15'))
   },
   {
     category: 'PLACA DE VÍDEO',
@@ -66,7 +31,7 @@ const featuredOffers = [
     image: gpuIcon,
     isIcon: true,
     alt: 'Ilustração de placa de vídeo GeForce RTX 4060',
-    href: '#graphics'
+    href: productUrl(catalog.find(item => item.name === 'GeForce RTX 4060 8 GB'))
   },
   {
     category: 'PROCESSADOR',
@@ -77,7 +42,7 @@ const featuredOffers = [
     image: cpuIcon,
     isIcon: true,
     alt: 'Ilustração de processador Ryzen 5 5600',
-    href: '#processors'
+    href: productUrl(catalog.find(item => item.name === 'Ryzen 5 5600'))
   },
   {
     category: 'PLACA DE VÍDEO',
@@ -88,7 +53,7 @@ const featuredOffers = [
     image: gpuIcon,
     isIcon: true,
     alt: 'Ilustração de placa de vídeo Radeon RX 7600',
-    href: '#graphics'
+    href: productUrl(catalog.find(item => item.name === 'Radeon RX 7600 8 GB'))
   },
   {
     category: 'PROCESSADOR',
@@ -99,7 +64,7 @@ const featuredOffers = [
     image: cpuIcon,
     isIcon: true,
     alt: 'Ilustração de processador Core i5 12400F',
-    href: '#processors'
+    href: productUrl(catalog.find(item => item.name === 'Core i5 12400F'))
   }
 ];
 
@@ -134,7 +99,8 @@ function renderOffer(index) {
   hero.querySelector('h1').textContent = offer.name;
   hero.querySelector('.hero-specs').textContent = offer.specs;
   hero.querySelector('.hero-old-price del').textContent = offer.oldPrice;
-  hero.querySelector('.hero-price-value').textContent = offer.price;
+  const productId = new URL(offer.href, location.href).searchParams.get('id');
+  hero.querySelector('.hero-price-value').textContent = money(catalog.find(item => item.id === productId).price);
   hero.querySelector('.hero-link').href = offer.href;
 
   offerButtons.forEach((button, buttonIndex) => {
@@ -165,6 +131,7 @@ if (hero) {
     const image = new Image();
     image.src = offer.image;
   });
+  renderOffer(0);
   restartCarouselTimer();
   document.addEventListener('visibilitychange', restartCarouselTimer);
 }

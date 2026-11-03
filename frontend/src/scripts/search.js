@@ -1,14 +1,6 @@
 import './shared.js';
 import { catalog, filterDefinitions, matchingProducts } from '../data/catalog.js';
-const notebookImage = new URL('../../assets/notebook.png', import.meta.url).href;
-const cpuIcon = new URL('../../assets/cpu-icon.svg', import.meta.url).href;
-const gpuIcon = new URL('../../assets/gpu-icon.svg', import.meta.url).href;
-
-const productImages = {
-  'notebook.png': notebookImage,
-  'cpu-icon.svg': cpuIcon,
-  'gpu-icon.svg': gpuIcon
-};
+import { productCard } from './products.js';
 
 const searchParams = new URLSearchParams(window.location.search);
 const searchTerm = searchParams.get('q') || '';
@@ -96,43 +88,7 @@ function priceValue(name) {
 }
 
 function renderSearchCards(items) {
-  resultsContainer.replaceChildren();
-  for (const item of items) {
-    const article = document.createElement('article');
-    article.className = 'product-card';
-    const card = document.createElement('div');
-    card.className = 'product-card-inner';
-    const artwork = document.createElement('div');
-    artwork.className = 'product-image';
-    if (item.image) {
-      const image = document.createElement('img');
-      image.src = productImages[item.image];
-      image.alt = '';
-      image.classList.toggle('catalog-product-photo', item.image === 'notebook.png');
-      artwork.append(image);
-    } else {
-      const icon = document.createElement('i');
-      icon.className = `bi ${item.icon} catalog-icon`;
-      icon.setAttribute('aria-hidden', 'true');
-      artwork.append(icon);
-    }
-    const name = document.createElement('p');
-    name.className = 'product-name';
-    name.textContent = item.name;
-    name.title = item.name;
-    const price = document.createElement('p');
-    price.className = 'product-price';
-    const priceLabel = document.createElement('span');
-    priceLabel.className = 'product-price-label';
-    priceLabel.textContent = 'A partir de';
-    const priceAmount = document.createElement('span');
-    priceAmount.className = 'product-price-value';
-    priceAmount.textContent = priceFormatter.format(item.price);
-    price.append(priceLabel, priceAmount);
-    card.append(artwork, name, price);
-    article.append(card);
-    resultsContainer.append(article);
-  }
+  resultsContainer.innerHTML = items.map(productCard).join('');
 }
 
 function renderPagination() {

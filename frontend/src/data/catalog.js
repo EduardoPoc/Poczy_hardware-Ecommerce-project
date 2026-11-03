@@ -31,6 +31,7 @@ export const catalog = [
   { category: 'processors', name: 'Ryzen 7 5700X', price: 1399, brand: 'AMD', socket: 'AM4', image: 'cpu-icon.svg' },
   { category: 'processors', name: 'Core i7 12700F', price: 1799, brand: 'Intel', socket: 'LGA 1700', image: 'cpu-icon.svg' },
   { category: 'processors', name: 'Ryzen 5 7600', price: 1499, brand: 'AMD', socket: 'AM5', image: 'cpu-icon.svg' },
+  { category: 'processors', name: 'Core i5 13400F', price: 1299, brand: 'Intel', socket: 'LGA 1700', image: 'cpu-icon.svg' },
   { category: 'memory', name: 'Memória Kingston 16 GB DDR4', price: 299, brand: 'Kingston', speed: '3200 MHz', capacity: '16 GB', ddr: 'DDR4', icon: 'bi-memory' },
   { category: 'memory', name: 'Memória Corsair 32 GB DDR5', price: 699, brand: 'Corsair', speed: '5600 MHz', capacity: '32 GB', ddr: 'DDR5', icon: 'bi-memory' },
   { category: 'memory', name: 'Memória Kingston 8 GB DDR4', price: 159, brand: 'Kingston', speed: '2666 MHz', capacity: '8 GB', ddr: 'DDR4', icon: 'bi-memory' },
@@ -38,6 +39,8 @@ export const catalog = [
   { category: 'graphics', name: 'Radeon RX 7600 8 GB', price: 1799, brand: 'AMD', vram: '8 GB', image: 'gpu-icon.svg' },
   { category: 'graphics', name: 'GeForce RTX 4070 12 GB', price: 3799, brand: 'NVIDIA', vram: '12 GB', image: 'gpu-icon.svg' },
   { category: 'graphics', name: 'Radeon RX 7800 XT 16 GB', price: 3299, brand: 'AMD', vram: '16 GB', image: 'gpu-icon.svg' },
+  { category: 'graphics', name: 'GeForce RTX 3060 12 GB', price: 1699, brand: 'NVIDIA', vram: '12 GB', image: 'gpu-icon.svg' },
+  { category: 'graphics', name: 'Arc A750 8 GB', price: 1499, brand: 'Intel', vram: '8 GB', image: 'gpu-icon.svg' },
   { category: 'motherboards', name: 'Placa-mãe ASUS B550M', price: 799, brand: 'ASUS', formFactor: 'Micro ATX', ddr: 'DDR4', socket: 'AM4', icon: 'bi-motherboard' },
   { category: 'motherboards', name: 'Placa-mãe MSI B650', price: 1399, brand: 'MSI', formFactor: 'ATX', ddr: 'DDR5', socket: 'AM5', icon: 'bi-motherboard' },
   { category: 'storage', name: 'SSD Kingston SATA 480 GB', price: 249, kind: 'SATA 3', readSpeed: '500 MB/s', writeSpeed: '450 MB/s', capacity: '480 GB', icon: 'bi-device-ssd' },
@@ -52,7 +55,10 @@ export const catalog = [
   { category: 'cooling', name: 'Water cooler Corsair 240 mm', price: 599, brand: 'Corsair', kind: 'Water cooler', icon: 'bi-fan' },
   { category: 'cooling', name: 'Air cooler Cooler Master', price: 199, brand: 'Cooler Master', kind: 'Air cooler', icon: 'bi-fan' },
   { category: 'cooling', name: 'Ventoinha NZXT 120 mm', price: 89, brand: 'NZXT', kind: 'Ventoinha', icon: 'bi-fan' }
-];
+].map(product => ({
+  ...product,
+  id: product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}));
 
 export function matchingProducts(items, category, minPrice, maxPrice, selected) {
   return items.filter(item => {
