@@ -2,6 +2,9 @@ import { onScopeDispose, reactive, ref, watch } from 'vue';
 import { listProducts } from '../api/products.js';
 import { errorMessage } from '../api/http.js';
 
+const SEARCH_DEBOUNCE_MS = 200;
+
+/** Agrupa critérios e resultados da página e cancela buscas substituídas por novos filtros. */
 export function useProductSearch(initial = {}) {
   const criteria = reactive({
     search: '',
@@ -28,6 +31,7 @@ export function useProductSearch(initial = {}) {
 
     try {
       const response = await listProducts(criteria, { signal: request.signal });
+      // O cancelamento pode chegar após a resposta; a revisão também impede resultados antigos.
       if (version !== revision) return;
       products.value = response.products;
       pagination.value = response.pagination;
@@ -46,7 +50,7 @@ export function useProductSearch(initial = {}) {
     const version = ++revision;
     loading.value = true;
     error.value = '';
-    timer = setTimeout(() => fetchProducts(version), 200);
+    timer = setTimeout(() => fetchProducts(version), SEARCH_DEBOUNCE_MS);
   }
 
   watch(criteria, reload, { deep: true, immediate: true });

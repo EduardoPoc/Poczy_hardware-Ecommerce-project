@@ -50,5 +50,5 @@ export function imageUrl(value) {
     return '';
   }
 }
-export const objectValues = (value) =>
+export const asRecord = (value) =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};

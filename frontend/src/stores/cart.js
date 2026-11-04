@@ -7,6 +7,7 @@ let loadingPromise;
 
 function acceptCart(cart) {
   if (!Array.isArray(cart?.items)) throw new ApiError('Não foi possível confirmar o carrinho.');
+  // A sessão identifica o carrinho; credenciais não devem fazer parte do estado visual.
   const { cart_token, ...details } = cart;
   state.cart = details;
 }
@@ -35,6 +36,7 @@ export async function loadCart({ force = false } = {}) {
 }
 
 async function changeCart(operation) {
+  // Serializa escritas e exige atualização após uma resposta perdida para evitar alterações duplicadas.
   if (state.saving || state.uncertain) return false;
   state.saving = true;
   state.error = '';

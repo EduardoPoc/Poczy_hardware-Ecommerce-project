@@ -20,7 +20,7 @@ class ProductResource extends JsonResource
             'stock' => $this->stock,
             'image_url' => $this->image_url,
             'is_active' => $this->is_active,
-            'category' => $this->whenLoaded('category', fn(): array => [
+            'category' => $this->whenLoaded('category', fn (): array => [
                 'id' => $this->category->id,
                 'name' => $this->category->name,
             ]),

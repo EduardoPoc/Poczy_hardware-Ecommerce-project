@@ -64,7 +64,7 @@
   --bs-form-select-bg-img: none;
 }
 
-.form-control[type="search"] {
+.form-control[type='search'] {
   appearance: textfield;
 }
 

@@ -73,13 +73,26 @@ class CartService
 
             return null;
         }
-        if ($cart === null || ! is_string($cart->session_binding_hash) ||
-            ! hash_equals($cart->session_binding_hash, hash('sha256', $binding)) ||
-            ($token !== null && (! is_string($token) || ! hash_equals($cart->token_hash ?? '', hash('sha256', $token))))) {
+        if ($cart === null || ! $this->matchesGuestCredentials($cart, $binding, $token)) {
             throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
         }
 
         return $cart;
+    }
+
+    /**
+     * O vínculo com a sessão é sempre obrigatório. Um token informado acrescenta uma
+     * verificação; possuir somente o token não autoriza o acesso ao carrinho.
+     */
+    private function matchesGuestCredentials(Cart $cart, string $binding, mixed $token): bool
+    {
+        if (! is_string($cart->session_binding_hash) ||
+            ! hash_equals($cart->session_binding_hash, hash('sha256', $binding))) {
+            return false;
+        }
+
+        return $token === null ||
+            (is_string($token) && hash_equals($cart->token_hash ?? '', hash('sha256', $token)));
     }
 
     public function add(Cart $cart, int $productId, int $quantity): Cart
@@ -131,6 +144,10 @@ class CartService
         return $cart;
     }
 
+    /**
+     * A transação do banco não desfaz alterações na sessão. Restaura o vínculo anterior
+     * do visitante se o primeiro item não puder ser adicionado ao novo carrinho.
+     */
     private function changeQuantityForRequest(Request $request, int $productId, int $quantity, bool $increment): Cart
     {
         $guestSession = $request->session()->only(['guest_cart_id', 'guest_cart_binding']);
@@ -162,15 +179,7 @@ class CartService
                 return $this->details($cart);
             }
 
-            $categoryId = Product::findOrFail($productId)->category_id;
-            $category = Category::lockForUpdate()->findOrFail($categoryId);
-            $product = Product::lockForUpdate()->findOrFail($productId);
-            if ($product->category_id !== $category->id) {
-                throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
-            }
-            if (! $product->is_active || ! $category->is_active || $product->stock === 0) {
-                throw ValidationException::withMessages(['product_id' => 'O produto não está disponível.']);
-            }
+            $product = $this->lockAvailableProduct($productId);
             $item = $cart->items()->where('product_id', $productId)->first();
             $desiredQuantity = $quantity + ($increment ? ($item?->quantity ?? 0) : 0);
             if ($desiredQuantity > $product->stock || $desiredQuantity > 2147483647) {
@@ -180,5 +189,21 @@ class CartService
 
             return $this->details($cart);
         }, 3);
+    }
+
+    /** Bloqueia categoria antes do produto, seguindo a ordem das transações do catálogo. */
+    private function lockAvailableProduct(int $productId): Product
+    {
+        $categoryId = Product::findOrFail($productId)->category_id;
+        $category = Category::lockForUpdate()->findOrFail($categoryId);
+        $product = Product::lockForUpdate()->findOrFail($productId);
+        if ($product->category_id !== $category->id) {
+            throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
+        }
+        if (! $product->is_active || ! $category->is_active || $product->stock === 0) {
+            throw ValidationException::withMessages(['product_id' => 'O produto não está disponível.']);
+        }
+
+        return $product;
     }
 }

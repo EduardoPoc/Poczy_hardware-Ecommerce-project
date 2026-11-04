@@ -1,5 +1,5 @@
 import {
-  escapeHtml as e,
+  escapeHtml,
   statusLabels,
   badge,
   dateLabel,
@@ -7,8 +7,9 @@ import {
   moneyFromCents,
   cents,
   imageUrl,
-  objectValues,
+  asRecord,
 } from './admin-utils.js';
+import { filteredRecords, newestOrderFirst, paginateRecords } from './admin-listing.js';
 
 export const sections = {
   overview: {
@@ -57,9 +58,9 @@ const action = (type, id, name, icon) =>
     class="admin-icon-button p-0 btn btn-outline-secondary"
     type="button"
     data-action="${type}"
-    data-id="${e(id)}"
-    aria-label="${e(name)}"
-    title="${e(name)}"
+    data-id="${escapeHtml(id)}"
+    aria-label="${escapeHtml(name)}"
+    title="${escapeHtml(name)}"
   >
     <i class="bi ${icon}" aria-hidden="true"></i>
   </button>`;
@@ -71,27 +72,36 @@ const empty = (
 ) =>
   /* HTML */ `<div class="admin-table-empty text-center">
     <i class="bi bi-inbox" aria-hidden="true"></i>
-    <h3>${e(title)}</h3>
-    <p>${e(description)}</p>
+    <h3>${escapeHtml(title)}</h3>
+    <p>${escapeHtml(description)}</p>
   </div>`;
 function productName(product) {
   const url = imageUrl(product.image_url);
+  const artwork = url
+    ? /* HTML */ `<img
+        src="${escapeHtml(url)}"
+        alt=""
+        loading="lazy"
+        referrerpolicy="no-referrer"
+      />`
+    : '<i class="bi bi-cpu" aria-hidden="true"></i>';
   return /* HTML */ `<div class="admin-product-cell d-flex align-items-center">
-    <span class="admin-thumb d-grid overflow-hidden"
-      >${url ? /* HTML */ `<img src="${e(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : '<i class="bi bi-cpu" aria-hidden="true"></i>'}</span
-    >
+    <span class="admin-thumb d-grid overflow-hidden">${artwork}</span>
     <div>
-      <strong>${e(product.name)}</strong
-      ><small>${e(product.brand?.name || 'Sem marca')} · #${e(product.id)}</small>
+      <strong>${escapeHtml(product.name)}</strong
+      ><small>${escapeHtml(product.brand?.name || 'Sem marca')} · #${escapeHtml(product.id)}</small>
     </div>
   </div>`;
 }
 function orderRow(order) {
   return /* HTML */ `<tr>
-    <td><strong>#${e(order.id)}</strong><small>${e(dateLabel(order.created_at))}</small></td>
     <td>
-      Cliente #${e(order.user_id)}<small
-        >${e(order.items_quantity ?? order.items_count ?? 0)}
+      <strong>#${escapeHtml(order.id)}</strong
+      ><small>${escapeHtml(dateLabel(order.created_at))}</small>
+    </td>
+    <td>
+      Cliente #${escapeHtml(order.user_id)}<small
+        >${escapeHtml(order.items_quantity ?? order.items_count ?? 0)}
         ${(order.items_quantity ?? order.items_count ?? 0) === 1 ? 'item' : 'itens'}</small
       >
     </td>
@@ -127,7 +137,7 @@ const ordersTable = (records) =>
     </table>
   </div>`;
 
-export function overview(data) {
+function overviewStats(data) {
   const active = data.products.filter((product) => product.is_active).length;
   const open = data.orders.filter((order) =>
     ['PENDING', 'PAID', 'SHIPPED'].includes(order.status),
@@ -157,6 +167,15 @@ export function overview(data) {
       'revenue',
     ],
   ];
+  return { stats, low };
+}
+
+export function overview(data) {
+  const { stats, low } = overviewStats(data);
+  const latestOrders = [...data.orders].sort(newestOrderFirst).slice(0, 6);
+  const recentOrders = latestOrders.length
+    ? ordersTable(latestOrders)
+    : empty('Os pedidos começam por aqui', 'As novas compras aparecerão nesta lista.');
   const distribution = Object.keys(statusLabels).map((status) => ({
     status,
     count: data.orders.filter((order) => order.status === status).length,
@@ -184,63 +203,234 @@ export function overview(data) {
           </div>
           <a href="#orders">Ver todos <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
         </div>
-        ${data.orders.length ? ordersTable([...data.orders].sort((a, b) => new Date(b.created_at) - new Date(a.created_at) || b.id - a.id).slice(0, 6)) : empty('Os pedidos começam por aqui', 'As novas compras aparecerão nesta lista.')}
+        ${recentOrders}
       </section>
       <div class="admin-overview-side d-grid">
-        <section class="admin-panel overflow-hidden card d-block position-static">
-          <div class="admin-panel-heading d-flex align-items-center justify-content-between">
-            <div>
-              <h2>Status dos pedidos</h2>
-              <p>${data.orders.length} pedidos no total</p>
-            </div>
-            <i class="bi bi-bar-chart" aria-hidden="true"></i>
-          </div>
-          <div class="admin-status-bars d-flex gap-1 overflow-hidden" aria-hidden="true">
-            ${distribution.map(({ status, count }) => /* HTML */ `<span class="${status.toLowerCase()}" style="width:${data.orders.length ? (count / data.orders.length) * 100 : 0}%"></span>`).join('')}
-          </div>
-          <ul class="admin-status-list m-0">
-            ${distribution.map(({ status, count }) => /* HTML */ `<li><span class="${status.toLowerCase()}"></span>${statusLabels[status]}<strong>${count}</strong></li>`).join('')}
-          </ul>
-        </section>
-        <section class="admin-panel overflow-hidden card d-block position-static">
-          <div class="admin-panel-heading d-flex align-items-center justify-content-between">
-            <h2>Atenção ao estoque</h2>
-            <a href="#stock">Ver estoque <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-          </div>
-          ${
-            low.length
-              ? low
-                  .slice(0, 4)
-                  .map(
-                    (product) =>
-                      /* HTML */ `<div class="admin-low-item align-items-center">
-                        <i class="bi bi-box-seam" aria-hidden="true"></i>
-                        <div>
-                          <strong>${e(product.name)}</strong
-                          ><small
-                            >${product.stock === 0 ? 'Sem estoque' : `${product.stock} unidades disponíveis`}</small
-                          >
-                        </div>
-                        ${action('stock', product.id, `Movimentar estoque de ${product.name}`, 'bi-plus-lg')}
-                      </div>`,
-                  )
-                  .join('')
-              : '<div class="admin-table-empty text-center"><i class="bi bi-check2-circle" aria-hidden="true"></i><p>Nenhum produto ativo com estoque baixo.</p></div>'
-          }
-        </section>
+        ${orderStatusPanel(distribution, data.orders.length)} ${lowStockPanel(low)}
       </div>
     </div>`;
 }
 
 export function listing(section, data) {
+  const categoryOptions = data.categories
+    .map(
+      (category) =>
+        /* HTML */ `<option value="${escapeHtml(category.id)}">
+          ${escapeHtml(category.name)}
+        </option>`,
+    )
+    .join('');
   const categoryFilter = ['products', 'stock'].includes(section)
     ? /* HTML */ `<label class="visually-hidden" for="admin-category-filter"
           >Filtrar categoria</label
         ><select class="form-select" id="admin-category-filter" name="category">
           <option value="">Todas as categorias</option>
-          ${data.categories.map((category) => /* HTML */ `<option value="${e(category.id)}">${e(category.name)}</option>`).join('')}
+          ${categoryOptions}
         </select>`
     : '';
+  return /* HTML */ `<section class="admin-panel overflow-hidden card d-block position-static">
+    <div class="admin-toolbar d-flex flex-wrap">
+      <label class="admin-search d-flex align-items-center" for="admin-search"
+        ><i class="bi bi-search" aria-hidden="true"></i
+        ><span class="visually-hidden"
+          >Buscar ${escapeHtml(sections[section].title.toLowerCase())}</span
+        ><input
+          class="form-control"
+          type="search"
+          id="admin-search"
+          placeholder="${section === 'orders' ? 'Buscar por pedido ou cliente...' : 'Buscar por nome...'}"
+          autocomplete="off" /></label
+      >${categoryFilter}${statusFilter(section)}
+    </div>
+    <div id="admin-results"></div>
+  </section>`;
+}
+
+export function listingResults(section, data, filters, page = 1) {
+  const records = filteredRecords(section, data, filters);
+  const pagination = paginateRecords(records, page);
+  const table =
+    section === 'orders'
+      ? ordersTable(pagination.visible)
+      : catalogTable(section, data, pagination.visible);
+  return {
+    html: `${records.length ? table : empty()}${listingPagination(pagination)}`,
+    page: pagination.current,
+  };
+}
+
+function catalogTable(section, data, visible) {
+  const headers =
+    section === 'products'
+      ? ['PRODUTO', 'CATEGORIA', 'PREÇO', 'ESTOQUE', 'SITUAÇÃO']
+      : section === 'stock'
+        ? ['PRODUTO', 'CATEGORIA', 'SALDO', 'SITUAÇÃO']
+        : section === 'categories'
+          ? ['CATEGORIA', 'ATRIBUTOS', 'PRODUTOS', 'SITUAÇÃO']
+          : ['MARCA', 'PRODUTOS'];
+  const rows = visible.map((record) => catalogRow(section, data, record));
+  return /* HTML */ `<div
+    class="admin-table-scroll position-relative overflow-x-auto table-responsive"
+    tabindex="0"
+    role="region"
+    aria-label="Tabela de ${escapeHtml(sections[section].title.toLowerCase())}"
+  >
+    <table class="admin-table w-100 text-start table table-hover mb-0">
+      <thead>
+        <tr>
+          ${headers.map((header) => /* HTML */ `<th scope="col">${header}</th>`).join('')}
+          <th scope="col"><span class="visually-hidden">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function listingPagination({ current, pages, label }) {
+  return /* HTML */ ` <div class="admin-pagination d-flex justify-content-between">
+    <span>${label}</span>
+    <div>
+      <button
+        class="admin-icon-button p-0 btn btn-outline-secondary"
+        data-page="${current - 1}"
+        type="button"
+        aria-label="Página anterior"
+        ${current === 1 ? 'disabled' : ''}
+      >
+        <i class="bi bi-chevron-left" aria-hidden="true"></i></button
+      ><span>Página ${current} de ${pages}</span
+      ><button
+        class="admin-icon-button p-0 btn btn-outline-secondary"
+        data-page="${current + 1}"
+        type="button"
+        aria-label="Próxima página"
+        ${current === pages ? 'disabled' : ''}
+      >
+        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>`;
+}
+
+function orderStatusPanel(distribution, orderCount) {
+  const bars = distribution
+    .map(
+      ({ status, count }) =>
+        /* HTML */ `<span
+          class="${status.toLowerCase()}"
+          style="width:${orderCount ? (count / orderCount) * 100 : 0}%"
+        ></span>`,
+    )
+    .join('');
+  const labels = distribution
+    .map(
+      ({ status, count }) =>
+        /* HTML */ `<li>
+          <span class="${status.toLowerCase()}"></span>${statusLabels[status]}<strong
+            >${count}</strong
+          >
+        </li>`,
+    )
+    .join('');
+  return /* HTML */ `<section class="admin-panel overflow-hidden card d-block position-static">
+    <div class="admin-panel-heading d-flex align-items-center justify-content-between">
+      <div>
+        <h2>Status dos pedidos</h2>
+        <p>${orderCount} pedidos no total</p>
+      </div>
+      <i class="bi bi-bar-chart" aria-hidden="true"></i>
+    </div>
+    <div class="admin-status-bars d-flex gap-1 overflow-hidden" aria-hidden="true">${bars}</div>
+    <ul class="admin-status-list m-0">
+      ${labels}
+    </ul>
+  </section>`;
+}
+
+function lowStockPanel(low) {
+  return /* HTML */ `<section class="admin-panel overflow-hidden card d-block position-static">
+    <div class="admin-panel-heading d-flex align-items-center justify-content-between">
+      <h2>Atenção ao estoque</h2>
+      <a href="#stock">Ver estoque <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </div>
+    ${
+      low.length
+        ? low
+            .slice(0, 4)
+            .map(
+              (product) =>
+                /* HTML */ `<div class="admin-low-item align-items-center">
+                  <i class="bi bi-box-seam" aria-hidden="true"></i>
+                  <div>
+                    <strong>${escapeHtml(product.name)}</strong
+                    ><small
+                      >${product.stock === 0 ? 'Sem estoque' : `${product.stock} unidades disponíveis`}</small
+                    >
+                  </div>
+                  ${action('stock', product.id, `Movimentar estoque de ${product.name}`, 'bi-plus-lg')}
+                </div>`,
+            )
+            .join('')
+        : '<div class="admin-table-empty text-center"><i class="bi bi-check2-circle" aria-hidden="true"></i><p>Nenhum produto ativo com estoque baixo.</p></div>'
+    }
+  </section>`;
+}
+
+function catalogRow(section, data, record) {
+  const row = ['products', 'stock'].includes(section)
+    ? productCells(section, data, record)
+    : taxonomyCells(section, data, record);
+  return /* HTML */ `<tr>
+    ${row.cells}
+    <td><div class="admin-actions d-flex justify-content-end">${row.buttons}</div></td>
+  </tr>`;
+}
+
+function productCells(section, data, record) {
+  const categoryName = escapeHtml(
+    record.category?.name ||
+      data.categories.find((category) => category.id === record.category_id)?.name ||
+      '—',
+  );
+  const cells = /* HTML */ `<td class="admin-name">${productName(record)}</td>
+    <td>${categoryName}</td>
+    ${section === 'products' ? /* HTML */ `<td><strong>${money(record.price)}</strong></td>` : ''}
+    <td><strong>${escapeHtml(record.stock)}</strong><small>unidades</small></td>
+    <td>${section === 'stock' ? stockBadge(record.stock) : activeBadge(record.is_active)}</td>`;
+  const buttons =
+    section === 'products'
+      ? editAction('products', record) +
+        action('stock', record.id, `Movimentar estoque de ${record.name}`, 'bi-box-arrow-in-down')
+      : action('stock', record.id, `Movimentar estoque de ${record.name}`, 'bi-plus-lg') +
+        action('history', record.id, `Histórico de ${record.name}`, 'bi-clock-history');
+  return { cells, buttons };
+}
+
+function taxonomyCells(section, data, record) {
+  const count = data.products.filter(
+    (product) => product[section === 'categories' ? 'category_id' : 'brand_id'] === record.id,
+  ).length;
+  const attributeCountCell =
+    section === 'categories'
+      ? /* HTML */ `<td>
+          ${Object.keys(asRecord(record.attributes)).length}
+          ${Object.keys(asRecord(record.attributes)).length === 1 ? 'atributo' : 'atributos'}
+        </td>`
+      : '';
+  const cells = /* HTML */ `<td class="admin-name">
+      <strong>${escapeHtml(record.name)}</strong><small>#${escapeHtml(record.id)}</small>
+    </td>
+    ${attributeCountCell}
+    <td>${count} ${count === 1 ? 'produto' : 'produtos'}</td>
+    ${section === 'categories' ? /* HTML */ `<td>${activeBadge(record.is_active)}</td>` : ''}`;
+  const buttons = editAction(section, record);
+  return { cells, buttons };
+}
+
+function statusFilter(section) {
   const statuses =
     section === 'orders'
       ? Object.entries(statusLabels)
@@ -256,166 +446,11 @@ export function listing(section, data) {
               ['inactive', 'Inativos'],
             ]
           : [];
-  return /* HTML */ `<section class="admin-panel overflow-hidden card d-block position-static">
-    <div class="admin-toolbar d-flex flex-wrap">
-      <label class="admin-search d-flex align-items-center" for="admin-search"
-        ><i class="bi bi-search" aria-hidden="true"></i
-        ><span class="visually-hidden">Buscar ${e(sections[section].title.toLowerCase())}</span
-        ><input
-          class="form-control"
-          type="search"
-          id="admin-search"
-          placeholder="${section === 'orders' ? 'Buscar por pedido ou cliente...' : 'Buscar por nome...'}"
-          autocomplete="off" /></label
-      >${categoryFilter}${
-        statuses.length
-          ? /* HTML */ `<label class="visually-hidden" for="admin-status-filter"
-                >Filtrar situação</label
-              ><select class="form-select" id="admin-status-filter" name="status">
-                <option value="">Todas as situações</option>
-                ${statuses.map(([value, label]) => /* HTML */ `<option value="${value}">${label}</option>`).join('')}
-              </select>`
-          : ''
-      }
-    </div>
-    <div id="admin-results"></div>
-  </section>`;
-}
-
-export function listingResults(section, data, filters, page = 1) {
-  const source = data[section === 'stock' ? 'products' : section];
-  const query = filters.q.trim().toLocaleLowerCase('pt-BR');
-  const records = source
-    .filter((record) => {
-      const text =
-        section === 'orders'
-          ? `#${record.id} ${record.id} ${record.user_id}`
-          : `${record.name} ${record.brand?.name || ''}`;
-      if (query && !text.toLocaleLowerCase('pt-BR').includes(query)) return false;
-      if (filters.category && String(record.category_id) !== filters.category) return false;
-      if (filters.status) {
-        if (section === 'orders' && record.status !== filters.status) return false;
-        if (
-          ['products', 'categories'].includes(section) &&
-          Boolean(record.is_active) !== (filters.status === 'active')
-        )
-          return false;
-        if (
-          section === 'stock' &&
-          (filters.status === 'out'
-            ? record.stock !== 0
-            : filters.status === 'low'
-              ? record.stock < 1 || record.stock > 5
-              : record.stock <= 5)
-        )
-          return false;
-      }
-      return true;
-    })
-    .sort((a, b) =>
-      section === 'orders'
-        ? new Date(b.created_at) - new Date(a.created_at) || b.id - a.id
-        : a.name.localeCompare(b.name, 'pt-BR'),
-    );
-  const pages = Math.max(1, Math.ceil(records.length / 10));
-  const current = Math.min(page, pages);
-  const visible = records.slice((current - 1) * 10, current * 10);
-  const headers =
-    section === 'products'
-      ? ['PRODUTO', 'CATEGORIA', 'PREÇO', 'ESTOQUE', 'SITUAÇÃO']
-      : section === 'stock'
-        ? ['PRODUTO', 'CATEGORIA', 'SALDO', 'SITUAÇÃO']
-        : section === 'categories'
-          ? ['CATEGORIA', 'ATRIBUTOS', 'PRODUTOS', 'SITUAÇÃO']
-          : ['MARCA', 'PRODUTOS'];
-  let table;
-  if (section === 'orders') table = ordersTable(visible);
-  else {
-    const rows = visible.map((record) => {
-      let cells;
-      let buttons;
-      if (['products', 'stock'].includes(section)) {
-        cells = /* HTML */ `<td class="admin-name">${productName(record)}</td>
-          <td>
-            ${e(record.category?.name || data.categories.find((category) => category.id === record.category_id)?.name || '—')}
-          </td>
-          ${section === 'products' ? /* HTML */ `<td><strong>${money(record.price)}</strong></td>` : ''}
-          <td><strong>${e(record.stock)}</strong><small>unidades</small></td>
-          <td>
-            ${section === 'stock' ? stockBadge(record.stock) : activeBadge(record.is_active)}
-          </td>`;
-        buttons =
-          section === 'products'
-            ? editAction('products', record) +
-              action(
-                'stock',
-                record.id,
-                `Movimentar estoque de ${record.name}`,
-                'bi-box-arrow-in-down',
-              )
-            : action('stock', record.id, `Movimentar estoque de ${record.name}`, 'bi-plus-lg') +
-              action('history', record.id, `Histórico de ${record.name}`, 'bi-clock-history');
-      } else {
-        const count = data.products.filter(
-          (product) => product[section === 'categories' ? 'category_id' : 'brand_id'] === record.id,
-        ).length;
-        cells = /* HTML */ `<td class="admin-name">
-            <strong>${e(record.name)}</strong><small>#${e(record.id)}</small>
-          </td>
-          ${section === 'categories' ? /* HTML */ `<td>${Object.keys(objectValues(record.attributes)).length} ${Object.keys(objectValues(record.attributes)).length === 1 ? 'atributo' : 'atributos'}</td>` : ''}
-          <td>${count} ${count === 1 ? 'produto' : 'produtos'}</td>
-          ${section === 'categories' ? /* HTML */ `<td>${activeBadge(record.is_active)}</td>` : ''}`;
-        buttons = editAction(section, record);
-      }
-      return /* HTML */ `<tr>
-        ${cells}
-        <td><div class="admin-actions d-flex justify-content-end">${buttons}</div></td>
-      </tr>`;
-    });
-    table = /* HTML */ `<div
-      class="admin-table-scroll position-relative overflow-x-auto table-responsive"
-      tabindex="0"
-      role="region"
-      aria-label="Tabela de ${e(sections[section].title.toLowerCase())}"
-    >
-      <table class="admin-table w-100 text-start table table-hover mb-0">
-        <thead>
-          <tr>
-            ${headers.map((header) => /* HTML */ `<th scope="col">${header}</th>`).join('')}
-            <th scope="col"><span class="visually-hidden">Ações</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.join('')}
-        </tbody>
-      </table>
-    </div>`;
-  }
-  const html = /* HTML */ `${records.length ? table : empty()}
-    <div class="admin-pagination d-flex justify-content-between">
-      <span
-        >${records.length ? `${(current - 1) * 10 + 1}–${Math.min(current * 10, records.length)} de ${records.length} ${records.length === 1 ? 'registro' : 'registros'}` : '0 registros'}</span
-      >
-      <div>
-        <button
-          class="admin-icon-button p-0 btn btn-outline-secondary"
-          data-page="${current - 1}"
-          type="button"
-          aria-label="Página anterior"
-          ${current === 1 ? 'disabled' : ''}
-        >
-          <i class="bi bi-chevron-left" aria-hidden="true"></i></button
-        ><span>Página ${current} de ${pages}</span
-        ><button
-          class="admin-icon-button p-0 btn btn-outline-secondary"
-          data-page="${current + 1}"
-          type="button"
-          aria-label="Próxima página"
-          ${current === pages ? 'disabled' : ''}
-        >
-          <i class="bi bi-chevron-right" aria-hidden="true"></i>
-        </button>
-      </div>
-    </div>`;
-  return { html, page: current };
+  return statuses.length
+    ? /* HTML */ `<label class="visually-hidden" for="admin-status-filter">Filtrar situação</label
+        ><select class="form-select" id="admin-status-filter" name="status">
+          <option value="">Todas as situações</option>
+          ${statuses.map(([value, label]) => /* HTML */ `<option value="${value}">${label}</option>`).join('')}
+        </select>`
+    : '';
 }

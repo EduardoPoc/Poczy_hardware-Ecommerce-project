@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
@@ -26,7 +27,11 @@ class CartMergeService
         }
     }
 
-    /** @return array{cart: Cart, adjustments: list<array{product_id: int, requested_quantity: int, quantity: int, reason: string, message: string}>}|null */
+    /**
+     * Remove o vínculo do visitante somente após o commit, para preservá-lo em caso de falha.
+     *
+     * @return array{cart: Cart, adjustments: list<array{product_id: int, requested_quantity: int, quantity: int, reason: string, message: string}>}|null
+     */
     public function merge(User $user, Request $request): ?array
     {
         if (! $request->hasHeader('X-Cart-Token')) {
@@ -42,54 +47,7 @@ class CartMergeService
                 throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
             }
 
-            $guestItems = $guest->items()->orderBy('product_id')->lockForUpdate()->get();
-            $accountItems = $account->items()->orderBy('product_id')->lockForUpdate()->get()->keyBy('product_id');
-            $productIds = $guestItems->pluck('product_id');
-            $categoryIds = Product::whereIn('id', $productIds)->pluck('category_id')->unique();
-            $categories = Category::whereIn('id', $categoryIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            $products = Product::whereIn('id', $productIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            $adjustments = [];
-
-            foreach ($guestItems as $guestItem) {
-                $productId = (int) $guestItem->product_id;
-                $product = $products->get($productId);
-                $accountItem = $accountItems->get($productId);
-                $requestedQuantity = $guestItem->quantity + ($accountItem?->quantity ?? 0);
-                if ($product !== null && ! $categories->has($product->category_id)) {
-                    throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
-                }
-                $category = $product === null ? null : $categories->get($product->category_id);
-                if ($product === null || ! $product->is_active || ! $category?->is_active) {
-                    $accountItem?->delete();
-                    $adjustments[] = [
-                        'product_id' => $productId,
-                        'requested_quantity' => $requestedQuantity,
-                        'quantity' => 0,
-                        'reason' => 'unavailable',
-                        'message' => 'O produto foi removido do carrinho porque não está disponível.',
-                    ];
-
-                    continue;
-                }
-
-                $quantity = min($requestedQuantity, $product->stock);
-                if ($quantity === 0) {
-                    $accountItem?->delete();
-                } elseif ($accountItem !== null) {
-                    $accountItem->update(['quantity' => $quantity]);
-                } else {
-                    $account->items()->create(['product_id' => $productId, 'quantity' => $quantity]);
-                }
-                if ($quantity < $requestedQuantity) {
-                    $adjustments[] = [
-                        'product_id' => $productId,
-                        'requested_quantity' => $requestedQuantity,
-                        'quantity' => $quantity,
-                        'reason' => 'stock_limit',
-                        'message' => 'A quantidade foi ajustada de '.$requestedQuantity.' para '.$quantity.' conforme o estoque disponível.',
-                    ];
-                }
-            }
+            $adjustments = $this->mergeItems($account, $guest);
 
             $guest->delete();
             $account = $this->carts->details($account);
@@ -100,5 +58,81 @@ class CartMergeService
 
             return ['cart' => $account, 'adjustments' => $adjustments];
         }, 3);
+    }
+
+    /**
+     * Executado dentro da transação de união dos carrinhos. Bloqueia itens, categorias e
+     * produtos em ordem de ID para manter os dados consistentes durante outras escritas.
+     *
+     * @return list<array{product_id: int, requested_quantity: int, quantity: int, reason: string, message: string}>
+     */
+    private function mergeItems(Cart $account, Cart $guest): array
+    {
+        $guestItems = $guest->items()->orderBy('product_id')->lockForUpdate()->get();
+        $accountItems = $account->items()->orderBy('product_id')->lockForUpdate()->get()->keyBy('product_id');
+        $productIds = $guestItems->pluck('product_id');
+        $categoryIds = Product::whereIn('id', $productIds)->pluck('category_id')->unique();
+        $categories = Category::whereIn('id', $categoryIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $products = Product::whereIn('id', $productIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $adjustments = [];
+
+        foreach ($guestItems as $guestItem) {
+            $productId = (int) $guestItem->product_id;
+            $product = $products->get($productId);
+            $accountItem = $accountItems->get($productId);
+            $category = $product === null ? null : $categories->get($product->category_id);
+            if ($product !== null && $category === null) {
+                throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
+            }
+            $adjustment = $this->mergeItem($account, $guestItem, $accountItem, $product, $category);
+            if ($adjustment !== null) {
+                $adjustments[] = $adjustment;
+            }
+        }
+
+        return $adjustments;
+    }
+
+    /** @return array{product_id: int, requested_quantity: int, quantity: int, reason: string, message: string}|null */
+    private function mergeItem(Cart $account, CartItem $guestItem, ?CartItem $accountItem, ?Product $product, ?Category $category): ?array
+    {
+        $productId = (int) $guestItem->product_id;
+        $requestedQuantity = $guestItem->quantity + ($accountItem?->quantity ?? 0);
+        if ($product === null || ! $product->is_active || ! $category?->is_active) {
+            $accountItem?->delete();
+
+            return [
+                'product_id' => $productId,
+                'requested_quantity' => $requestedQuantity,
+                'quantity' => 0,
+                'reason' => 'unavailable',
+                'message' => 'O produto foi removido do carrinho porque não está disponível.',
+            ];
+        }
+
+        $quantity = min($requestedQuantity, $product->stock);
+        $this->saveItemQuantity($account, $accountItem, $productId, $quantity);
+        if ($quantity === $requestedQuantity) {
+            return null;
+        }
+
+        return [
+            'product_id' => $productId,
+            'requested_quantity' => $requestedQuantity,
+            'quantity' => $quantity,
+            'reason' => 'stock_limit',
+            'message' => 'A quantidade foi ajustada de '.$requestedQuantity.' para '.$quantity.' conforme o estoque disponível.',
+        ];
+    }
+
+    private function saveItemQuantity(Cart $cart, ?CartItem $item, int $productId, int $quantity): void
+    {
+        if ($quantity === 0) {
+            $item?->delete();
+        } elseif ($item !== null) {
+            $item->update(['quantity' => $quantity]);
+        } else {
+            $cart->items()->create(['product_id' => $productId, 'quantity' => $quantity]);
+        }
     }
 }

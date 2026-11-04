@@ -17,18 +17,22 @@ form.addEventListener('input', () => {
   hasInteracted = true;
 });
 
+function setPasswordVisibility(button, visible) {
+  const input = document.getElementById(button.dataset.passwordToggle);
+  input.type = visible ? 'text' : 'password';
+  button.setAttribute('aria-pressed', String(visible));
+  button.setAttribute(
+    'aria-label',
+    `${visible ? 'Ocultar' : 'Mostrar'} ${input.name === 'password_confirmation' ? 'confirmação de senha' : 'senha'}`,
+  );
+  button.querySelector('i').className = `bi ${visible ? 'bi-eye-slash' : 'bi-eye'}`;
+}
+
 document.querySelectorAll('[data-password-toggle]').forEach((button) => {
   button.hidden = false;
   button.addEventListener('click', () => {
     const input = document.getElementById(button.dataset.passwordToggle);
-    const visible = input.type === 'password';
-    input.type = visible ? 'text' : 'password';
-    button.setAttribute('aria-pressed', String(visible));
-    button.setAttribute(
-      'aria-label',
-      `${visible ? 'Ocultar' : 'Mostrar'} ${input.name === 'password_confirmation' ? 'confirmação de senha' : 'senha'}`,
-    );
-    button.querySelector('i').className = `bi ${visible ? 'bi-eye-slash' : 'bi-eye'}`;
+    setPasswordVisibility(button, input.type === 'password');
   });
 });
 
@@ -97,6 +101,16 @@ function showResult(user, registered = false, focus = true) {
   document.getElementById('auth-result-copy').textContent = registered
     ? 'Bem-vindo à Poczy. Agora é só entrar com seu e-mail e senha para continuar.'
     : 'Você está conectado à Poczy. Tudo pronto para encontrar seu próximo upgrade.';
+  setResultLink(user, registered);
+  logoutButton.hidden = registered;
+  if (focus) result.focus();
+  form.reset();
+  form
+    .querySelectorAll('[data-password-toggle]')
+    .forEach((button) => setPasswordVisibility(button, false));
+}
+
+function setResultLink(user, registered) {
   const link = document.getElementById('auth-result-link');
   link.href = registered ? 'login.html' : user.role === 'ADMIN' ? 'admin.html' : 'index.html';
   link.replaceChildren(
@@ -112,19 +126,6 @@ function showResult(user, registered = false, focus = true) {
   arrow.className = 'bi bi-arrow-right';
   arrow.setAttribute('aria-hidden', 'true');
   link.append(arrow);
-  logoutButton.hidden = registered;
-  if (focus) result.focus();
-  form.reset();
-  form.querySelectorAll('[data-password-toggle]').forEach((button) => {
-    const input = document.getElementById(button.dataset.passwordToggle);
-    input.type = 'password';
-    button.setAttribute('aria-pressed', 'false');
-    button.setAttribute(
-      'aria-label',
-      `Mostrar ${input.name === 'password_confirmation' ? 'confirmação de senha' : 'senha'}`,
-    );
-    button.querySelector('i').className = 'bi bi-eye';
-  });
 }
 
 fields.forEach((input) => {
@@ -149,9 +150,7 @@ if (isRegister)
     }
   });
 
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (submitting || completed) return;
+function validateForm() {
   hasInteracted = true;
   feedback.hidden = true;
   form.elements.email.value = form.elements.email.value.trim();
@@ -160,9 +159,15 @@ form.addEventListener('submit', async (event) => {
   const firstInvalid = fields.find((input) => input.getAttribute('aria-invalid') === 'true');
   if (firstInvalid) {
     firstInvalid.focus();
-    return;
+    return false;
   }
 
+  return true;
+}
+
+async function submitForm(event) {
+  event.preventDefault();
+  if (submitting || completed || !validateForm()) return;
   setBusy(true);
   try {
     const values = Object.fromEntries(fields.map((input) => [input.name, input.value]));
@@ -173,22 +178,28 @@ form.addEventListener('submit', async (event) => {
       throw new ApiError('Não foi possível confirmar seu acesso. Tente novamente.', 0);
     showResult(user, isRegister);
   } catch (error) {
-    if (error instanceof ApiError) {
-      let hasFieldErrors = false;
-      for (const [name, messages] of Object.entries(error.errors || {})) {
-        const input = fields.find((field) => field.name === name);
-        if (input) {
-          setFieldError(input, Array.isArray(messages) ? messages.join(' ') : String(messages));
-          hasFieldErrors = true;
-        }
-      }
-      if (hasFieldErrors) fields.find((input) => input.hasAttribute('aria-invalid')).focus();
-      else showFeedback(error.message);
-    } else showFeedback('Não foi possível concluir. Tente novamente em instantes.');
+    showSubmitError(error);
   } finally {
     setBusy(false);
   }
-});
+}
+
+function showSubmitError(error) {
+  if (error instanceof ApiError) {
+    let hasFieldErrors = false;
+    for (const [name, messages] of Object.entries(error.errors || {})) {
+      const input = fields.find((field) => field.name === name);
+      if (input) {
+        setFieldError(input, Array.isArray(messages) ? messages.join(' ') : String(messages));
+        hasFieldErrors = true;
+      }
+    }
+    if (hasFieldErrors) fields.find((input) => input.hasAttribute('aria-invalid')).focus();
+    else showFeedback(error.message);
+  } else showFeedback('Não foi possível concluir. Tente novamente em instantes.');
+}
+
+form.addEventListener('submit', submitForm);
 
 logoutButton.addEventListener('click', async () => {
   const message = document.getElementById('auth-result-feedback');

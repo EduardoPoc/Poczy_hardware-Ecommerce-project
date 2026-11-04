@@ -1,6 +1,6 @@
 import { apiRequest, ApiError } from './session.js';
 import { allRecords, loadAdminData } from './admin-api.js';
-import { escapeHtml as e, orderTransitions, statusLabels, objectValues } from './admin-utils.js';
+import { escapeHtml, orderTransitions, statusLabels } from './admin-utils.js';
 import { sections, overview, listing, listingResults } from './admin-views.js';
 import {
   productForm,
@@ -11,8 +11,8 @@ import {
   orderForm,
   attributeRow,
   specificationFields,
-  readPayload,
 } from './admin-forms.js';
+import { readPayload } from './admin-payload.js';
 
 const demo = new URLSearchParams(location.search).get('demo') === '1';
 const app = document.getElementById('admin-app');
@@ -34,6 +34,7 @@ let filters = { q: '', status: '', category: '' };
 let page = 1;
 let loading = false;
 let saving = false;
+// Uma resposta perdida pode ocultar uma escrita concluída. Recarregue os dados antes de tentar novamente.
 let uncertain = false;
 let activeEditor = null;
 let lastEditorTrigger = null;
@@ -179,33 +180,9 @@ async function boot() {
   document.getElementById('admin-gate-copy').textContent =
     'Aguarde enquanto verificamos sua sessão.';
   try {
-    if (demo) {
-      demoModule = await import('../data/admin-demo.js');
-      user = { name: 'Prévia da loja', role: 'DEMO' };
-    } else {
-      const response = await apiRequest('/api/user');
-      user = response?.data ?? response;
-      if (user?.role !== 'ADMIN') {
-        showGate(
-          'Acesso restrito',
-          'Esta área está disponível apenas para administradores da Poczy Hardware.',
-        );
-        return;
-      }
-    }
+    if (!(await authorizeAdmin())) return;
     if (!(await reloadData(true))) return;
-    document.getElementById('admin-user-name').textContent = user.name;
-    document.getElementById('admin-avatar').textContent = user.name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase();
-    document.getElementById('admin-user-role').textContent = demo
-      ? 'Demonstração'
-      : 'Administrador';
-    document.getElementById('admin-demo-banner').hidden = !demo;
-    document.getElementById('admin-logout').hidden = demo;
+    renderAdminUser();
     gate.hidden = true;
     app.hidden = false;
     setMenu(false);
@@ -218,14 +195,47 @@ async function boot() {
   }
 }
 
+async function authorizeAdmin() {
+  if (demo) {
+    demoModule = await import('../data/admin-demo.js');
+    user = { name: 'Prévia da loja', role: 'DEMO' };
+  } else {
+    const response = await apiRequest('/api/user');
+    user = response?.data ?? response;
+    if (user?.role !== 'ADMIN') {
+      showGate(
+        'Acesso restrito',
+        'Esta área está disponível apenas para administradores da Poczy Hardware.',
+      );
+      return false;
+    }
+  }
+  return true;
+}
+
+function renderAdminUser() {
+  document.getElementById('admin-user-name').textContent = user.name;
+  document.getElementById('admin-avatar').textContent = user.name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase();
+  document.getElementById('admin-user-role').textContent = demo ? 'Demonstração' : 'Administrador';
+  document.getElementById('admin-demo-banner').hidden = !demo;
+  document.getElementById('admin-logout').hidden = demo;
+}
+
 function formError(error) {
   const element = document.getElementById('admin-form-error');
   const messages = Object.entries(error.errors || {}).flatMap(([key, values]) => {
     const field = form.elements.namedItem(key);
     if (field instanceof HTMLElement) field.setAttribute('aria-invalid', 'true');
-    return (Array.isArray(values) ? values : [values]).map((message) => `<li>${e(message)}</li>`);
+    return (Array.isArray(values) ? values : [values]).map(
+      (message) => `<li>${escapeHtml(message)}</li>`,
+    );
   });
-  element.innerHTML = `${e(error.message)}${messages.length ? `<ul>${messages.join('')}</ul>` : ''}`;
+  element.innerHTML = `${escapeHtml(error.message)}${messages.length ? `<ul>${messages.join('')}</ul>` : ''}`;
   element.hidden = false;
   element.focus();
 }
@@ -281,58 +291,11 @@ async function openEditor(kind, id = null) {
   document.getElementById('admin-form-error').hidden = true;
   const resource =
     kind === 'stock' || kind === 'history' ? 'products' : kind === 'order' ? 'orders' : kind;
-  let record = null;
-  let movements = [];
   loading = true;
   try {
-    if (id !== null) {
-      const local = data[resource].find((entry) => String(entry.id) === String(id));
-      if (!local) throw new Error('Registro não encontrado. Atualize os dados.');
-      record = demo
-        ? local
-        : (await apiRequest(`/api/admin/${resource}/${encodeURIComponent(id)}`)).data;
-      if (!record) throw new Error('Não foi possível confirmar os dados do registro.');
-      if (kind === 'history')
-        movements = demo
-          ? demoModule.demoMovements(record.id)
-          : await allRecords(`/api/admin/products/${encodeURIComponent(id)}/stock-movements`);
-    }
+    const { record, movements } = await loadEditorRecord(kind, resource, id);
     activeEditor = { kind, resource, record };
-    form.reset();
-    const titles = {
-      products: record ? 'Editar produto' : 'Novo produto',
-      categories: record ? 'Editar categoria' : 'Nova categoria',
-      brands: record ? 'Editar marca' : 'Nova marca',
-      stock: 'Movimentar estoque',
-      history: 'Histórico de estoque',
-      order: `Pedido #${record?.id}`,
-    };
-    document.getElementById('admin-editor-title').textContent = titles[kind];
-    document.getElementById('admin-editor-eyebrow').textContent = demo
-      ? 'DEMONSTRAÇÃO · SOMENTE CONSULTA'
-      : 'GERENCIAR LOJA';
-    const notice = document.getElementById('admin-form-notice');
-    notice.hidden = !demo && !uncertain;
-    notice.textContent = demo
-      ? 'Você pode explorar os campos. Para salvar alterações reais, acesse com uma conta administradora.'
-      : 'Atualize os dados da loja antes de fazer outra alteração.';
-    const builders = {
-      products: () => productForm(record, data),
-      categories: () => categoryForm(record),
-      brands: () => brandForm(record),
-      stock: () => stockForm(record),
-      history: () => movementHistory(record, movements),
-      order: () => orderForm(record),
-    };
-    fields.innerHTML = builders[kind]();
-    fields.disabled = false;
-    saveButton.hidden =
-      kind === 'history' || (kind === 'order' && !(orderTransitions[record.status] || []).length);
-    deleteButton.hidden = demo || !record || !['products', 'categories', 'brands'].includes(kind);
-    setSaving(false);
-    if (kind === 'products') refreshSpecificationFields();
-    if (kind === 'stock') stockPreview();
-    editor.showModal();
+    renderEditor(kind, record, movements);
   } catch (error) {
     if (!accessFailure(error)) {
       announce(error.message, true);
@@ -341,6 +304,65 @@ async function openEditor(kind, id = null) {
   } finally {
     loading = false;
   }
+}
+
+async function loadEditorRecord(kind, resource, id) {
+  if (id === null) return { record: null, movements: [] };
+  const local = data[resource].find((entry) => String(entry.id) === String(id));
+  if (!local) throw new Error('Registro não encontrado. Atualize os dados.');
+  const record = demo
+    ? local
+    : (await apiRequest(`/api/admin/${resource}/${encodeURIComponent(id)}`)).data;
+  if (!record) throw new Error('Não foi possível confirmar os dados do registro.');
+  const movements =
+    kind === 'history'
+      ? demo
+        ? demoModule.demoMovements(record.id)
+        : await allRecords(`/api/admin/products/${encodeURIComponent(id)}/stock-movements`)
+      : [];
+  return { record, movements };
+}
+
+function renderEditor(kind, record, movements) {
+  form.reset();
+  renderEditorHeading(kind, record);
+  const builders = {
+    products: () => productForm(record, data),
+    categories: () => categoryForm(record),
+    brands: () => brandForm(record),
+    stock: () => stockForm(record),
+    history: () => movementHistory(record, movements),
+    order: () => orderForm(record),
+  };
+  fields.innerHTML = builders[kind]();
+  fields.disabled = false;
+  saveButton.hidden =
+    kind === 'history' || (kind === 'order' && !(orderTransitions[record.status] || []).length);
+  deleteButton.hidden = demo || !record || !['products', 'categories', 'brands'].includes(kind);
+  setSaving(false);
+  if (kind === 'products') refreshSpecificationFields();
+  if (kind === 'stock') stockPreview();
+  editor.showModal();
+}
+
+function renderEditorHeading(kind, record) {
+  const titles = {
+    products: record ? 'Editar produto' : 'Novo produto',
+    categories: record ? 'Editar categoria' : 'Nova categoria',
+    brands: record ? 'Editar marca' : 'Nova marca',
+    stock: 'Movimentar estoque',
+    history: 'Histórico de estoque',
+    order: `Pedido #${record?.id}`,
+  };
+  document.getElementById('admin-editor-title').textContent = titles[kind];
+  document.getElementById('admin-editor-eyebrow').textContent = demo
+    ? 'DEMONSTRAÇÃO · SOMENTE CONSULTA'
+    : 'GERENCIAR LOJA';
+  const notice = document.getElementById('admin-form-notice');
+  notice.hidden = !demo && !uncertain;
+  notice.textContent = demo
+    ? 'Você pode explorar os campos. Para salvar alterações reais, acesse com uma conta administradora.'
+    : 'Atualize os dados da loja antes de fazer outra alteração.';
 }
 
 function closeEditor() {
@@ -361,12 +383,8 @@ async function submitEditor(event) {
     return;
   }
   document.getElementById('admin-form-error').hidden = true;
-  const { kind, resource, record } = activeEditor;
-  const path =
-    kind === 'stock'
-      ? `/api/admin/products/${record.id}/stock-movements`
-      : `/api/admin/${resource}${record ? `/${record.id}` : ''}`;
-  const method = kind === 'stock' || !record ? 'POST' : 'PATCH';
+  const { kind } = activeEditor;
+  const { path, method } = editorRequest(activeEditor);
   setSaving(true);
   let success = false;
   try {
@@ -383,19 +401,32 @@ async function submitEditor(event) {
             : 'Registro salvo com sucesso.',
       );
   } catch (error) {
-    if (!accessFailure(error)) {
-      if (error instanceof ApiError && error.status === 0) {
-        uncertain = true;
-        formError(
-          new Error(
-            'Não foi possível confirmar a resposta. A alteração pode ter sido aplicada. Feche esta janela e atualize os dados antes de tentar novamente.',
-          ),
-        );
-      } else formError(error);
-    }
+    handleEditorError(error);
   } finally {
     setSaving(false);
     if (success) document.getElementById('admin-title').focus();
+  }
+}
+
+function editorRequest({ kind, resource, record }) {
+  const path =
+    kind === 'stock'
+      ? `/api/admin/products/${record.id}/stock-movements`
+      : `/api/admin/${resource}${record ? `/${record.id}` : ''}`;
+  const method = kind === 'stock' || !record ? 'POST' : 'PATCH';
+  return { path, method };
+}
+
+function handleEditorError(error) {
+  if (!accessFailure(error)) {
+    if (error instanceof ApiError && error.status === 0) {
+      uncertain = true;
+      formError(
+        new Error(
+          'Não foi possível confirmar a resposta. A alteração pode ter sido aplicada. Feche esta janela e atualize os dados antes de tentar novamente.',
+        ),
+      );
+    } else formError(error);
   }
 }
 
@@ -409,7 +440,7 @@ function showDelete() {
   confirmDialog.showModal();
 }
 
-document.getElementById('admin-confirm-form').addEventListener('submit', async (event) => {
+async function submitDelete(event) {
   event.preventDefault();
   if (demo || saving || uncertain || !activeEditor?.record) return;
   saving = true;
@@ -439,7 +470,9 @@ document.getElementById('admin-confirm-form').addEventListener('submit', async (
     document.getElementById('admin-confirm-cancel').disabled = false;
     setSaving(false);
   }
-});
+}
+
+document.getElementById('admin-confirm-form').addEventListener('submit', submitDelete);
 
 content.addEventListener('input', (event) => {
   if (event.target.id !== 'admin-search') return;

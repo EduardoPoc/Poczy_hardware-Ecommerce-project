@@ -22,7 +22,7 @@ As URLs existentes continuam disponíveis: `index.html`, `pesquisa.html`, `produ
 - `src/pages/`: componentes Vue das quatro páginas da loja.
 - `src/composables/`: busca reativa com debounce e cancelamento de requisições anteriores.
 - `src/stores/`: estado do carrinho confirmado pelo servidor.
-- `src/scripts/`: autenticação e painel administrativo.
+- `src/scripts/`: autenticação e painel administrativo. `admin.js` coordena acesso e eventos; `admin-api.js` carrega dados; `admin-views.js` e `admin-forms.js` geram HTML; `admin-listing.js` filtra e pagina as listas; `admin-payload.js` lê e valida os formulários.
 - `src/styles/`: tema Bootstrap, estilos compartilhados e ajustes visuais por página.
 - `src/data/`: dados fictícios usados exclusivamente na demonstração administrativa explícita.
 
@@ -50,6 +50,8 @@ npm run format:check
 npm run build
 ```
 
-`npm run format` aplica o Prettier ao JavaScript, aos componentes Vue, aos HTMLs e às configurações do frontend. O Bootstrap continua fornecendo componentes e utilitários; o CSS próprio preserva cores, tipografia e medidas específicas da Poczy.
+`npm run format` aplica o Prettier ao JavaScript, aos componentes Vue, ao CSS, aos HTMLs e às configurações do frontend. O Bootstrap continua fornecendo componentes e utilitários; o CSS próprio preserva cores, tipografia e medidas específicas da Poczy.
+
+Os testes do frontend cobrem critérios de busca, requisições HTTP, sessão e regras dos formulários administrativos, incluindo preços, estoque e atributos tipados.
 
 A build gera `frontend/dist/` para hospedagem estática. Em produção, encaminhe `/api`, `/sanctum` e `/storage` para o backend, ou configure uma origem de API autorizada antes da build.
