@@ -44,9 +44,9 @@ function buildFilters(category) {
   priceGroup.className = 'filter-group';
   priceGroup.innerHTML = `
     <legend>Preço</legend>
-    <div class="price-fields">
-      <label for="price-min">Mínimo (R$)<input id="price-min" name="min" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
-      <label for="price-max">Máximo (R$)<input id="price-max" name="max" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Sem limite"></label>
+    <div class="price-fields d-grid gap-2">
+      <label for="price-min">Mínimo (R$)<input class="form-control" id="price-min" name="min" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
+      <label for="price-max">Máximo (R$)<input class="form-control" id="price-max" name="max" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Sem limite"></label>
     </div>`;
   filterForm.append(priceGroup);
 
@@ -60,9 +60,10 @@ function buildFilters(category) {
     group.append(legend);
     for (const [index, option] of options.entries()) {
       const label = document.createElement('label');
-      label.className = 'filter-option';
+      label.className = 'filter-option d-flex align-items-center';
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
+      checkbox.className = 'form-check-input';
       checkbox.name = key;
       checkbox.value = option;
       checkbox.id = `filter-${key}-${index}`;
@@ -99,14 +100,20 @@ function renderPagination() {
 
   pagination.querySelector('.pagination-status').textContent = `Página ${currentPage} de ${totalPages}`;
   const addPageButton = (label, page, current = false, disabled = false) => {
+    const item = document.createElement('li');
+    item.className = 'page-item';
+    item.classList.toggle('active', current);
+    item.classList.toggle('disabled', disabled);
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = 'page-link';
     button.textContent = label;
     button.dataset.page = String(page);
     button.disabled = disabled;
     if (current) button.setAttribute('aria-current', 'page');
     else button.setAttribute('aria-label', typeof label === 'number' ? `Ir para a página ${page}` : label);
-    paginationControls.append(button);
+    item.append(button);
+    paginationControls.append(item);
   };
 
   addPageButton('Anterior', currentPage - 1, false, currentPage === 1);
@@ -116,7 +123,7 @@ function renderPagination() {
   let previousPage = 0;
   for (const page of pages) {
     if (page - previousPage > 1) {
-      const ellipsis = document.createElement('span');
+      const ellipsis = document.createElement('li');
       ellipsis.textContent = '…';
       ellipsis.className = 'pagination-ellipsis';
       ellipsis.setAttribute('aria-hidden', 'true');

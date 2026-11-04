@@ -11,9 +11,9 @@ export function artwork(product) {
     : `<i class="bi ${product.icon} catalog-icon" aria-hidden="true"></i>`;
 }
 export function productCard(product) {
-  return `<article class="product-card"><a class="product-card-inner" href="${productUrl(product)}">
-    <div class="product-image">${artwork(product)}</div>
-    <p class="product-name">${product.name}</p>
-    <p class="product-price"><span class="product-price-label">Por</span><span class="product-price-value">${money(product.price)}</span></p>
+  return `<article class="product-card"><a class="product-card-inner flex-column h-100 overflow-hidden card position-static" href="${productUrl(product)}">
+    <div class="product-image flex-shrink-0 d-grid">${artwork(product)}</div>
+    <p class="product-name overflow-hidden fw-semibold">${product.name}</p>
+    <p class="product-price fw-bold"><span class="product-price-label d-block fw-normal">Por</span><span class="product-price-value">${money(product.price)}</span></p>
   </a></article>`;
 }

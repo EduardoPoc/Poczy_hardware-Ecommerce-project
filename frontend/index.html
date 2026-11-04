@@ -11,37 +11,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./src/styles/theme.css" />
     <link rel="stylesheet" href="./src/styles/main.css" />
+    <link rel="stylesheet" href="./src/styles/home.css" />
   </head>
   <body>
     <main class="page-shell">
-      <div class="container-xl px-0">
-        <header class="site-header">
-          <a class="brand-logo" href="#" aria-label="Poczy Hardware"><img src="./assets/logo1.svg" alt="Poczy Hardware" /></a>
+      <div class="container-xl px-0 store-container">
+        <header class="site-header position-relative align-items-center">
+          <a class="brand-logo d-block" href="#" aria-label="Poczy Hardware"><img src="./assets/logo1.svg" alt="Poczy Hardware" /></a>
 
-          <form class="search-form" role="search" action="pesquisa.html" method="get">
+          <form class="search-form d-flex overflow-hidden" role="search" action="pesquisa.html" method="get">
             <label class="visually-hidden" for="product-search">Buscar produtos</label>
-            <i class="bi bi-search search-field-icon" aria-hidden="true"></i>
-            <input id="product-search" name="q" type="search" placeholder="Buscar produtos..." required />
+            <i class="bi bi-search search-field-icon align-self-center" aria-hidden="true"></i>
+            <input class="form-control" id="product-search" name="q" type="search" placeholder="Buscar produtos..." required />
             <button class="search-clear" type="button" aria-label="Limpar busca" hidden><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             <button class="search-submit" type="submit" aria-label="Buscar"><i class="bi bi-search" aria-hidden="true"></i></button>
           </form>
 
-          <a class="cart-link" href="carrinho.html"><i class="bi bi-cart3" aria-hidden="true"></i> Carrinho <span class="cart-count" data-cart-count hidden></span></a>
-          <a class="login-link" href="login.html"><i class="bi bi-person" aria-hidden="true"></i> <span data-account-label>Entrar</span></a>
+          <a class="cart-link fw-semibold text-decoration-none text-nowrap ms-auto d-inline-flex align-items-center gap-2" href="carrinho.html"><i class="bi bi-cart3" aria-hidden="true"></i> Carrinho <span class="cart-count fw-bold badge" data-cart-count hidden></span></a>
+          <a class="login-link fw-semibold text-decoration-none text-nowrap d-inline-flex align-items-center gap-2" href="login.html"><i class="bi bi-person" aria-hidden="true"></i> <span data-account-label>Entrar</span></a>
         </header>
 
-        <section class="hero-banner" aria-label="Ofertas em destaque" aria-roledescription="carrossel">
-          <div class="hero-image-wrap"><img src="./assets/notebook.png" alt="Notebook Alienware 15" /></div>
+        <section class="hero-banner overflow-hidden position-relative d-grid align-items-center" aria-label="Ofertas em destaque" aria-roledescription="carrossel">
+          <div class="hero-image-wrap align-items-center justify-content-center"><img src="./assets/notebook.png" alt="Notebook Alienware 15" /></div>
           <div class="hero-copy" aria-live="polite" aria-atomic="true">
-            <p class="eyebrow">NOTEBOOK GAMER</p>
+            <p class="eyebrow fw-semibold">NOTEBOOK GAMER</p>
             <h1>ALIENWARE 15</h1>
-            <p class="hero-specs">Core 5&nbsp; • &nbsp;RTX 3050&nbsp; • &nbsp;Tela 165 Hz</p>
+            <p class="hero-specs fw-semibold">Core 5&nbsp; • &nbsp;RTX 3050&nbsp; • &nbsp;Tela 165 Hz</p>
             <p class="hero-old-price"><span class="visually-hidden">Preço anterior:</span> <del>R$ 7.999,00</del></p>
-            <p class="hero-price"><span class="hero-price-label">Por</span> <span class="hero-price-value">R$ 6.999,00</span></p>
-            <a href="produto.html?id=notebook-gamer-alienware-15" class="hero-link">SAIBA MAIS&nbsp; →</a>
+            <p class="hero-price m-0 fw-bold"><span class="hero-price-label fw-normal">Por</span> <span class="hero-price-value">R$ 6.999,00</span></p>
+            <a href="produto.html?id=notebook-gamer-alienware-15" class="hero-link d-inline-block fw-semibold text-decoration-none">SAIBA MAIS&nbsp; →</a>
           </div>
-          <div class="hero-dots" role="group" aria-label="Selecionar oferta">
+          <div class="hero-dots position-absolute align-items-center gap-0" role="group" aria-label="Selecionar oferta">
             <button type="button" class="active" aria-label="Oferta 1 de 5: Alienware 15" aria-current="true" data-slide="0"></button>
             <button type="button" aria-label="Oferta 2 de 5: GeForce RTX 4060" data-slide="1"></button>
             <button type="button" aria-label="Oferta 3 de 5: Ryzen 5 5600" data-slide="2"></button>
@@ -51,31 +53,31 @@
         </section>
 
         <section class="product-section" id="products">
-          <div class="section-heading"><h2>Processadores</h2><a href="pesquisa.html?categoria=processors">Ver mais&nbsp; →</a></div>
-          <div class="row g-3 product-row" id="processors"></div>
+          <div class="section-heading d-flex justify-content-between"><h2>Processadores</h2><a href="pesquisa.html?categoria=processors">Ver mais&nbsp; →</a></div>
+          <div class="row product-row catalog-row" id="processors"></div>
         </section>
 
         <section class="product-section video-section">
-          <div class="section-heading"><h2>Placas de vídeo</h2><a href="pesquisa.html?categoria=graphics">Ver mais&nbsp; →</a></div>
-          <div class="row g-3 product-row" id="graphics"></div>
+          <div class="section-heading d-flex justify-content-between"><h2>Placas de vídeo</h2><a href="pesquisa.html?categoria=graphics">Ver mais&nbsp; →</a></div>
+          <div class="row product-row catalog-row" id="graphics"></div>
         </section>
 
         <footer class="store-footer" aria-labelledby="about-store-title">
           <div class="row g-4">
             <section class="col-12 col-lg-6">
-              <p class="eyebrow">CONHEÇA A POCZY</p>
+              <p class="eyebrow fw-semibold">CONHEÇA A POCZY</p>
               <h2 id="about-store-title">Seu próximo setup começa aqui.</h2>
               <p class="store-description">A Poczy Hardware reúne notebooks, PCs e componentes para quem quer jogar, trabalhar ou dar um upgrade no setup. Explore as categorias e encontre as peças para montar um computador do seu jeito.</p>
-              <a class="store-explore" href="pesquisa.html">Explorar produtos <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+              <a class="store-explore d-inline-flex align-items-center fw-semibold text-decoration-none" href="pesquisa.html">Explorar produtos <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
             </section>
-            <nav class="col-6 col-lg-3 store-footer-nav" aria-label="Explore a loja">
+            <nav class="col-6 col-lg-3 store-footer-nav d-flex flex-column align-items-start" aria-label="Explore a loja">
               <h3>Explore a loja</h3>
               <a href="pesquisa.html?categoria=notebooks">Notebooks</a>
               <a href="pesquisa.html?categoria=pcs">PCs montados</a>
               <a href="pesquisa.html?categoria=monitors">Monitores</a>
               <a href="pesquisa.html?categoria=peripherals">Periféricos</a>
             </nav>
-            <nav class="col-6 col-lg-3 store-footer-nav" aria-label="Componentes para seu PC">
+            <nav class="col-6 col-lg-3 store-footer-nav d-flex flex-column align-items-start" aria-label="Componentes para seu PC">
               <h3>Para seu PC</h3>
               <a href="pesquisa.html?categoria=processors">Processadores</a>
               <a href="pesquisa.html?categoria=graphics">Placas de vídeo</a>
@@ -83,7 +85,7 @@
               <a href="pesquisa.html?categoria=storage">SSDs e HDs</a>
             </nav>
           </div>
-          <div class="store-info-tabs" role="tablist" aria-label="Informações da loja">
+          <div class="store-info-tabs d-flex gap-2" role="tablist" aria-label="Informações da loja">
             <button type="button" id="terms-tab" role="tab" aria-selected="true" aria-controls="terms-panel" data-store-tab="terms-panel">Termos de uso</button>
             <button type="button" id="contact-tab" role="tab" aria-selected="false" aria-controls="contact-panel" tabindex="-1" data-store-tab="contact-panel">Contato</button>
           </div>
@@ -95,14 +97,14 @@
             <h3>Fale com a Poczy Hardware</h3>
             <p>Tem dúvidas sobre a loja ou nossos produtos? Em breve, você encontrará aqui nossos canais de atendimento e horários de contato.</p>
           </section>
-          <div class="store-footer-bottom">
+          <div class="store-footer-bottom d-flex flex-wrap justify-content-between gap-3">
             <span>Poczy Hardware</span>
             <a href="#">Voltar ao topo <i class="bi bi-arrow-up" aria-hidden="true"></i></a>
           </div>
         </footer>
       </div>
     </main>
-    <div class="toast-message" role="status" aria-live="polite"></div>
+    <div class="toast-message position-fixed fw-semibold" role="status" aria-live="polite"></div>
     <script type="module" src="./src/scripts/home.js"></script>
   </body>
 </html>

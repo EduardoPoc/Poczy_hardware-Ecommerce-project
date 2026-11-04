@@ -31,6 +31,8 @@ let lastEditorTrigger = null;
 function announce(message, error = false) {
   feedback.textContent = message;
   feedback.classList.toggle('error', error);
+  feedback.classList.toggle('alert-danger', error);
+  feedback.classList.toggle('alert-info', !error);
   feedback.hidden = false;
 }
 

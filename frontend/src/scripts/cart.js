@@ -8,17 +8,17 @@ const announcement = document.getElementById('cart-announcement');
 let renderedIds = null;
 
 function lineMarkup({ id, product, quantity }) {
-  return `<article class="cart-line" data-cart-line="${id}" aria-labelledby="name-${id}">
-    <div class="cart-line-product">
-      <a class="cart-line-art" href="${productUrl(product)}" aria-label="Ver ${product.name}">${artwork(product)}</a>
-      <div class="cart-line-details"><p class="cart-line-brand">${product.brand || 'Poczy Hardware'}</p><h3 id="name-${id}"><a href="${productUrl(product)}">${product.name}</a></h3><p class="cart-unit-price">${money(product.price)} por unidade</p></div>
+  return `<article class="cart-line d-grid align-items-center" data-cart-line="${id}" aria-labelledby="name-${id}">
+    <div class="cart-line-product d-flex align-items-center">
+      <a class="cart-line-art d-grid" href="${productUrl(product)}" aria-label="Ver ${product.name}">${artwork(product)}</a>
+      <div class="cart-line-details"><p class="cart-line-brand fw-semibold">${product.brand || 'Poczy Hardware'}</p><h3 id="name-${id}"><a href="${productUrl(product)}">${product.name}</a></h3><p class="cart-unit-price m-0">${money(product.price)} por unidade</p></div>
     </div>
     <div class="cart-quantity"><div class="cart-stepper">
       <button type="button" data-cart-action="decrease" data-cart-id="${id}" aria-label="Diminuir quantidade de ${product.name}" ${quantity === 1 ? 'disabled' : ''}><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
-      <input type="number" min="1" max="${MAX_CART_QUANTITY}" step="1" inputmode="numeric" value="${quantity}" data-cart-quantity="${id}" aria-label="Quantidade de ${product.name}" aria-describedby="limit-${id}" />
+      <input class="form-control" type="number" min="1" max="${MAX_CART_QUANTITY}" step="1" inputmode="numeric" value="${quantity}" data-cart-quantity="${id}" aria-label="Quantidade de ${product.name}" aria-describedby="limit-${id}" />
       <button type="button" data-cart-action="increase" data-cart-id="${id}" aria-label="Aumentar quantidade de ${product.name}" ${quantity === MAX_CART_QUANTITY ? 'disabled' : ''}><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
-    </div><p class="cart-line-limit" id="limit-${id}">Máximo de ${MAX_CART_QUANTITY} unidades</p></div>
-    <div class="cart-line-cost"><strong data-line-subtotal></strong><button class="cart-remove" type="button" data-cart-action="remove" data-cart-id="${id}" aria-label="Remover ${product.name}"><i class="bi bi-trash3" aria-hidden="true"></i> Remover</button></div>
+    </div><p class="cart-line-limit text-center" id="limit-${id}">Máximo de ${MAX_CART_QUANTITY} unidades</p></div>
+    <div class="cart-line-cost d-flex flex-column align-items-end"><strong data-line-subtotal></strong><button class="cart-remove d-inline-flex align-items-center border-0" type="button" data-cart-action="remove" data-cart-id="${id}" aria-label="Remover ${product.name}"><i class="bi bi-trash3" aria-hidden="true"></i> Remover</button></div>
   </article>`;
 }
 

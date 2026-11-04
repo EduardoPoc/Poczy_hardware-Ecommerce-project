@@ -16,7 +16,7 @@ export function moneyFromCents(value) {
   return `${value < 0n ? '-' : ''}R$ ${(absolute / 100n).toLocaleString('pt-BR')},${String(absolute % 100n).padStart(2, '0')}`;
 }
 export const money = value => moneyFromCents(cents(value));
-export const badge = status => `<span class="admin-badge ${escapeHtml(String(status).toLowerCase())}"><span></span>${escapeHtml(statusLabels[status] || status)}</span>`;
+export const badge = status => `<span class="admin-badge ${escapeHtml(String(status).toLowerCase())} d-inline-flex align-items-center fw-semibold text-nowrap badge"><span></span>${escapeHtml(statusLabels[status] || status)}</span>`;
 export function imageUrl(value) {
   try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; }
   catch { return ''; }

@@ -1,0 +1,136 @@
+:root {
+  --bg: #121417;
+  --surface: #181b1f;
+  --image-bg: #1f2328;
+  --border: #383d45;
+  --lime: #b6f23a;
+  --text: #f5f7fa;
+  --muted: #c9cdd2;
+  --bs-primary: var(--lime);
+  --bs-primary-rgb: 182, 242, 58;
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text);
+  --bs-body-font-family: Inter, system-ui, sans-serif;
+  --bs-border-color: var(--border);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.btn {
+  --bs-btn-font-family: var(--bs-body-font-family);
+  --bs-btn-font-size: inherit;
+  --bs-btn-font-weight: inherit;
+  --bs-btn-hover-color: var(--bs-btn-color);
+  --bs-btn-hover-bg: var(--bs-btn-bg);
+  --bs-btn-hover-border-color: var(--bs-btn-border-color);
+  --bs-btn-active-color: var(--bs-btn-hover-color);
+  --bs-btn-active-bg: var(--bs-btn-hover-bg);
+  --bs-btn-active-border-color: var(--bs-btn-hover-border-color);
+  --bs-btn-active-shadow: none;
+  --bs-btn-focus-box-shadow: none;
+  --bs-btn-disabled-color: var(--bs-btn-color);
+  --bs-btn-disabled-bg: var(--bs-btn-bg);
+  --bs-btn-disabled-border-color: var(--bs-btn-border-color);
+  vertical-align: baseline;
+  transition: none;
+}
+
+.btn-primary,
+.btn-outline-primary {
+  --bs-btn-color: #121417;
+  --bs-btn-bg: var(--lime);
+  --bs-btn-border-color: var(--lime);
+}
+
+.btn-link {
+  --bs-btn-border-width: 0;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  pointer-events: auto;
+}
+
+.form-control,
+.form-select {
+  font: inherit;
+  appearance: auto;
+  background-clip: border-box;
+}
+
+.form-select {
+  --bs-form-select-bg-img: none;
+}
+
+.form-control[type="search"] {
+  appearance: textfield;
+}
+
+.form-control::placeholder {
+  color: #757575;
+  opacity: 1;
+}
+
+.form-control:focus,
+.form-select:focus {
+  color: var(--control-color, var(--text));
+  background-color: var(--control-bg, var(--bg));
+  border-color: var(--control-border, var(--border));
+  box-shadow: none;
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--control-bg, var(--bg));
+}
+
+.form-check-input {
+  appearance: auto;
+  margin: 0;
+  border: initial;
+  border-radius: 0;
+  background: initial;
+  vertical-align: baseline;
+}
+
+.form-check-input:checked,
+.form-check-input:focus {
+  border-color: initial;
+  background: initial;
+  box-shadow: none;
+}
+
+.form-check-input:disabled {
+  opacity: 1;
+}
+
+.badge {
+  line-height: inherit;
+}
+
+.alert {
+  --bs-alert-padding-y: 12px;
+  --bs-alert-padding-x: 16px;
+  --bs-alert-margin-bottom: 22px;
+  --bs-alert-border-radius: 7px;
+}
+
+.alert-info {
+  --bs-alert-border-color: #b6f23a44;
+  --bs-alert-bg: #b6f23a08;
+  --bs-alert-color: #d3e5bb;
+}
+
+.alert-danger {
+  --bs-alert-border-color: #935b5b;
+  --bs-alert-bg: #ffaaaa08;
+  --bs-alert-color: #ffbcbc;
+}
+
+.alert-warning {
+  --bs-alert-border-color: #a5894c;
+  --bs-alert-bg: #a5894c0c;
+  --bs-alert-color: #f1d998;
+}
