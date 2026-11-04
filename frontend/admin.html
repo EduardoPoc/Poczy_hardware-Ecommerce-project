@@ -3,15 +3,27 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Administração da Poczy Hardware: catálogo, estoque e pedidos." />
+    <meta
+      name="description"
+      content="Administração da Poczy Hardware: catálogo, estoque e pedidos."
+    />
     <meta name="robots" content="noindex,nofollow" />
     <title>Administração — Poczy Hardware</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./src/styles/theme.css" />
     <link rel="stylesheet" href="./src/styles/main.css" />
     <link rel="stylesheet" href="./src/styles/admin.css" />
@@ -20,45 +32,254 @@
     <a class="admin-skip position-fixed" href="#admin-title">Pular para o conteúdo</a>
     <main class="admin-gate d-grid min-vh-100" id="admin-gate" aria-labelledby="admin-gate-title">
       <a href="index.html"><img src="./assets/logo1.svg" alt="Poczy Hardware — início" /></a>
-      <div class="admin-gate-card text-center"><span class="admin-gate-icon d-grid"><i class="bi bi-shield-lock" aria-hidden="true"></i></span><p class="eyebrow fw-semibold">ADMINISTRAÇÃO POCZY</p><h1 id="admin-gate-title">Verificando seu acesso</h1><p id="admin-gate-copy" role="status">Aguarde enquanto verificamos sua sessão.</p><div id="admin-gate-actions" hidden><a class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary" href="login.html">Entrar com minha conta <i class="bi bi-arrow-right" aria-hidden="true"></i></a><button class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary" type="button" id="admin-retry">Tentar novamente</button><a class="admin-demo-link" href="admin.html?demo=1">Conhecer o painel de demonstração</a></div></div>
-      <a class="admin-muted-link" href="index.html"><i class="bi bi-arrow-left" aria-hidden="true"></i> Voltar para a loja</a>
+      <div class="admin-gate-card text-center">
+        <span class="admin-gate-icon d-grid"
+          ><i class="bi bi-shield-lock" aria-hidden="true"></i
+        ></span>
+        <p class="eyebrow fw-semibold">ADMINISTRAÇÃO POCZY</p>
+        <h1 id="admin-gate-title">Verificando seu acesso</h1>
+        <p id="admin-gate-copy" role="status">Aguarde enquanto verificamos sua sessão.</p>
+        <div id="admin-gate-actions" hidden>
+          <a
+            class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary"
+            href="login.html"
+            >Entrar com minha conta <i class="bi bi-arrow-right" aria-hidden="true"></i></a
+          ><button
+            class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary"
+            type="button"
+            id="admin-retry"
+          >
+            Tentar novamente</button
+          ><a class="admin-demo-link" href="admin.html?demo=1">Conhecer o painel de demonstração</a>
+        </div>
+      </div>
+      <a class="admin-muted-link" href="index.html"
+        ><i class="bi bi-arrow-left" aria-hidden="true"></i> Voltar para a loja</a
+      >
       <noscript><p>Ative o JavaScript para acessar a administração.</p></noscript>
     </main>
 
     <div class="admin-shell d-grid min-vh-100" id="admin-app" hidden>
-      <button class="admin-menu-overlay" id="admin-menu-overlay" aria-label="Fechar menu de navegação" type="button" hidden></button>
-      <aside class="admin-sidebar d-flex flex-column overflow-y-auto" id="admin-sidebar" aria-label="Navegação administrativa">
-        <a class="admin-brand d-flex align-items-center gap-2" href="index.html"><img src="./assets/logo1.svg" alt="Poczy Hardware — início" /><span>ADMIN</span></a>
+      <button
+        class="admin-menu-overlay"
+        id="admin-menu-overlay"
+        aria-label="Fechar menu de navegação"
+        type="button"
+        hidden
+      ></button>
+      <aside
+        class="admin-sidebar d-flex flex-column overflow-y-auto"
+        id="admin-sidebar"
+        aria-label="Navegação administrativa"
+      >
+        <a class="admin-brand d-flex align-items-center gap-2" href="index.html"
+          ><img src="./assets/logo1.svg" alt="Poczy Hardware — início" /><span>ADMIN</span></a
+        >
         <p class="admin-nav-label d-block fw-semibold">PAINEL DE CONTROLE</p>
         <nav class="admin-nav" aria-label="Áreas do painel">
-          <a href="#overview" data-section="overview"><i class="bi bi-grid-1x2" aria-hidden="true"></i> Visão geral</a>
-          <a href="#orders" data-section="orders"><i class="bi bi-bag-check" aria-hidden="true"></i> Pedidos <span id="admin-orders-count"></span></a>
+          <a href="#overview" data-section="overview"
+            ><i class="bi bi-grid-1x2" aria-hidden="true"></i> Visão geral</a
+          >
+          <a href="#orders" data-section="orders"
+            ><i class="bi bi-bag-check" aria-hidden="true"></i> Pedidos
+            <span id="admin-orders-count"></span
+          ></a>
           <span class="admin-nav-label d-block fw-semibold">CATÁLOGO E OPERAÇÃO</span>
-          <a href="#products" data-section="products"><i class="bi bi-box-seam" aria-hidden="true"></i> Produtos</a>
-          <a href="#categories" data-section="categories"><i class="bi bi-collection" aria-hidden="true"></i> Categorias</a>
-          <a href="#brands" data-section="brands"><i class="bi bi-bookmark" aria-hidden="true"></i> Marcas</a>
-          <a href="#stock" data-section="stock"><i class="bi bi-boxes" aria-hidden="true"></i> Estoque</a>
+          <a href="#products" data-section="products"
+            ><i class="bi bi-box-seam" aria-hidden="true"></i> Produtos</a
+          >
+          <a href="#categories" data-section="categories"
+            ><i class="bi bi-collection" aria-hidden="true"></i> Categorias</a
+          >
+          <a href="#brands" data-section="brands"
+            ><i class="bi bi-bookmark" aria-hidden="true"></i> Marcas</a
+          >
+          <a href="#stock" data-section="stock"
+            ><i class="bi bi-boxes" aria-hidden="true"></i> Estoque</a
+          >
         </nav>
-        <div class="admin-sidebar-bottom mt-auto"><div class="admin-shop-card d-grid"><i class="bi bi-cpu" aria-hidden="true"></i><strong>O próximo nível<br />começa na sua loja.</strong><a href="index.html">Ver a loja <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></div><button type="button" id="admin-logout"><i class="bi bi-box-arrow-left" aria-hidden="true"></i> Sair da conta</button><span class="admin-sidebar-footnote d-block">Poczy Hardware · Administração</span></div>
+        <div class="admin-sidebar-bottom mt-auto">
+          <div class="admin-shop-card d-grid">
+            <i class="bi bi-cpu" aria-hidden="true"></i
+            ><strong>O próximo nível<br />começa na sua loja.</strong
+            ><a href="index.html"
+              >Ver a loja <i class="bi bi-arrow-up-right" aria-hidden="true"></i
+            ></a>
+          </div>
+          <button type="button" id="admin-logout">
+            <i class="bi bi-box-arrow-left" aria-hidden="true"></i> Sair da conta</button
+          ><span class="admin-sidebar-footnote d-block">Poczy Hardware · Administração</span>
+        </div>
       </aside>
 
       <div class="admin-main">
-        <header class="admin-topbar d-flex align-items-center"><button type="button" class="admin-icon-button admin-menu-toggle p-0 btn btn-outline-secondary" id="admin-menu-toggle" aria-expanded="false" aria-controls="admin-sidebar" aria-label="Abrir menu"><i class="bi bi-list" aria-hidden="true"></i></button><div class="admin-location align-items-center"><span>Administração</span><i class="bi bi-chevron-right" aria-hidden="true"></i><strong id="admin-location">Visão geral</strong></div><a class="admin-view-store d-inline-flex gap-2 align-items-center ms-auto text-nowrap" href="index.html">Voltar à loja <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a><div class="admin-profile align-items-center"><span class="admin-avatar d-grid fw-bold" id="admin-avatar">AD</span><div><strong id="admin-user-name"></strong><span id="admin-user-role">Administrador</span></div></div></header>
+        <header class="admin-topbar d-flex align-items-center">
+          <button
+            type="button"
+            class="admin-icon-button admin-menu-toggle p-0 btn btn-outline-secondary"
+            id="admin-menu-toggle"
+            aria-expanded="false"
+            aria-controls="admin-sidebar"
+            aria-label="Abrir menu"
+          >
+            <i class="bi bi-list" aria-hidden="true"></i>
+          </button>
+          <div class="admin-location align-items-center">
+            <span>Administração</span><i class="bi bi-chevron-right" aria-hidden="true"></i
+            ><strong id="admin-location">Visão geral</strong>
+          </div>
+          <a
+            class="admin-view-store d-inline-flex gap-2 align-items-center ms-auto text-nowrap"
+            href="index.html"
+            >Voltar à loja <i class="bi bi-arrow-up-right" aria-hidden="true"></i
+          ></a>
+          <div class="admin-profile align-items-center">
+            <span class="admin-avatar d-grid fw-bold" id="admin-avatar">AD</span>
+            <div>
+              <strong id="admin-user-name"></strong><span id="admin-user-role">Administrador</span>
+            </div>
+          </div>
+        </header>
         <main class="admin-workspace" aria-labelledby="admin-title">
-          <div class="admin-demo-banner" id="admin-demo-banner" hidden><i class="bi bi-eye" aria-hidden="true"></i><p><strong>Modo demonstração</strong><span>Dados ilustrativos para consulta. As alterações estão desabilitadas.</span></p><a href="admin.html">Acessar minha loja <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
-          <div class="admin-page-heading d-flex justify-content-between"><div><p class="eyebrow fw-semibold">POCZY HARDWARE</p><h1 id="admin-title" tabindex="-1">Visão geral</h1><p id="admin-description">Acompanhe sua loja e cuide de cada próximo upgrade.</p></div><div class="admin-heading-actions d-flex flex-shrink-0"><button class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary" type="button" id="admin-refresh"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Atualizar</button><button class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary" type="button" id="admin-create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Novo produto</button></div></div>
-          <p class="admin-form-notice alert alert-info" id="admin-live-notice" hidden>A vitrine atual é demonstrativa. Alterações de catálogo e estoque feitas aqui ainda não aparecem automaticamente na loja.</p>
-          <p class="admin-feedback alert alert-info" id="admin-feedback" role="status" tabindex="-1" hidden></p>
+          <div class="admin-demo-banner" id="admin-demo-banner" hidden>
+            <i class="bi bi-eye" aria-hidden="true"></i>
+            <p>
+              <strong>Modo demonstração</strong
+              ><span>Dados ilustrativos para consulta. As alterações estão desabilitadas.</span>
+            </p>
+            <a href="admin.html"
+              >Acessar minha loja <i class="bi bi-arrow-right" aria-hidden="true"></i
+            ></a>
+          </div>
+          <div class="admin-page-heading d-flex justify-content-between">
+            <div>
+              <p class="eyebrow fw-semibold">POCZY HARDWARE</p>
+              <h1 id="admin-title" tabindex="-1">Visão geral</h1>
+              <p id="admin-description">Acompanhe sua loja e cuide de cada próximo upgrade.</p>
+            </div>
+            <div class="admin-heading-actions d-flex flex-shrink-0">
+              <button
+                class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary"
+                type="button"
+                id="admin-refresh"
+              >
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Atualizar</button
+              ><button
+                class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary"
+                type="button"
+                id="admin-create"
+              >
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> Novo produto
+              </button>
+            </div>
+          </div>
+          <p class="admin-form-notice alert alert-info" id="admin-live-notice" hidden>
+            A vitrine atual é demonstrativa. Alterações de catálogo e estoque feitas aqui ainda não
+            aparecem automaticamente na loja.
+          </p>
+          <p
+            class="admin-feedback alert alert-info"
+            id="admin-feedback"
+            role="status"
+            tabindex="-1"
+            hidden
+          ></p>
           <div id="admin-content" aria-busy="false"></div>
-          <footer class="admin-footer d-flex justify-content-between"><span>Poczy Hardware · Seu próximo setup começa aqui.</span><span id="admin-sync" role="status"></span></footer>
+          <footer class="admin-footer d-flex justify-content-between">
+            <span>Poczy Hardware · Seu próximo setup começa aqui.</span
+            ><span id="admin-sync" role="status"></span>
+          </footer>
         </main>
       </div>
     </div>
 
     <dialog class="admin-dialog p-0" id="admin-editor" aria-labelledby="admin-editor-title">
-      <form id="admin-form"><header class="admin-dialog-header d-flex align-items-center"><div><p class="eyebrow fw-semibold" id="admin-editor-eyebrow">GERENCIAR LOJA</p><h2 id="admin-editor-title">Produto</h2></div><button class="admin-icon-button p-0 btn btn-outline-secondary" type="button" data-close-editor aria-label="Fechar janela"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header><div class="admin-dialog-body overflow-y-auto"><p class="admin-form-notice alert alert-info" id="admin-form-notice" hidden></p><div class="admin-form-error alert alert-danger" id="admin-form-error" role="alert" tabindex="-1" hidden></div><fieldset id="admin-form-fields"></fieldset></div><footer class="admin-dialog-footer d-flex align-items-center"><button class="admin-danger-text border-0 btn btn-link" id="admin-delete" type="button" hidden><i class="bi bi-trash3" aria-hidden="true"></i> Excluir registro</button><button class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary" type="button" data-close-editor>Fechar</button><button class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary" id="admin-save" type="submit">Salvar alterações</button></footer></form>
+      <form id="admin-form">
+        <header class="admin-dialog-header d-flex align-items-center">
+          <div>
+            <p class="eyebrow fw-semibold" id="admin-editor-eyebrow">GERENCIAR LOJA</p>
+            <h2 id="admin-editor-title">Produto</h2>
+          </div>
+          <button
+            class="admin-icon-button p-0 btn btn-outline-secondary"
+            type="button"
+            data-close-editor
+            aria-label="Fechar janela"
+          >
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </header>
+        <div class="admin-dialog-body overflow-y-auto">
+          <p class="admin-form-notice alert alert-info" id="admin-form-notice" hidden></p>
+          <div
+            class="admin-form-error alert alert-danger"
+            id="admin-form-error"
+            role="alert"
+            tabindex="-1"
+            hidden
+          ></div>
+          <fieldset id="admin-form-fields"></fieldset>
+        </div>
+        <footer class="admin-dialog-footer d-flex align-items-center">
+          <button
+            class="admin-danger-text border-0 btn btn-link"
+            id="admin-delete"
+            type="button"
+            hidden
+          >
+            <i class="bi bi-trash3" aria-hidden="true"></i> Excluir registro</button
+          ><button
+            class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary"
+            type="button"
+            data-close-editor
+          >
+            Fechar</button
+          ><button
+            class="admin-primary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-primary"
+            id="admin-save"
+            type="submit"
+          >
+            Salvar alterações
+          </button>
+        </footer>
+      </form>
     </dialog>
-    <dialog class="admin-dialog admin-confirm-dialog p-0" id="admin-confirm" aria-labelledby="admin-confirm-title"><form id="admin-confirm-form"><header class="admin-dialog-header d-flex align-items-center"><h2 id="admin-confirm-title">Confirmar exclusão</h2></header><div class="admin-dialog-body overflow-y-auto"><p id="admin-confirm-copy"></p><p class="admin-form-error alert alert-danger" id="admin-confirm-error" role="alert" tabindex="-1" hidden></p></div><footer class="admin-dialog-footer d-flex align-items-center"><button class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary" id="admin-confirm-cancel" type="button">Cancelar</button><button class="admin-danger d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-danger" id="admin-confirm-submit" type="submit">Excluir registro</button></footer></form></dialog>
+    <dialog
+      class="admin-dialog admin-confirm-dialog p-0"
+      id="admin-confirm"
+      aria-labelledby="admin-confirm-title"
+    >
+      <form id="admin-confirm-form">
+        <header class="admin-dialog-header d-flex align-items-center">
+          <h2 id="admin-confirm-title">Confirmar exclusão</h2>
+        </header>
+        <div class="admin-dialog-body overflow-y-auto">
+          <p id="admin-confirm-copy"></p>
+          <p
+            class="admin-form-error alert alert-danger"
+            id="admin-confirm-error"
+            role="alert"
+            tabindex="-1"
+            hidden
+          ></p>
+        </div>
+        <footer class="admin-dialog-footer d-flex align-items-center">
+          <button
+            class="admin-secondary d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-outline-secondary"
+            id="admin-confirm-cancel"
+            type="button"
+          >
+            Cancelar</button
+          ><button
+            class="admin-danger d-inline-flex align-items-center justify-content-center gap-2 text-decoration-none btn btn-danger"
+            id="admin-confirm-submit"
+            type="submit"
+          >
+            Excluir registro
+          </button>
+        </footer>
+      </form>
+    </dialog>
     <script type="module" src="./src/scripts/admin.js"></script>
   </body>
 </html>

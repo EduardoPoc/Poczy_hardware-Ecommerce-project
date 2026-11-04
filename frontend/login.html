@@ -8,9 +8,18 @@
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=2" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./src/styles/theme.css" />
     <link rel="stylesheet" href="./src/styles/main.css" />
     <link rel="stylesheet" href="./src/styles/auth.css" />
@@ -19,11 +28,20 @@
     <a class="auth-skip-link position-fixed" href="#auth-title">Pular para o formulário</a>
     <div class="auth-shell">
       <header class="site-header auth-header position-relative align-items-center">
-        <a class="brand-logo d-block" href="index.html" aria-label="Poczy Hardware — início"><img src="./assets/logo1.svg" alt="Poczy Hardware" /></a>
-        <a class="auth-back d-inline-flex align-items-center text-decoration-none fw-semibold" href="index.html"><i class="bi bi-arrow-left" aria-hidden="true"></i> <span>Voltar para a loja</span></a>
+        <a class="brand-logo d-block" href="index.html" aria-label="Poczy Hardware — início"
+          ><img src="./assets/logo1.svg" alt="Poczy Hardware"
+        /></a>
+        <a
+          class="auth-back d-inline-flex align-items-center text-decoration-none fw-semibold"
+          href="index.html"
+          ><i class="bi bi-arrow-left" aria-hidden="true"></i> <span>Voltar para a loja</span></a
+        >
       </header>
       <main class="auth-main">
-        <nav class="auth-breadcrumb d-flex align-items-center" aria-label="Você está em"><a href="index.html">Início</a><i class="bi bi-chevron-right" aria-hidden="true"></i><span aria-current="page">Minha conta</span></nav>
+        <nav class="auth-breadcrumb d-flex align-items-center" aria-label="Você está em">
+          <a href="index.html">Início</a><i class="bi bi-chevron-right" aria-hidden="true"></i
+          ><span aria-current="page">Minha conta</span>
+        </nav>
         <div class="auth-layout d-grid overflow-hidden">
           <aside class="auth-intro position-relative flex-column" aria-labelledby="intro-title">
             <div class="auth-intro-copy">
@@ -35,13 +53,35 @@
               <div class="auth-artwork-grid position-absolute"></div>
               <div class="auth-orbit position-absolute rounded-circle"></div>
               <img class="auth-notebook" src="./assets/notebook.png" alt="" />
-              <span class="auth-hardware-chip auth-chip-cpu position-absolute d-grid"><i class="bi bi-cpu"></i></span>
-              <span class="auth-hardware-chip auth-chip-gpu position-absolute d-grid"><i class="bi bi-gpu-card"></i></span>
-              <span class="auth-artwork-caption position-absolute d-flex align-items-center"><span></span> PRONTO PARA O PRÓXIMO NÍVEL</span>
+              <span class="auth-hardware-chip auth-chip-cpu position-absolute d-grid"
+                ><i class="bi bi-cpu"></i
+              ></span>
+              <span class="auth-hardware-chip auth-chip-gpu position-absolute d-grid"
+                ><i class="bi bi-gpu-card"></i
+              ></span>
+              <span class="auth-artwork-caption position-absolute d-flex align-items-center"
+                ><span></span> PRONTO PARA O PRÓXIMO NÍVEL</span
+              >
             </div>
             <div class="auth-benefits">
-              <div><span class="auth-benefit-icon d-grid"><i class="bi bi-box-seam" aria-hidden="true"></i></span><p><strong>Tudo em um só lugar</strong><span>Seus dados e pedidos na sua conta.</span></p></div>
-              <div><span class="auth-benefit-icon d-grid"><i class="bi bi-lightning-charge" aria-hidden="true"></i></span><p><strong>Mais fácil a cada compra</strong><span>Menos etapas para o próximo upgrade.</span></p></div>
+              <div>
+                <span class="auth-benefit-icon d-grid"
+                  ><i class="bi bi-box-seam" aria-hidden="true"></i
+                ></span>
+                <p>
+                  <strong>Tudo em um só lugar</strong
+                  ><span>Seus dados e pedidos na sua conta.</span>
+                </p>
+              </div>
+              <div>
+                <span class="auth-benefit-icon d-grid"
+                  ><i class="bi bi-lightning-charge" aria-hidden="true"></i
+                ></span>
+                <p>
+                  <strong>Mais fácil a cada compra</strong
+                  ><span>Menos etapas para o próximo upgrade.</span>
+                </p>
+              </div>
             </div>
           </aside>
           <section class="auth-card" aria-labelledby="auth-title">
@@ -51,41 +91,125 @@
             </nav>
             <div id="auth-form-view">
               <div class="auth-heading">
-                <span class="auth-heading-icon"><i class="bi bi-person" aria-hidden="true"></i></span>
+                <span class="auth-heading-icon"
+                  ><i class="bi bi-person" aria-hidden="true"></i
+                ></span>
                 <h1 id="auth-title" tabindex="-1">Entre na sua conta</h1>
                 <p>Que bom ter você de volta. Vamos ao próximo upgrade?</p>
               </div>
-              <div class="auth-feedback alert alert-danger" id="auth-feedback" role="alert" tabindex="-1" hidden></div>
+              <div
+                class="auth-feedback alert alert-danger"
+                id="auth-feedback"
+                role="alert"
+                tabindex="-1"
+                hidden
+              ></div>
               <form id="auth-form" class="auth-form d-grid" method="post" novalidate>
                 <div class="auth-field">
                   <label class="form-label" for="email">E-mail</label>
-                  <div class="auth-input-wrap d-flex align-items-center"><i class="bi bi-envelope" aria-hidden="true"></i><input class="form-control" id="email" name="email" type="email" placeholder="voce@exemplo.com" autocomplete="email" aria-describedby="email-error" required maxlength="150" autocapitalize="none" spellcheck="false" /></div>
+                  <div class="auth-input-wrap d-flex align-items-center">
+                    <i class="bi bi-envelope" aria-hidden="true"></i
+                    ><input
+                      class="form-control"
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="voce@exemplo.com"
+                      autocomplete="email"
+                      aria-describedby="email-error"
+                      required
+                      maxlength="150"
+                      autocapitalize="none"
+                      spellcheck="false"
+                    />
+                  </div>
                   <p class="auth-field-error" id="email-error" hidden></p>
                 </div>
                 <div class="auth-field">
                   <label class="form-label" for="password">Senha</label>
-                  <div class="auth-input-wrap d-flex align-items-center"><i class="bi bi-lock" aria-hidden="true"></i><input class="form-control" id="password" name="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" aria-describedby="password-error" required /><button class="auth-password-toggle d-grid p-0 border-0 btn btn-link" type="button" aria-label="Mostrar senha" aria-controls="password" aria-pressed="false" data-password-toggle="password" hidden><i class="bi bi-eye" aria-hidden="true"></i></button></div>
+                  <div class="auth-input-wrap d-flex align-items-center">
+                    <i class="bi bi-lock" aria-hidden="true"></i
+                    ><input
+                      class="form-control"
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="Digite sua senha"
+                      autocomplete="current-password"
+                      aria-describedby="password-error"
+                      required
+                    /><button
+                      class="auth-password-toggle d-grid p-0 border-0 btn btn-link"
+                      type="button"
+                      aria-label="Mostrar senha"
+                      aria-controls="password"
+                      aria-pressed="false"
+                      data-password-toggle="password"
+                      hidden
+                    >
+                      <i class="bi bi-eye" aria-hidden="true"></i>
+                    </button>
+                  </div>
                   <p class="auth-field-error" id="password-error" hidden></p>
                 </div>
-                <details class="auth-recovery"><summary>Esqueceu sua senha?</summary><p>A recuperação de senha ainda não está disponível. Se você usa um gerenciador de senhas, confira se seu acesso está salvo nele.</p></details>
-                <button class="auth-primary d-flex align-items-center justify-content-center w-100 text-decoration-none btn btn-primary" id="auth-submit" type="submit"><span>Entrar na minha conta</span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+                <details class="auth-recovery">
+                  <summary>Esqueceu sua senha?</summary>
+                  <p>
+                    A recuperação de senha ainda não está disponível. Se você usa um gerenciador de
+                    senhas, confira se seu acesso está salvo nele.
+                  </p>
+                </details>
+                <button
+                  class="auth-primary d-flex align-items-center justify-content-center w-100 text-decoration-none btn btn-primary"
+                  id="auth-submit"
+                  type="submit"
+                >
+                  <span>Entrar na minha conta</span
+                  ><i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
               </form>
-              <p class="auth-alternative text-center">Novo por aqui? <a href="cadastro.html">Crie sua conta <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></p>
+              <p class="auth-alternative text-center">
+                Novo por aqui?
+                <a href="cadastro.html"
+                  >Crie sua conta <i class="bi bi-arrow-up-right" aria-hidden="true"></i
+                ></a>
+              </p>
             </div>
             <div class="auth-result text-center" id="auth-result" tabindex="-1" hidden>
-              <span class="auth-result-icon d-grid rounded-circle"><i class="bi bi-check2" aria-hidden="true"></i></span>
+              <span class="auth-result-icon d-grid rounded-circle"
+                ><i class="bi bi-check2" aria-hidden="true"></i
+              ></span>
               <h2 id="auth-result-title"></h2>
               <p id="auth-result-copy"></p>
-              <a class="auth-primary d-flex align-items-center justify-content-center w-100 text-decoration-none btn btn-primary" id="auth-result-link" href="index.html">Continuar na loja <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-              <button class="auth-text-button border-0" id="auth-logout" type="button" hidden>Sair da conta</button>
+              <a
+                class="auth-primary d-flex align-items-center justify-content-center w-100 text-decoration-none btn btn-primary"
+                id="auth-result-link"
+                href="index.html"
+                >Continuar na loja <i class="bi bi-arrow-right" aria-hidden="true"></i
+              ></a>
+              <button class="auth-text-button border-0" id="auth-logout" type="button" hidden>
+                Sair da conta
+              </button>
               <p class="auth-result-feedback" id="auth-result-feedback" role="status" hidden></p>
             </div>
-            <div class="auth-security d-flex justify-content-center align-items-center gap-2"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Seus dados protegidos. Seu setup em boas mãos.</span></div>
-            <noscript><p class="auth-noscript alert alert-danger">Ative o JavaScript para entrar ou criar sua conta.</p></noscript>
+            <div class="auth-security d-flex justify-content-center align-items-center gap-2">
+              <i class="bi bi-shield-check" aria-hidden="true"></i
+              ><span>Seus dados protegidos. Seu setup em boas mãos.</span>
+            </div>
+            <noscript
+              ><p class="auth-noscript alert alert-danger">
+                Ative o JavaScript para entrar ou criar sua conta.
+              </p></noscript
+            >
           </section>
         </div>
       </main>
-      <footer class="auth-footer flex-wrap justify-content-between align-items-center"><span>© 2026 Poczy Hardware</span><span>Hardware para o seu próximo nível.</span><a href="index.html#terms-panel">Termos de uso <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a></footer>
+      <footer class="auth-footer flex-wrap justify-content-between align-items-center">
+        <span>© 2026 Poczy Hardware</span><span>Hardware para o seu próximo nível.</span
+        ><a href="index.html#terms-panel"
+          >Termos de uso <i class="bi bi-arrow-up-right" aria-hidden="true"></i
+        ></a>
+      </footer>
     </div>
     <script type="module" src="./src/scripts/auth.js"></script>
   </body>

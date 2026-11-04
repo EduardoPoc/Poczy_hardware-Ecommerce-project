@@ -4,7 +4,7 @@ Projeto de e-commerce de hardware, com frontend em `frontend/` e backend Laravel
 
 ## Estado atual e documentação
 
-O backend usa Laravel 12 e MySQL 8.4. Os fluxos previstos têm rotas e camadas HTTP conectadas, incluindo validação por Form Requests e respostas por Resources. A autenticação atual usa sessão, cookies e CSRF; autenticação por token Bearer não está implementada. A validação integrada de persistência depende de executar a suíte com o MySQL isolado, conforme o [guia da API](api/README.md#testes-com-mysql-isolado). A pesquisa do frontend ainda usa dados locais de demonstração.
+O backend usa Laravel 12 e MySQL 8.4. Os fluxos previstos têm rotas e camadas HTTP conectadas, incluindo validação por Form Requests e respostas por Resources. A autenticação atual usa sessão, cookies e CSRF; autenticação por token Bearer não está implementada. A validação integrada de persistência depende de executar a suíte com o MySQL isolado, conforme o [guia da API](api/README.md#testes-com-mysql-isolado). A loja em Vue 3 consulta o catálogo e pesquisa os produtos pela API, com filtros e paginação no servidor.
 
 O [README da API](api/README.md) reúne os comandos de desenvolvimento, testes MySQL isolados e produção com PHP-FPM/Nginx. O esquema do banco está descrito abaixo.
 
@@ -194,7 +194,7 @@ A categoria deve existir antes dos produtos, conforme a chave estrangeira `produ
 
 Os models mantêm casts, campos preenchíveis e relacionamentos, sem eventos de validação ou normalização das especificações. Os JSONs são persistidos preservando os tipos fornecidos. Desativar `is_filterable` oculta o filtro e preserva os dados do produto. A descrição continua um texto de apresentação.
 
-`GET /api/catalog` fornece categorias ativas, definições filtráveis e produtos ativos com marca, preço e especificações. A pesquisa faz uma única carga ao abrir a página e filtra em memória, incluindo `false` como opção válida. Marca continua em `products.brand_id`, com a definição reservada `brand` controlando seu filtro; preço continua em `products.price`. Recarregue a página para buscar alterações do catálogo. Não existe paginação no servidor neste endpoint; carregar todos os produtos é adequado à base inicial, mas exige revisão quando o catálogo crescer. A API administrativa permite cadastrar e editar categorias, atributos, marcas e produtos. A interface administrativa no frontend continua pendente.
+A loja em Vue 3 pesquisa e pagina no servidor por `GET /api/products/filter`, enviando nome, categoria, marcas, preços e especificações em `filter`. `GET /api/categories/{id}/filters` fornece marcas e opções de características da categoria, preservando números e booleanos, inclusive `false`. Os links usam IDs reais, e os detalhes vêm de `GET /api/products/{id}`. O endpoint `GET /api/catalog` continua disponível para integrações que precisam da carga completa. Marca permanece em `products.brand_id`, com a definição reservada `brand` controlando seu filtro; preço permanece em `products.price`. O painel administrativo permite cadastrar e editar categorias, atributos, marcas e produtos; as consultas da vitrine refletem esses registros.
 
 ### Pedidos e histórico
 
@@ -305,7 +305,7 @@ Além das chaves primárias, estrangeiras e restrições de unicidade, existem o
 
 O esquema está preparado para sessões em banco e não cria `personal_access_tokens`. A rota protegida `/api/user` usa o guard `web`, sem autenticação Bearer. `password_reset_tokens` continua necessária para recuperação de senha, e `remember_token` para o recurso “lembrar de mim”.
 
-Para usar a tabela `sessions`, configure `SESSION_DRIVER=database`, já definido no `.env.example` atualizado. Instalações existentes com `array` em `api/.env` devem atualizar esse valor e limpar o cache de configuração; esse driver não persiste login entre requisições. `POST /api/login` e `POST /api/logout` estão implementados. As rotas de escrita usam `web` para sessão/CSRF e as pessoais também exigem `auth:web`; o CORS permite credenciais para origens autorizadas. O frontend deve obter `/sanctum/csrf-cookie`, enviar cookies e usar `X-XSRF-TOKEN` nas escritas. A integração nas telas continua pendente; veja o [contrato de sessão](api/BUSINESS_RULES.md#cookies-e-csrf-na-spa).
+Para usar a tabela `sessions`, configure `SESSION_DRIVER=database`, já definido no `.env.example` atualizado. Instalações existentes com `array` em `api/.env` devem atualizar esse valor e limpar o cache de configuração; esse driver não persiste login entre requisições. `POST /api/login` e `POST /api/logout` estão implementados. As rotas de escrita usam `web` para sessão/CSRF e as pessoais também exigem `auth:web`; o CORS permite credenciais para origens autorizadas. O frontend deve obter `/sanctum/csrf-cookie`, enviar cookies e usar `X-XSRF-TOKEN` nas escritas. As telas de login, cadastro, carrinho e administração usam esse contrato; veja o [contrato de sessão](api/BUSINESS_RULES.md#cookies-e-csrf-na-spa).
 
 Remover a migration de criação de tokens afeta instalações novas; não exclui uma tabela `personal_access_tokens` que já exista em outro banco. Alterar a migration de `sessions` também não adiciona a FK a uma tabela já migrada: nesse caso, será necessária uma migration de atualização específica.
 
@@ -351,6 +351,6 @@ npm --prefix frontend run build
 
 O [contrato de escritas](api/BUSINESS_RULES.md) descreve cadastro, login/logout, perfil, alteração de senha com auditoria, endereços, catálogo administrativo, checkout transacional, cancelamento e transições de status. Valores e snapshots são calculados e copiados no servidor, o estoque não pode ficar negativo e clientes não escolhem preços, frete, status ou privilégios. A exclusão de pedidos pela API representa cancelamento, preservando os registros da compra.
 
-O [guia da API](api/README.md) descreve as rotas atuais e os fluxos já disponíveis nos services. A pesquisa continua filtrando no navegador e mantém o carrinho de visitantes em `localStorage`.
+O [guia da API](api/README.md) descreve as rotas atuais e os fluxos já disponíveis nos services. A pesquisa filtra e pagina os produtos no servidor; o carrinho de visitantes usa a sessão e os endpoints da API.
 
-O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes autenticação por token Bearer, recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, integração do frontend com sessão/checkout e chaves de idempotência para repetição de `POST /api/orders`.
+O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes autenticação por token Bearer, recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, interface de checkout no frontend e chaves de idempotência para repetição de `POST /api/orders`.

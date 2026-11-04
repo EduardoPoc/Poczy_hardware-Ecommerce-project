@@ -95,6 +95,26 @@ class CatalogLayerIntegrationTest extends TestCase
             ->assertJsonPath('data.id', 31)->assertJsonPath('data.is_active', false);
     }
 
+    public function test_public_filter_options_preserve_boolean_and_numeric_values(): void
+    {
+        $filters = [
+            'brands' => [['id' => 7, 'name' => 'Marca']],
+            'attributes' => [
+                'dedicated_gpu' => ['name' => 'GPU dedicada', 'type' => 'boolean', 'values' => [false, true]],
+                'capacity' => ['name' => 'Capacidade', 'type' => 'integer', 'values' => [8, 16]],
+            ],
+            'min_price' => '249.90',
+            'max_price' => '499.90',
+        ];
+        $this->mock(CategoryService::class, function (MockInterface $mock) use ($filters): void {
+            $mock->shouldReceive('availableFilters')->once()->with(31)->andReturn($filters);
+        });
+
+        $this->getJson('/api/categories/31/filters')->assertOk()
+            ->assertExactJson(['data' => $filters]);
+        $this->getJson('/api/categories/not-a-number/filters')->assertNotFound();
+    }
+
     public function test_category_creation_forwards_validated_data_and_explicitly_returns_created(): void
     {
         $this->actAsAdmin();

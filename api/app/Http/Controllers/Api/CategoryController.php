@@ -19,4 +19,9 @@ class CategoryController extends Controller
     {
         return (new CategoryResource($categories->getPublicCategory($id)))->response()->setStatusCode(200);
     }
+
+    public function filters(int $category, CategoryService $categories): JsonResponse
+    {
+        return response()->json(['data' => $categories->availableFilters($category)]);
+    }
 }

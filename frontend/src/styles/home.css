@@ -20,6 +20,7 @@
 .hero-dots button.active::before { transform: scale(1.375); background: var(--lime); }
 .hero-dots button:focus-visible { outline: 2px solid var(--lime); outline-offset: 0; }
 .hero-image-wrap .hero-example-icon { width: 160px; height: 160px; }
+.hero-image-wrap .catalog-icon { font-size: 160px; line-height: 1; color: var(--lime); }
 .video-section { margin-top: 40px; }
 
 .store-footer { margin-top: 64px; padding: 36px 32px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }

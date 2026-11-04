@@ -109,7 +109,11 @@ class CartService
 
     public function details(Cart $cart): Cart
     {
-        $cart->load(['items' => fn (HasMany $query): HasMany => $query->orderBy('id'), 'items.product']);
+        $cart->load([
+            'items' => fn (HasMany $query): HasMany => $query->orderBy('id'),
+            'items.product.category',
+            'items.product.brand',
+        ]);
         $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null)->values();
         $productsTotal = BigDecimal::zero()->toScale(2);
         foreach ($items as $item) {

@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('catalog', CatalogController::class)->name('catalog');
 Route::get('products/filter', ProductFilterController::class)->name('products.filter');
+Route::get('categories/{category}/filters', [CategoryController::class, 'filters'])
+    ->whereNumber('category')->name('categories.filters');
 
 Route::apiResource('products', ProductController::class)
     ->only(['index', 'show'])
@@ -33,7 +35,7 @@ Route::apiResource('categories', CategoryController::class)
     ->only(['index', 'show'])
     ->whereNumber('category');
 
-Route::middleware('web')->group(function (): void {
+Route::name('user.')->middleware('web')->group(function (): void {
     Route::get('cart', [CartController::class, 'show'])->block()->name('cart.show');
     Route::post('cart/items', [CartController::class, 'storeItem'])->block()->name('cart.items.store');
     Route::patch('cart/items/{product}', [CartController::class, 'updateItem'])
