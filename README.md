@@ -18,10 +18,12 @@ docker compose exec api php artisan migrate
 docker compose exec api php artisan db:seed
 ```
 
-- Frontend: `http://localhost:5173`.
-- API: `http://localhost:8000/api/products`.
-- Saúde: `http://localhost:8000/up`.
+- Frontend: `http://localhost`.
+- API: `http://localhost/api/products`.
+- Saúde: `http://localhost/up`.
 - MySQL: `127.0.0.1:3306`.
+
+O serviço `proxy` usa Nginx como entrada única para o frontend e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. As portas do frontend e da API ficam internas à rede Docker. O frontend mantém o Vite e a atualização automática via WebSocket.
 
 O Compose de desenvolvimento usa `api/Dockerfile.dev`, monta o código e mantém volumes para banco e dependências. As credenciais de banco ficam no `.env` da raiz. Dentro do container, a API conecta em `mysql:3306`; as demais configurações ficam em `api/.env`. As migrations e seeders são comandos explícitos.
 

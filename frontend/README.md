@@ -10,7 +10,7 @@ npm ci
 npm run dev
 ```
 
-A API Laravel precisa estar disponível. O Vite encaminha `/api`, `/sanctum` e `/storage` para `VITE_API_PROXY_TARGET`, cujo padrão local é `http://127.0.0.1:8000`. No Docker Compose, o destino é `http://api:8000`. Para uma API em outra origem, configure `VITE_API_URL` e autorize cookies e CORS no backend.
+A API Laravel precisa estar disponível. O Vite encaminha `/api`, `/sanctum` e `/storage` para `VITE_API_PROXY_TARGET`, cujo padrão local é `http://127.0.0.1:8000`. No Docker Compose, acesse `http://localhost`: o serviço `proxy` encaminha essas rotas diretamente para a API e as páginas e WebSockets para o Vite. Para uma API em outra origem, configure `VITE_API_URL` e autorize cookies e CORS no backend.
 
 As URLs existentes continuam disponíveis: `index.html`, `pesquisa.html`, `produto.html?id=<id-numérico>`, `carrinho.html`, `login.html`, `cadastro.html` e `admin.html`.
 

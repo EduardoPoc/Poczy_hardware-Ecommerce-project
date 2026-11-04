@@ -12,10 +12,12 @@ docker compose exec api php artisan migrate
 docker compose exec api php artisan db:seed
 ```
 
-- API: `http://localhost:8000/api/products`.
-- Saúde: `http://localhost:8000/up`.
-- Frontend: `http://localhost:5173`.
+- API: `http://localhost/api/products`.
+- Saúde: `http://localhost/up`.
+- Frontend: `http://localhost`.
 - MySQL local: `127.0.0.1:3306`.
+
+O serviço Nginx `proxy` publica a porta 80 e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. A porta 8000 fica acessível apenas na rede Docker.
 
 O serviço `api` usa `Dockerfile.dev`, monta o código e mantém as dependências em um volume próprio. O entrypoint de desenvolvimento instala dependências, limpa o cache de configuração e cria `.env` e `APP_KEY` quando ausentes. As migrations e seeders são comandos explícitos. O servidor usa `--no-reload` para preservar as variáveis MySQL fornecidas pelo Compose no processo HTTP. Após alterar variáveis de ambiente, reinicie a API; mudanças nos arquivos PHP continuam disponíveis nas requisições.
 
