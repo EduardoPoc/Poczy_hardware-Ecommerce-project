@@ -29,3 +29,18 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+# Local AI agent instructions and configuration
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.agents/
+.codex/
+.claude/
+.cursor/
+.gemini/
+.ai/
+.mcp.json
+boost.json
+
+.aws
