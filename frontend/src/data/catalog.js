@@ -60,8 +60,12 @@ export const catalog = [
   id: product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }));
 
-export function matchingProducts(items, category, minPrice, maxPrice, selected) {
+export function matchingProducts(items, category, minPrice, maxPrice, selected, query = '') {
+  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+  const terms = normalize(query).trim().split(/\s+/).filter(Boolean);
   return items.filter(item => {
+    const text = normalize(`${item.name} ${item.brand || ''}`);
+    if (!terms.every(term => text.includes(term))) return false;
     if (category !== 'all' && item.category !== category) return false;
     if (minPrice !== null && item.price < minPrice) return false;
     if (maxPrice !== null && item.price > maxPrice) return false;

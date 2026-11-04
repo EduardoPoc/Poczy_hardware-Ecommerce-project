@@ -90,7 +90,7 @@
 .admin-low-item strong { display: block; margin-bottom: 5px; font-size: 11px; font-weight: 600; line-height: 1.5; }
 .admin-low-item small { color: #a9b2bf; font-size: 10px; }
 .admin-low-item > button { margin-left: auto; flex-shrink: 0; }
-.admin-table-scroll { overflow-x: auto; }
+.admin-table-scroll { position: relative; overflow-x: auto; }
 .admin-table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
 .admin-table th { padding: 14px 20px; background: #ffffff02; color: #9ea9b7; font-size: 9px; font-weight: 600; letter-spacing: .4px; }
 .admin-table td { height: 72px; padding: 14px 20px; border-top: 1px solid #383d4570; color: #c5ccd5; font-size: 11px; }

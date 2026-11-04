@@ -148,7 +148,7 @@ function applyFilters() {
   const maxPrice = priceValue('max');
   const selected = currentSelections();
   const invalidRange = minPrice !== null && maxPrice !== null && minPrice > maxPrice;
-  filteredResults = invalidRange ? [] : matchingProducts(catalog, currentCategory, minPrice, maxPrice, selected);
+  filteredResults = invalidRange ? [] : matchingProducts(catalog, currentCategory, minPrice, maxPrice, selected, searchTerm);
   currentPage = 1;
   renderCurrentPage();
   summary.textContent = `${filteredResults.length} ${filteredResults.length === 1 ? 'produto encontrado' : 'produtos encontrados'}`;
