@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM php:8.5-cli-bookworm
 
 RUN apt-get update \
@@ -19,7 +20,23 @@ COPY --chown=app:app composer.json composer.lock ./
 USER app
 RUN composer install --no-interaction --prefer-dist --no-scripts
 COPY --chown=app:app . .
-COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/api-entrypoint
+COPY --chmod=755 <<'ENTRYPOINT_SCRIPT' /usr/local/bin/api-entrypoint
+#!/bin/sh
+set -eu
+
+if [ ! -f .env ]; then
+    cp .env.example .env
+fi
+
+composer install --no-interaction --prefer-dist
+php artisan config:clear --no-interaction
+
+if [ -z "${APP_KEY:-}" ] && ! grep -Eq '^APP_KEY=.+$' .env; then
+    php artisan key:generate --no-interaction
+fi
+
+exec "$@"
+ENTRYPOINT_SCRIPT
 
 EXPOSE 8000
 ENTRYPOINT ["api-entrypoint"]

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM php:8.5-fpm-bookworm AS base
 
 RUN apt-get update \
@@ -31,7 +32,17 @@ COPY --from=build --chown=www-data:www-data /var/www/html/database ./database
 COPY --from=build --chown=www-data:www-data /var/www/html/routes ./routes
 COPY --from=build --chown=www-data:www-data /var/www/html/public ./public
 COPY --from=build --chown=www-data:www-data /var/www/html/artisan /var/www/html/composer.json /var/www/html/composer.lock ./
-COPY --chmod=755 docker-entrypoint.prod.sh /usr/local/bin/api-entrypoint
+COPY --chmod=755 <<'ENTRYPOINT_SCRIPT' /usr/local/bin/api-entrypoint
+#!/bin/sh
+set -eu
+
+: "${APP_KEY:?Configure uma APP_KEY persistente para a aplicação.}"
+
+php artisan config:cache --no-interaction
+php artisan route:cache --no-interaction
+
+exec "$@"
+ENTRYPOINT_SCRIPT
 COPY php-production.ini /usr/local/etc/php/conf.d/production.ini
 RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
     && chown -R www-data:www-data storage bootstrap/cache
