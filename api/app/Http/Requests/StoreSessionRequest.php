@@ -23,6 +23,7 @@ class StoreSessionRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email', 'max:150'],
             'password' => ['required', 'string'],
+            'merge_cart' => ['sometimes', 'boolean'],
         ];
     }
 }

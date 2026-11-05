@@ -22,7 +22,7 @@ class PublicGetEndpointsTest extends TestCase
 
     public function test_products_are_paginated_with_stable_order_and_decimal_prices(): void
     {
-        $response = $this->getJson('/api/products')->assertOk()->assertJsonCount(20, 'data')->assertJsonPath('meta.total', 48);
+        $response = $this->getJson('/api/products')->assertOk()->assertJsonCount(20, 'data')->assertJsonPath('meta.total', 47);
         foreach ($response->json('data') as $product) {
             $this->assertIsString($product['price']);
         }
@@ -45,7 +45,7 @@ class PublicGetEndpointsTest extends TestCase
         $product->update(['is_active' => false]);
         Category::where('name', 'Notebooks')->sole()->update(['is_active' => false]);
         $this->getJson('/api/products/'.$product->id)->assertNotFound();
-        $this->getJson('/api/products')->assertOk()->assertJsonPath('meta.total', 43);
+        $this->getJson('/api/products')->assertOk()->assertJsonPath('meta.total', 42);
         $this->getJson('/api/products/invalid')->assertNotFound();
         $this->getJson('/api/products/999999')->assertNotFound();
     }
@@ -64,7 +64,7 @@ class PublicGetEndpointsTest extends TestCase
         $category = Category::where('name', 'Notebooks')->sole();
         $category->update(['is_active' => false]);
         $response = $this->getJson('/api/catalog')->assertOk()
-            ->assertJsonCount(11, 'data.categories')->assertJsonCount(43, 'data.products');
+            ->assertJsonCount(11, 'data.categories')->assertJsonCount(42, 'data.products');
         $this->assertNotContains($category->id, array_column($response->json('data.categories'), 'id'));
         $this->assertNotContains($product->id, array_column($response->json('data.products'), 'id'));
         foreach ($response->json('data.products') as $record) {

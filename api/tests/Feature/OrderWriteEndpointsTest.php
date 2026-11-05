@@ -43,12 +43,11 @@ class OrderWriteEndpointsTest extends TestCase
 
     public function test_checkout_uses_decimal_prices_and_server_totals_and_preserves_snapshots(): void
     {
-        config(['shop.shipping_total' => '5.90']);
         $order = app(OrderService::class)->create($this->customer, $this->checkoutData() + ['total' => '0.01', 'status' => 'PAID']);
         $this->assertSame('PENDING', $order->status);
         $this->assertSame('0.30', $order->products_total);
-        $this->assertSame('5.90', $order->shipping_total);
-        $this->assertSame('6.20', $order->total);
+        $this->assertSame('30.00', $order->shipping_total);
+        $this->assertSame('30.30', $order->total);
         $this->assertSame('0.30', $order->items->first()->line_total);
         $this->assertSame(3, $order->items_quantity);
         $this->assertSame('Rua Original', $order->shippingAddress->street);
@@ -66,6 +65,17 @@ class OrderWriteEndpointsTest extends TestCase
     {
         $this->expectException(ModelNotFoundException::class);
         app(OrderService::class)->create($this->other, $this->checkoutData());
+    }
+
+    public function test_buying_the_last_unit_deactivates_the_product_and_charges_shipping_once(): void
+    {
+        $this->product->update(['stock' => 1]);
+        $order = app(OrderService::class)->create($this->customer, $this->checkoutData(1));
+
+        $this->assertSame(0, $this->product->fresh()->stock);
+        $this->assertFalse($this->product->fresh()->is_active);
+        $this->assertSame('30.00', $order->shipping_total);
+        $this->assertSame('30.10', $order->total);
     }
 
     public function test_insufficient_stock_does_not_create_orders_or_movements(): void

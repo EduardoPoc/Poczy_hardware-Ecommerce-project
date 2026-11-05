@@ -5,6 +5,8 @@ const pages = {
   search: () => import('./pages/SearchPage.vue'),
   product: () => import('./pages/ProductPage.vue'),
   cart: () => import('./pages/CartPage.vue'),
+  account: () => import('./pages/AccountPage.vue'),
+  checkout: () => import('./pages/CheckoutPage.vue'),
 };
 
 async function start() {

@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'shipping_total' => env('SHOP_SHIPPING_TOTAL', '0.00'),
+    'shipping_total' => env('SHOP_SHIPPING_TOTAL', '30.00'),
 ];

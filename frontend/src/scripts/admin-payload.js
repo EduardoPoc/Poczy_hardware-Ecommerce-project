@@ -127,6 +127,10 @@ function productPayload(form, data, record) {
   if (!category) throw new Error('Selecione uma categoria válida.');
   const specifications = productSpecifications(form, category);
   const prices = productPrices(form);
+  const stock = record ? Number(record.stock) : Number(fieldValue(form, 'stock'));
+  if (form.elements.is_active.checked && !(stock >= 1)) {
+    throw new Error('O produto precisa ter pelo menos 1 unidade em estoque para estar ativo.');
+  }
   const image = form.elements.namedItem('image')?.files?.[0];
   if (image) {
     if (

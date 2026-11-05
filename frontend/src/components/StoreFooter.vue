@@ -33,7 +33,7 @@ function moveTab(event, index) {
         </p>
         <a
           class="store-explore d-inline-flex align-items-center fw-semibold text-decoration-none"
-          href="pesquisa.html"
+          href="/pesquisa"
           >Explorar produtos <i class="bi bi-arrow-right" aria-hidden="true"></i
         ></a>
       </section>

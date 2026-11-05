@@ -66,7 +66,15 @@ test('formulário de produto preserva false, zero, decimais e valores monetário
 });
 
 test('edição do produto não altera estoque fora das movimentações', () => {
-  assert.equal(Object.hasOwn(productPayload({}, { id: 1 }), 'stock'), false);
+  assert.equal(Object.hasOwn(productPayload({}, { id: 1, stock: 3 }), 'stock'), false);
+});
+
+test('produto ativo exige ao menos uma unidade no cadastro e na edição', () => {
+  assert.throws(() => productPayload({ stock: '0' }), /pelo menos 1 unidade/);
+  assert.throws(() => productPayload({}, { id: 1, stock: 0 }), /pelo menos 1 unidade/);
+  assert.equal(productPayload({ stock: '1' }).is_active, true);
+  assert.equal(productPayload({ stock: '0', is_active: false }).stock, 0);
+  assert.equal(productPayload({ is_active: false }, { id: 1, stock: 0 }).is_active, false);
 });
 
 test('preços respeitam precisão e limites da API', () => {
@@ -115,7 +123,7 @@ test('upload mantém os dados tipados em multipart e preserva a imagem ao editar
   assert.equal(body.get('is_active'), '0');
   assert.equal(body.get('brand_id'), '');
   assert.equal(body.get('price'), '0.10');
-  assert.equal(Object.hasOwn(productPayload({}, { id: 1 }), 'image'), false);
+  assert.equal(Object.hasOwn(productPayload({}, { id: 1, stock: 3 }), 'image'), false);
   assert.equal(Object.hasOwn(productPayload(), 'image_url'), false);
 });
 

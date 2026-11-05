@@ -114,7 +114,7 @@ function productPricingFields(product) {
     attrs: 'min="0" max="99999999.99" step="0.01" inputmode="decimal"',
   });
   const stockField = !product
-    ? input('stock', 'Estoque inicial', 0, {
+    ? input('stock', 'Estoque inicial', 1, {
         type: 'number',
         attrs: 'required min="0" max="2147483647" step="1"',
       })
@@ -137,6 +137,10 @@ export function productForm(product, data) {
       ${input('name', 'Nome do produto', product?.name, { attrs: 'required maxlength="150"', wide: true })}
       ${productCatalogFields(product, data)} ${productPricingFields(product)}
       ${activeField(product?.is_active ?? true)} ${imageField}
+      <p class="admin-field admin-form-help wide">
+        Para estar ativo, o produto precisa ter pelo menos 1 unidade em estoque. Ao zerar o estoque,
+        ele será desativado automaticamente. Após repor o estoque, ative-o novamente no cadastro.
+      </p>
       ${textarea('description', 'Descrição', product?.description)}
     </div>
     <section class="admin-form-section">

@@ -50,7 +50,7 @@ class CatalogValidationTest extends TestCase
     {
         $id = $this->postJson('/api/admin/products', [
             'category_id' => $this->category->id, 'name' => 'SSD', 'price' => '399.90',
-            'cost' => '200.00', 'id' => 999999, 'created_at' => '2000-01-01',
+            'cost' => '200.00', 'id' => 999999, 'created_at' => '2000-01-01', 'is_active' => false,
         ])->assertCreated()->assertJsonPath('data.stock', 0)->json('data.id');
         $this->assertNotSame(999999, $id);
 
@@ -76,7 +76,7 @@ class CatalogValidationTest extends TestCase
 
     public function test_public_resources_hide_cost_even_for_an_administrator(): void
     {
-        $product = Product::create(['category_id' => $this->category->id, 'name' => 'SSD', 'price' => '399.90', 'cost' => '200.00']);
+        $product = Product::create(['category_id' => $this->category->id, 'name' => 'SSD', 'price' => '399.90', 'cost' => '200.00', 'stock' => 1]);
         $this->getJson('/api/products/'.$product->id)->assertOk()->assertJsonMissingPath('data.cost')
             ->assertJsonPath('data.brand', null)->assertJsonPath('data.category.name', 'Componentes');
         $this->getJson('/api/products')->assertOk()->assertJsonMissingPath('data.0.cost');
@@ -101,10 +101,10 @@ class CatalogValidationTest extends TestCase
     public function test_json_specification_filters_preserve_types_and_pagination_links(): void
     {
         foreach (['Primeiro', 'Segundo'] as $name) {
-            Product::create(['category_id' => $this->category->id, 'name' => $name, 'price' => 100,
+            Product::create(['category_id' => $this->category->id, 'name' => $name, 'price' => 100, 'stock' => 1,
                 'specifications' => ['capacity' => 16, 'wireless' => false]]);
         }
-        Product::create(['category_id' => $this->category->id, 'name' => 'Outra capacidade', 'price' => 100,
+        Product::create(['category_id' => $this->category->id, 'name' => 'Outra capacidade', 'price' => 100, 'stock' => 1,
             'specifications' => ['capacity' => 32, 'wireless' => true]]);
         $query = http_build_query(['per_page' => 1, 'specifications' => json_encode(['capacity' => [16], 'wireless' => [false]])]);
         $response = $this->getJson('/api/products?'.$query)->assertOk()->assertJsonPath('meta.total', 2);
@@ -114,7 +114,7 @@ class CatalogValidationTest extends TestCase
 
     public function test_only_the_administrative_listing_can_select_inactive_products(): void
     {
-        Product::create(['category_id' => $this->category->id, 'name' => 'Ativo', 'price' => 100]);
+        Product::create(['category_id' => $this->category->id, 'name' => 'Ativo', 'price' => 100, 'stock' => 1]);
         Product::create(['category_id' => $this->category->id, 'name' => 'Inativo', 'price' => 100, 'is_active' => false]);
         $this->getJson('/api/products?is_active=0')->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.name', 'Ativo');
         $this->getJson('/api/admin/products?is_active=0')->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.name', 'Inativo');

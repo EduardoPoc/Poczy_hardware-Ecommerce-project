@@ -190,7 +190,7 @@ onUnmounted(() => {
         </div>
         <section id="results" class="search-results" aria-labelledby="search-title">
           <nav class="search-breadcrumb d-flex" aria-label="Você está em">
-            <a href="index.html">Início</a><span aria-hidden="true">/</span><span>Pesquisa</span>
+            <a href="/">Início</a><span aria-hidden="true">/</span><span>Pesquisa</span>
           </nav>
           <h1 id="search-title" tabindex="-1">{{ title }}</h1>
           <p class="search-summary" role="status" aria-live="polite">

@@ -12,7 +12,7 @@ npm run dev
 
 A API Laravel precisa estar disponível. O Vite encaminha `/api`, `/sanctum` e `/storage` para `VITE_API_PROXY_TARGET`, cujo padrão local é `http://127.0.0.1:8000`. No Docker Compose, acesse `http://localhost`: o serviço `proxy` encaminha essas rotas diretamente para a API e as páginas e WebSockets para o Vite. Para uma API em outra origem, configure `VITE_API_URL` e autorize cookies e CORS no backend.
 
-As URLs existentes continuam disponíveis: `index.html`, `pesquisa.html`, `produto.html?id=<id-numérico>`, `carrinho.html`, `login.html`, `cadastro.html` e `admin.html`.
+As páginas usam URLs sem extensão: `/`, `/pesquisa`, `/produto?id=<id-numérico>`, `/carrinho`, `/login`, `/cadastro` e `/admin`. Os arquivos HTML continuam sendo as entradas do Vite. Pelo proxy Nginx, os endereços antigos com `.html` redirecionam permanentemente para as URLs novas, preservando os parâmetros.
 
 ## Organização
 
@@ -40,7 +40,7 @@ O carrinho usa `GET /api/cart`, `POST /api/cart/items`, `PATCH /api/cart/items/{
 
 A sessão usa cookies Laravel e CSRF. Credenciais e tokens de carrinho não são gravados no armazenamento do navegador. Uma escrita sem resposta confirmada bloqueia novas alterações até atualizar o carrinho. A finalização da compra e o cálculo de frete ainda não possuem interface nesta página.
 
-Login e cadastro usam os endpoints existentes de sessão. O painel exige `role=ADMIN` e continua protegido pela API. A prévia `admin.html?demo=1` contém somente dados fictícios de consulta, isolados da vitrine e das escritas reais.
+Login e cadastro usam os endpoints existentes de sessão. O painel exige `role=ADMIN` e continua protegido pela API. A prévia `/admin?demo=1` contém somente dados fictícios de consulta, isolados da vitrine e das escritas reais.
 
 ## Verificar e gerar a build
 
@@ -55,3 +55,21 @@ npm run build
 Os testes do frontend cobrem critérios de busca, requisições HTTP, sessão e regras dos formulários administrativos, incluindo preços, estoque e atributos tipados.
 
 A build gera `frontend/dist/` para hospedagem estática. Em produção, encaminhe `/api`, `/sanctum` e `/storage` para o backend, ou configure uma origem de API autorizada antes da build.
+
+O servidor da hospedagem precisa resolver os caminhos sem extensão para os arquivos HTML correspondentes. Em um Nginx que serve a pasta `dist`, configure as regras abaixo, mantendo o encaminhamento das rotas da API em seus próprios blocos:
+
+```nginx
+absolute_redirect off;
+
+location = /index.html {
+    return 301 /$is_args$args;
+}
+
+location ~ ^/(login|cadastro|pesquisa|produto|carrinho|admin)(\.html|/)$ {
+    return 301 /$1$is_args$args;
+}
+
+location / {
+    try_files $uri $uri.html $uri/index.html =404;
+}
+```

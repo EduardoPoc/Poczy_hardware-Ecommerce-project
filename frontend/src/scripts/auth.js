@@ -1,4 +1,12 @@
 import { ApiError, currentUser, submitSession } from './session.js';
+import { accountDestination } from '../domain/customer.js';
+
+const next = accountDestination(new URLSearchParams(location.search).get('next'), '');
+if (next) {
+  document.querySelectorAll('a[href="/login"], a[href="/cadastro"]').forEach((link) => {
+    link.href = `${link.getAttribute('href')}?next=${encodeURIComponent(next)}`;
+  });
+}
 
 const isRegister = document.body.dataset.authMode === 'register';
 const form = document.getElementById('auth-form');
@@ -108,18 +116,21 @@ function showResult(user, registered = false, focus = true) {
   form
     .querySelectorAll('[data-password-toggle]')
     .forEach((button) => setPasswordVisibility(button, false));
+  if (!registered) location.replace(next || (user.role === 'ADMIN' ? '/admin' : '/conta'));
 }
 
 function setResultLink(user, registered) {
   const link = document.getElementById('auth-result-link');
-  link.href = registered ? 'login.html' : user.role === 'ADMIN' ? 'admin.html' : 'index.html';
+  link.href = registered
+    ? `/login${next ? `?next=${encodeURIComponent(next)}` : ''}`
+    : next || (user.role === 'ADMIN' ? '/admin' : '/conta');
   link.replaceChildren(
     document.createTextNode(
       registered
         ? 'Entrar na minha conta '
         : user.role === 'ADMIN'
           ? 'Abrir painel administrativo '
-          : 'Continuar na loja ',
+          : 'Abrir minha conta ',
     ),
   );
   const arrow = document.createElement('i');
@@ -172,6 +183,7 @@ async function submitForm(event) {
   try {
     const values = Object.fromEntries(fields.map((input) => [input.name, input.value]));
     values.email = values.email.toLowerCase();
+    values.merge_cart = true;
     const response = await submitSession(isRegister ? '/api/user' : '/api/login', values);
     const user = response?.data ?? response;
     if (typeof user?.name !== 'string')
@@ -208,7 +220,7 @@ logoutButton.addEventListener('click', async () => {
   logoutButton.textContent = 'Saindo…';
   try {
     await submitSession('/api/logout', {});
-    window.location.replace('login.html');
+    window.location.replace('/login');
   } catch (error) {
     message.textContent = error.message;
     message.hidden = false;

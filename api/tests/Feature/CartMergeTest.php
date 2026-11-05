@@ -63,6 +63,26 @@ class CartMergeTest extends TestCase
         ];
     }
 
+    public function test_login_can_explicitly_merge_the_session_cart_without_a_header_token(): void
+    {
+        $user = $this->customer();
+        [$guestId] = $this->guestCart([$this->product->id => 2]);
+        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'SenhaCliente!2026', 'merge_cart' => true])
+            ->assertOk()->assertJsonPath('cart_merge.cart.items.0.quantity', 2);
+        $this->assertDatabaseMissing('carts', ['id' => $guestId]);
+        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'SenhaCliente!2026', 'merge_cart' => true])
+            ->assertOk()->assertJsonMissingPath('cart_merge');
+        $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 2);
+    }
+
+    public function test_registration_can_explicitly_preserve_the_session_cart_for_the_new_account(): void
+    {
+        [$guestId] = $this->guestCart([$this->product->id => 2]);
+        $this->postJson('/api/user', $this->registrationData() + ['merge_cart' => true])
+            ->assertCreated()->assertJsonPath('cart_merge.cart.items.0.quantity', 2);
+        $this->assertDatabaseMissing('carts', ['id' => $guestId]);
+    }
+
     public function test_login_merges_overlapping_items_copies_guest_items_and_preserves_account_only_items(): void
     {
         $user = $this->customer();

@@ -34,7 +34,8 @@ class CartMergeService
      */
     public function merge(User $user, Request $request): ?array
     {
-        if (! $request->hasHeader('X-Cart-Token')) {
+        if (! $request->hasHeader('X-Cart-Token') &&
+            (! $request->boolean('merge_cart') || $this->carts->findGuestForRequest($request) === null)) {
             return null;
         }
 

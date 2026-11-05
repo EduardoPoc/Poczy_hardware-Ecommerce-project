@@ -1,15 +1,17 @@
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
+export const SHIPPING_TOTAL = 30;
+
 export function money(value) {
   return currency.format(Number(value ?? 0));
 }
 
 export function productUrl(product) {
-  return `produto.html?id=${encodeURIComponent(product.id)}`;
+  return `/produto?id=${encodeURIComponent(product.id)}`;
 }
 
 export function categoryUrl(category) {
-  return `pesquisa.html?categoria=${encodeURIComponent(category.id)}`;
+  return `/pesquisa?categoria=${encodeURIComponent(category.id)}`;
 }
 
 export function productFilter(criteria = {}) {

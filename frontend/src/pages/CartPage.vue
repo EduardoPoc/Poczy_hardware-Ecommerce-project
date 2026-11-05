@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import SiteHeader from '../components/SiteHeader.vue';
 import PageFooter from '../components/PageFooter.vue';
 import ProductArtwork from '../components/ProductArtwork.vue';
@@ -8,10 +8,19 @@ import RequestState from '../components/RequestState.vue';
 import { useCart } from '../stores/cart.js';
 import { listProducts } from '../api/products.js';
 import { errorMessage } from '../api/http.js';
-import { money, productUrl } from '../domain/products.js';
+import { money, productUrl, SHIPPING_TOTAL } from '../domain/products.js';
 
 const cart = useCart();
 const { items, quantity, subtotal, state } = cart;
+const shipping = computed(() => state.cart?.shipping_total ?? SHIPPING_TOTAL);
+const total = computed(
+  () => state.cart?.total ?? Number(subtotal.value) + (items.value.length ? SHIPPING_TOTAL : 0),
+);
+
+function checkout() {
+  if (!state.saving && !state.loading && !state.uncertain && !state.error && items.value.length)
+    location.assign('/checkout');
+}
 const recommendations = ref([]);
 const recommendationError = ref('');
 const feedback = ref('');
@@ -61,7 +70,7 @@ onMounted(() => {
           class="search-breadcrumb product-breadcrumb d-flex flex-wrap"
           aria-label="Você está em"
         >
-          <a href="index.html">Início</a><span aria-hidden="true">/</span
+          <a href="/">Início</a><span aria-hidden="true">/</span
           ><span aria-current="page">Carrinho</span>
         </nav>
         <div class="cart-page-heading d-flex justify-content-between">
@@ -78,7 +87,7 @@ onMounted(() => {
           </div>
           <a
             class="cart-continue-link d-inline-flex align-items-center gap-2 fw-semibold text-decoration-none text-nowrap"
-            href="pesquisa.html"
+            href="/pesquisa"
             ><i class="bi bi-arrow-left" aria-hidden="true"></i> Continuar comprando</a
           >
         </div>
@@ -208,18 +217,19 @@ onMounted(() => {
                 <dd>{{ money(subtotal) }}</dd>
               </div>
               <div>
-                <dt>Frete</dt>
-                <dd class="cart-shipping-pending">A calcular</dd>
+                <dt>Frete fixo</dt>
+                <dd>{{ money(shipping) }}</dd>
               </div>
             </dl>
             <div class="cart-subtotal d-grid align-items-center gap-2">
-              <span>Subtotal</span><strong id="cart-subtotal">{{ money(subtotal) }}</strong
-              ><small>Frete não incluído</small>
+              <span>Total</span><strong id="cart-total">{{ money(total) }}</strong
+              ><small>Frete incluído</small>
             </div>
             <button
               class="purchase-button cart-checkout d-inline-flex align-items-center justify-content-center gap-2 btn btn-primary"
               type="button"
-              disabled
+              :disabled="state.saving || state.loading || state.uncertain || Boolean(state.error)"
+              @click="checkout"
               aria-describedby="cart-checkout-notice"
             >
               Finalizar compra <i class="bi bi-arrow-right" aria-hidden="true"></i>
@@ -227,13 +237,13 @@ onMounted(() => {
             <p id="cart-checkout-notice" class="cart-checkout-notice d-flex gap-2">
               <i class="bi bi-info-circle" aria-hidden="true"></i
               ><span
-                >A finalização de pedidos e o cálculo de frete ainda não estão disponíveis nesta
-                tela.</span
+                >Escolha seu endereço e finalize com Fake Pix, um pagamento simulado sem cobrança
+                real.</span
               >
             </p>
             <a
               class="cart-summary-continue d-flex justify-content-center align-items-center fw-semibold text-decoration-none"
-              href="pesquisa.html"
+              href="/pesquisa"
               >Escolher mais produtos <i class="bi bi-arrow-up-right" aria-hidden="true"></i
             ></a>
           </aside>
@@ -255,7 +265,7 @@ onMounted(() => {
           </p>
           <a
             class="purchase-button d-inline-flex align-items-center justify-content-center gap-2 btn btn-primary"
-            href="pesquisa.html"
+            href="/pesquisa"
             >Explorar produtos <i class="bi bi-arrow-right" aria-hidden="true"></i
           ></a>
         </section>
@@ -266,7 +276,7 @@ onMounted(() => {
         >
           <div class="section-heading d-flex justify-content-between">
             <h2 id="cart-recommendations-title">Mais para o seu setup</h2>
-            <a href="pesquisa.html"
+            <a href="/pesquisa"
               >Ver produtos <i class="bi bi-arrow-right" aria-hidden="true"></i
             ></a>
           </div>

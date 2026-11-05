@@ -32,6 +32,7 @@ class StoreUserRequest extends FormRequest
                 }
             }],
             'role' => ['prohibited'],
+            'merge_cart' => ['sometimes', 'boolean'],
         ];
     }
 }

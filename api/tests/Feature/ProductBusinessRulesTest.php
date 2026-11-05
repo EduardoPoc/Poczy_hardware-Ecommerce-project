@@ -40,6 +40,80 @@ class ProductBusinessRulesTest extends TestCase
         ], $attributes))->refresh();
     }
 
+    public function test_active_product_creation_requires_at_least_one_unit(): void
+    {
+        $this->actingAs($this->admin, 'web');
+        $data = ['category_id' => $this->category->id, 'name' => 'Memória', 'price' => '249.90'];
+        $this->postJson('/api/admin/products', $data)->assertUnprocessable()->assertJsonValidationErrors('is_active');
+        $this->postJson('/api/admin/products', $data + ['stock' => 0, 'is_active' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('is_active');
+        $this->assertDatabaseCount('products', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+
+        $this->postJson('/api/admin/products', $data + ['stock' => 1, 'is_active' => true])
+            ->assertCreated()->assertJsonPath('data.is_active', true)->assertJsonPath('data.stock', 1);
+        $this->postJson('/api/admin/products', $data + ['stock' => 0, 'is_active' => false])
+            ->assertCreated()->assertJsonPath('data.is_active', false)->assertJsonPath('data.stock', 0);
+    }
+
+    public function test_empty_stock_cannot_be_activated_until_replenished(): void
+    {
+        $product = $this->product(['stock' => 0, 'is_active' => false]);
+        $url = '/api/admin/products/'.$product->id;
+        $this->actingAs($this->admin, 'web')->patchJson($url, ['is_active' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('is_active');
+        $this->assertFalse($product->fresh()->is_active);
+
+        $this->postJson($url.'/stock-movements', ['type' => 'INBOUND', 'quantity' => 1, 'reason' => 'Reposição'])
+            ->assertCreated();
+        $this->assertFalse($product->fresh()->is_active);
+        $this->patchJson($url, ['is_active' => true])->assertOk()->assertJsonPath('data.is_active', true);
+        $this->getJson('/api/products/'.$product->id)->assertOk();
+    }
+
+    public function test_outbound_and_adjustment_deactivate_products_when_stock_reaches_zero(): void
+    {
+        $this->actingAs($this->admin, 'web');
+        foreach (['OUTBOUND' => 1, 'ADJUSTMENT' => -1] as $type => $quantity) {
+            $product = $this->product(['stock' => 1]);
+            $this->postJson('/api/admin/products/'.$product->id.'/stock-movements', [
+                'type' => $type, 'quantity' => $quantity, 'reason' => 'Última unidade',
+            ])->assertCreated();
+
+            $this->assertSame(0, $product->fresh()->stock);
+            $this->assertFalse($product->fresh()->is_active);
+            $this->getJson('/api/products/'.$product->id)->assertNotFound();
+        }
+    }
+
+    public function test_public_catalog_and_filters_hide_existing_active_products_without_stock(): void
+    {
+        $this->category->update(['attributes' => ['capacity' => ['name' => 'Capacidade', 'type' => 'integer']]]);
+        $product = $this->product(['stock' => 0, 'specifications' => ['capacity' => 32]]);
+        $available = $this->product(['stock' => 1, 'specifications' => ['capacity' => 16]]);
+
+        $this->getJson('/api/products/'.$product->id)->assertNotFound();
+        $this->getJson('/api/products')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $available->id);
+        $this->getJson('/api/products/filter')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson('/api/catalog')->assertOk()->assertJsonCount(1, 'data.products');
+        $this->getJson('/api/categories/'.$this->category->id.'/filters')->assertOk()
+            ->assertJsonPath('data.attributes.capacity.values', [16]);
+    }
+
+    public function test_upgrade_deactivates_empty_stock_and_preserves_other_product_statuses(): void
+    {
+        $empty = $this->product(['stock' => 0]);
+        $available = $this->product(['stock' => 1]);
+        $inactive = $this->product(['stock' => 1, 'is_active' => false]);
+        $migration = require database_path('migrations/2026_11_05_131957_deactivate_products_without_stock.php');
+
+        $migration->up();
+
+        $this->assertFalse($empty->fresh()->is_active);
+        $this->assertTrue($available->fresh()->is_active);
+        $this->assertFalse($inactive->fresh()->is_active);
+    }
+
     public function test_sold_product_without_stock_movements_cannot_be_deleted_and_can_be_deactivated(): void
     {
         $product = $this->product();

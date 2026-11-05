@@ -66,6 +66,7 @@ class CatalogWriteEndpointsTest extends TestCase
         $this->actingAs($this->admin, 'web');
         $data = $this->productData();
         $data['stock'] = 0;
+        $data['is_active'] = false;
         $id = $this->postJson('/api/admin/products', $data)->assertCreated()->json('data.id');
         try {
             app(CategoryService::class)->delete($this->category->id);

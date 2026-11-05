@@ -8,7 +8,7 @@ import RequestState from '../components/RequestState.vue';
 import { getProduct, listProducts } from '../api/products.js';
 import { listCategories } from '../api/categories.js';
 import { errorMessage } from '../api/http.js';
-import { categoryUrl, money, productSpecifications } from '../domain/products.js';
+import { categoryUrl, money, productSpecifications, SHIPPING_TOTAL } from '../domain/products.js';
 import { useCart } from '../stores/cart.js';
 
 const cart = useCart();
@@ -25,7 +25,11 @@ const specifications = computed(() =>
   product.value ? productSpecifications(product.value, category.value) : [],
 );
 const canBuy = computed(
-  () => product.value?.stock > 0 && !cart.state.saving && !cart.state.uncertain,
+  () =>
+    product.value?.is_active &&
+    product.value.stock >= 1 &&
+    !cart.state.saving &&
+    !cart.state.uncertain,
 );
 let noticeTimer;
 
@@ -72,7 +76,7 @@ async function addToCart(openCart = false) {
     notify(cart.state.error);
     return;
   }
-  if (openCart) location.assign('carrinho.html');
+  if (openCart) location.assign('/carrinho');
   else notify(`${product.value.name} adicionado ao carrinho.`);
 }
 
@@ -91,7 +95,7 @@ onUnmounted(() => clearTimeout(noticeTimer));
           <p>Este produto não está disponível no catálogo da loja.</p>
           <a
             class="purchase-button d-inline-flex align-items-center justify-content-center gap-2 btn btn-primary"
-            href="pesquisa.html"
+            href="/pesquisa"
             >Explorar produtos</a
           >
         </section>
@@ -101,7 +105,7 @@ onUnmounted(() => clearTimeout(noticeTimer));
             class="search-breadcrumb product-breadcrumb d-flex flex-wrap"
             aria-label="Você está em"
           >
-            <a href="index.html">Início</a><span aria-hidden="true">/</span
+            <a href="/">Início</a><span aria-hidden="true">/</span
             ><a :href="categoryUrl(category)">{{ category.name }}</a
             ><span aria-hidden="true">/</span><span aria-current="page">{{ product.name }}</span>
           </nav>
@@ -161,7 +165,7 @@ onUnmounted(() => clearTimeout(noticeTimer));
                 <i class="bi bi-truck" aria-hidden="true"></i>
                 <div>
                   <strong>Entrega no seu endereço</strong>
-                  <p>O cálculo de frete ainda não está disponível nesta tela.</p>
+                  <p>Frete fixo de {{ money(SHIPPING_TOTAL) }} por pedido.</p>
                 </div>
               </div>
               <label class="quantity-label d-block form-label" for="quantity">Quantidade</label>

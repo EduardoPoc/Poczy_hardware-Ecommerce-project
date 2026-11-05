@@ -38,7 +38,7 @@ class CategoryService
     public function availableFilters(int $categoryId): array
     {
         $category = $this->getPublicCategory($categoryId);
-        $products = $category->products()->where('is_active', true)->with('brand')
+        $products = $category->products()->where('is_active', true)->where('stock', '>=', 1)->with('brand')
             ->get(['id', 'brand_id', 'price', 'specifications']);
         $attributes = [];
         foreach ($category->getAttribute('attributes') ?? [] as $key => $definition) {

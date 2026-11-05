@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\ProductController;
@@ -49,6 +50,7 @@ Route::name('user.')->middleware('web')->group(function (): void {
         ->middleware('throttle:registration')->block()->name('user.store');
 
     Route::middleware('auth:web')->group(function (): void {
+        Route::post('checkout', CheckoutController::class)->block()->name('checkout');
         Route::post('logout', [SessionController::class, 'destroy'])->name('logout');
 
         Route::get('user', [UserController::class, 'show'])->name('user.show');

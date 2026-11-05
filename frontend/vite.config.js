@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
       search: resolve(import.meta.dirname, 'pesquisa.html'),
       product: resolve(import.meta.dirname, 'produto.html'),
       cart: resolve(import.meta.dirname, 'carrinho.html'),
+      account: resolve(import.meta.dirname, 'conta.html'),
+      checkout: resolve(import.meta.dirname, 'checkout.html'),
       admin: resolve(import.meta.dirname, 'admin.html'),
       login: resolve(import.meta.dirname, 'login.html'),
       register: resolve(import.meta.dirname, 'cadastro.html'),

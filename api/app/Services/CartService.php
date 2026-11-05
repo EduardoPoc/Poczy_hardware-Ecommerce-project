@@ -140,6 +140,9 @@ class CartService
         $cart->setAttribute('items_count', $items->count());
         $cart->setAttribute('items_quantity', $items->sum(fn (CartItem $item): int => $item->quantity));
         $cart->setAttribute('products_total', (string) $productsTotal->toScale(2));
+        $shipping = BigDecimal::of($items->isEmpty() ? '0.00' : (string) config('shop.shipping_total'))->toScale(2);
+        $cart->setAttribute('shipping_total', (string) $shipping);
+        $cart->setAttribute('total', (string) $productsTotal->plus($shipping)->toScale(2));
 
         return $cart;
     }

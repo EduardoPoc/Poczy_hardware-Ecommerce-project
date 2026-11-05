@@ -571,7 +571,7 @@ document.getElementById('admin-logout').addEventListener('click', async (event) 
   button.disabled = true;
   try {
     await apiRequest('/api/logout', { method: 'POST', data: {} });
-    location.replace('login.html');
+    location.replace('/login');
   } catch (error) {
     if (!accessFailure(error)) announce(error.message, true);
     button.disabled = false;

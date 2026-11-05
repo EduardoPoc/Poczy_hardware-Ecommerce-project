@@ -16,6 +16,8 @@ class CartResource extends JsonResource
             'items_count' => $this->items_count,
             'items_quantity' => $this->items_quantity,
             'products_total' => $this->products_total,
+            'shipping_total' => $this->shipping_total,
+            'total' => $this->total,
             'cart_token' => $this->when($request->attributes->has('issued_cart_token'), fn (): string => $request->attributes->get('issued_cart_token')),
         ];
     }

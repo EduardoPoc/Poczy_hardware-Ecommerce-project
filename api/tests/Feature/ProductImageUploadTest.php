@@ -49,7 +49,7 @@ class ProductImageUploadTest extends TestCase
     /** @return array<string, mixed> */
     private function productData(): array
     {
-        return ['category_id' => $this->category->id, 'name' => 'Produto com imagem', 'price' => '99.90', 'stock' => 0];
+        return ['category_id' => $this->category->id, 'name' => 'Produto com imagem', 'price' => '99.90', 'stock' => 1];
     }
 
     /** @return array<string, array{string, string, string}> */
@@ -155,7 +155,8 @@ class ProductImageUploadTest extends TestCase
 
     public function test_product_deletion_removes_the_file_only_when_deletion_succeeds(): void
     {
-        $id = $this->post('/api/admin/products', $this->productData() + ['image' => $this->upload('original.png', base64_decode(self::PNG))])
+        $data = array_replace($this->productData(), ['stock' => 0, 'is_active' => false]);
+        $id = $this->post('/api/admin/products', $data + ['image' => $this->upload('original.png', base64_decode(self::PNG))])
             ->assertCreated()->json('data.id');
         $path = Product::findOrFail($id)->image_path;
         $this->deleteJson('/api/admin/products/'.$id)->assertNoContent();

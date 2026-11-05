@@ -26,6 +26,7 @@ class ProductSeeder extends Seeder
                         'price' => $data['price'],
                         'cost' => $data['cost'],
                         'stock' => $data['stock'],
+                        'is_active' => $data['stock'] >= 1,
                         'specifications' => $data['specifications'],
                     ],
                 );
