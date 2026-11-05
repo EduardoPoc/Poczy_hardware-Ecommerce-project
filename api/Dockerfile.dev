@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM php:8.5-cli-bookworm
 
+COPY php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl git unzip libicu-dev libzip-dev \
     && docker-php-ext-install -j"$(nproc)" bcmath intl pcntl pdo_mysql zip \
@@ -33,6 +35,10 @@ php artisan config:clear --no-interaction
 
 if [ -z "${APP_KEY:-}" ] && ! grep -Eq '^APP_KEY=.+$' .env; then
     php artisan key:generate --no-interaction
+fi
+
+if [ ! -e public/storage ] && [ ! -L public/storage ]; then
+    ln -s ../storage/app/public public/storage
 fi
 
 exec "$@"

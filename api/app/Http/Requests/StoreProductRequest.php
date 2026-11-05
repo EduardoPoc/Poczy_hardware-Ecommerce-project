@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
@@ -12,23 +11,46 @@ class StoreProductRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $specifications = $this->input('specifications');
+
+        if (is_string($specifications)) {
+
+            $decoded = json_decode($specifications, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $this->merge(['specifications' => $decoded]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
             'name' => ['required', 'string', 'max:150'],
-            'description' => ['nullable', 'string', 'max:65535', function (string $attribute, mixed $value, Closure $fail): void {
-                if (is_string($value) && strlen($value) > 65535) {
-                    $fail('A descrição deve ter no máximo 65535 bytes.');
-                }
-            }],
+            'description' => ['nullable', 'string', 'max:65535'],
             'specifications' => ['nullable', 'array', 'max:100'],
             'price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
             'cost' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
             'stock' => ['sometimes', 'integer', 'min:0', 'max:4294967295'],
-            'image_url' => ['nullable', 'url:http,https', 'max:500'],
+            'image' => ['bail', 'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'extensions:png,jpg,jpeg,webp', 'max:5120'],
+            'image_url' => ['prohibited'],
+            'image_path' => ['prohibited'],
             'is_active' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'image.image' => 'Envie uma imagem válida em PNG, JPG, JPEG ou WebP.',
+            'image.mimes' => 'Envie uma imagem em PNG, JPG, JPEG ou WebP.',
+            'image.extensions' => 'O arquivo deve ter extensão PNG, JPG, JPEG ou WebP.',
+            'image.max' => 'A imagem deve ter no máximo 5 MB.',
+            'image.uploaded' => 'Não foi possível receber a imagem. Confira o arquivo e o limite de 5 MB.',
         ];
     }
 }

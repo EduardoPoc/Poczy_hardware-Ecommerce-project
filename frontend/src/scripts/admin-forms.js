@@ -127,11 +127,11 @@ function productPricingFields(product) {
 
 /** Combina dados do catálogo com as características definidas pela categoria selecionada. */
 export function productForm(product, data) {
-  const imageField = input('image_url', 'URL da imagem · opcional', product?.image_url, {
-    type: 'url',
-    attrs: 'maxlength="500"',
+  const imageField = input('image', 'Imagem do produto · opcional', '', {
+    type: 'file',
+    attrs: 'accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"',
     wide: true,
-    help: 'Use o endereço HTTP ou HTTPS de uma imagem.',
+    help: 'PNG, JPG, JPEG ou WebP, até 5 MB. Na edição, envie um arquivo para substituir a imagem atual.',
   });
   return /* HTML */ `<div class="admin-form-grid d-grid">
       ${input('name', 'Nome do produto', product?.name, { attrs: 'required maxlength="150"', wide: true })}

@@ -44,7 +44,9 @@ php artisan route:cache --no-interaction
 exec "$@"
 ENTRYPOINT_SCRIPT
 COPY php-production.ini /usr/local/etc/php/conf.d/production.ini
+COPY php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
+    && ln -sfn ../storage/app/public public/storage \
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
 EXPOSE 9000
@@ -54,3 +56,4 @@ CMD ["php-fpm"]
 FROM nginx:stable-alpine AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /var/www/html/public /var/www/html/public
+RUN ln -sfn ../storage/app/public /var/www/html/public/storage

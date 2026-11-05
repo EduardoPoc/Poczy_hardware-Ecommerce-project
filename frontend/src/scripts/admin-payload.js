@@ -1,4 +1,4 @@
-import { cents, imageUrl, asRecord, orderTransitions } from './admin-utils.js';
+import { cents, asRecord, orderTransitions } from './admin-utils.js';
 
 function fieldValue(form, name) {
   return form.elements.namedItem(name)?.value?.trim() ?? '';
@@ -127,20 +127,42 @@ function productPayload(form, data, record) {
   if (!category) throw new Error('Selecione uma categoria válida.');
   const specifications = productSpecifications(form, category);
   const prices = productPrices(form);
-  const url = fieldValue(form, 'image_url');
-  if (url && !imageUrl(url)) throw new Error('A imagem precisa de uma URL HTTP ou HTTPS.');
+  const image = form.elements.namedItem('image')?.files?.[0];
+  if (image) {
+    if (
+      !/\.(png|jpe?g|webp)$/i.test(image.name) ||
+      !['image/png', 'image/jpeg', 'image/webp'].includes(image.type)
+    )
+      throw new Error('Selecione uma imagem PNG, JPG, JPEG ou WebP.');
+    if (image.size > 5 * 1024 * 1024) throw new Error('A imagem deve ter no máximo 5 MB.');
+  }
   const payload = {
     name: fieldValue(form, 'name'),
     category_id: categoryId,
     brand_id: fieldValue(form, 'brand_id') ? Number(fieldValue(form, 'brand_id')) : null,
     description: readDescription(form),
     ...prices,
-    image_url: url || null,
     specifications,
     is_active: form.elements.is_active.checked,
   };
   if (!record) payload.stock = Number(fieldValue(form, 'stock'));
-  return payload;
+  if (!image) return payload;
+
+  const body = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    body.append(
+      key,
+      value === null
+        ? ''
+        : typeof value === 'object'
+          ? JSON.stringify(value)
+          : typeof value === 'boolean'
+            ? String(Number(value))
+            : String(value),
+    );
+  }
+  body.append('image', image);
+  return body;
 }
 
 /** Lê e valida o formulário sem fazer requisições ou alterar os campos da tela. */

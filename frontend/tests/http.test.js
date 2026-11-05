@@ -4,6 +4,34 @@ import assert from 'node:assert/strict';
 let sequence = 0;
 const freshClient = () => import(`../src/api/http.js?test=${sequence++}`);
 
+test('upload envia multipart com cookies e CSRF e usa POST com _method na edição', async (context) => {
+  globalThis.document = { cookie: 'XSRF-TOKEN=token%3D' };
+  context.after(() => {
+    delete globalThis.document;
+  });
+  const sent = [];
+  context.mock.method(globalThis, 'fetch', async (path, options) => {
+    if (path === '/sanctum/csrf-cookie') return new Response(null, { status: 204 });
+    sent.push(options);
+    return Response.json({ data: { id: 1 } });
+  });
+  const { apiRequest } = await freshClient();
+  for (const method of ['POST', 'PATCH']) {
+    const body = new FormData();
+    body.append('image', new File(['png'], 'imagem.png', { type: 'image/png' }));
+    await apiRequest('/api/admin/products/1', { method, data: body });
+  }
+  for (const options of sent) {
+    assert.equal(options.method, 'POST');
+    assert.equal(options.credentials, 'include');
+    assert.equal(options.headers['X-XSRF-TOKEN'], 'token=');
+    assert.equal(options.headers['Content-Type'], undefined);
+    assert.ok(options.body instanceof FormData);
+  }
+  assert.equal(sent[0].body.has('_method'), false);
+  assert.equal(sent[1].body.get('_method'), 'PATCH');
+});
+
 test('requisições simultâneas compartilham a criação da sessão', async (context) => {
   const calls = [];
   context.mock.method(globalThis, 'fetch', async (path) => {

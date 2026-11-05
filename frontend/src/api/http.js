@@ -71,6 +71,7 @@ function responseError(status, payload) {
     403: 'Sua conta não tem permissão para acessar este recurso.',
     404: 'Este registro não foi encontrado.',
     409: payload?.message || 'Os dados foram alterados. Atualize e confira o registro.',
+    413: 'O arquivo ou a requisição ultrapassa o tamanho permitido.',
     419: 'Sua sessão expirou. Atualize a página e tente novamente.',
     422: validationMessages.join(' ') || 'Confira os dados informados e tente novamente.',
     429: 'Muitas tentativas. Aguarde alguns instantes antes de tentar novamente.',
@@ -100,6 +101,7 @@ async function ensureSession() {
 
 export async function apiRequest(path, { method = 'GET', data, signal } = {}) {
   const headers = {};
+  const multipart = data instanceof FormData;
   await ensureSession();
 
   if (!['GET', 'HEAD'].includes(method)) {
@@ -112,12 +114,16 @@ export async function apiRequest(path, { method = 'GET', data, signal } = {}) {
     headers['X-XSRF-TOKEN'] = decodeURIComponent(cookie.slice('XSRF-TOKEN='.length));
   }
 
-  if (data !== undefined) headers['Content-Type'] = 'application/json';
+  if (multipart && ['PUT', 'PATCH'].includes(method)) {
+    data.set('_method', method);
+    method = 'POST';
+  }
+  if (data !== undefined && !multipart) headers['Content-Type'] = 'application/json';
 
   return request(path, {
     method,
     headers,
     signal,
-    ...(data !== undefined ? { body: JSON.stringify(data) } : {}),
+    ...(data !== undefined ? { body: multipart ? data : JSON.stringify(data) } : {}),
   });
 }

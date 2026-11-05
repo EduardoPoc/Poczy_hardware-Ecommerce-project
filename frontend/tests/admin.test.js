@@ -10,7 +10,11 @@ function formWith(values, prefixes = []) {
   const controls = Object.fromEntries(
     Object.entries(values).map(([name, value]) => [
       name,
-      typeof value === 'boolean' ? { checked: value } : { value: String(value) },
+      value instanceof File
+        ? { files: [value] }
+        : typeof value === 'boolean'
+          ? { checked: value }
+          : { value: String(value) },
     ]),
   );
   return {
@@ -36,7 +40,6 @@ const productValues = {
   description: '',
   price: '0.10',
   cost: '0.00',
-  image_url: '',
   is_active: true,
   stock: '3',
   'specifications.wireless': 'false',
@@ -80,9 +83,40 @@ test('características rejeitam booleanos ambíguos e inteiros inválidos', () =
   assert.throws(() => productPayload({ 'specifications.weight': 'Infinity' }), /numéricos/);
 });
 
-test('imagem executável e descrição acima do limite em bytes são rejeitadas', () => {
-  assert.throws(() => productPayload({ image_url: 'javascript:alert(1)' }), /HTTP ou HTTPS/);
+test('imagem com formato inválido ou acima de 5 MB e descrição longa são rejeitadas', () => {
+  assert.throws(
+    () => productPayload({ image: new File(['svg'], 'imagem.svg', { type: 'image/svg+xml' }) }),
+    /PNG, JPG, JPEG ou WebP/,
+  );
+  assert.throws(
+    () => productPayload({ image: new File(['png'], 'imagem.php', { type: 'image/png' }) }),
+    /PNG, JPG, JPEG ou WebP/,
+  );
+  assert.throws(
+    () =>
+      productPayload({
+        image: new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'imagem.png', { type: 'image/png' }),
+      }),
+    /5 MB/,
+  );
   assert.throws(() => productPayload({ description: 'á'.repeat(32768) }), /65.535 bytes/);
+});
+
+test('upload mantém os dados tipados em multipart e preserva a imagem ao editar sem arquivo', () => {
+  const image = new File(['png'], 'imagem.png', { type: 'image/png' });
+  const body = productPayload({ image, is_active: false });
+  assert.ok(body instanceof FormData);
+  assert.equal(body.get('image'), image);
+  assert.deepEqual(JSON.parse(body.get('specifications')), {
+    wireless: false,
+    capacity: 0,
+    weight: 1.25,
+  });
+  assert.equal(body.get('is_active'), '0');
+  assert.equal(body.get('brand_id'), '');
+  assert.equal(body.get('price'), '0.10');
+  assert.equal(Object.hasOwn(productPayload({}, { id: 1 }), 'image'), false);
+  assert.equal(Object.hasOwn(productPayload(), 'image_url'), false);
 });
 
 test('ajuste de estoque aceita saldo negativo; entrada e saída exigem quantidade positiva', () => {
