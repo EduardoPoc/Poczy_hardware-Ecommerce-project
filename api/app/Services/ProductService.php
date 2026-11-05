@@ -143,6 +143,9 @@ class ProductService
                 $this->validateActivation((bool) ($data['is_active'] ?? $product->is_active), $product->stock);
                 $previousImage = $product->image_path;
                 $product->update($data);
+                if (! $product->is_active || ! $category->is_active) {
+                    $product->cartItems()->delete();
+                }
                 if ($imagePath !== null) {
                     $this->deleteImageAfterCommit($previousImage);
                 }

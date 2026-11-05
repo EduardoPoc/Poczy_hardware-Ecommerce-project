@@ -1,4 +1,4 @@
-import { cents, asRecord, orderTransitions } from './admin-utils.js';
+import { cents, asRecord, allowedOrderTransitions } from './admin-utils.js';
 
 function fieldValue(form, name) {
   return form.elements.namedItem(name)?.value?.trim() ?? '';
@@ -40,7 +40,7 @@ function stockPayload(form) {
 
 function orderPayload(form, record) {
   const status = fieldValue(form, 'status');
-  if (!(orderTransitions[record.status] || []).includes(status)) {
+  if (!allowedOrderTransitions(record).includes(status)) {
     throw new Error('Selecione uma próxima etapa válida para este pedido.');
   }
   return { status };

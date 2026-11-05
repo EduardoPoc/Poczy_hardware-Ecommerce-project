@@ -62,15 +62,15 @@ class CartMergeService
     }
 
     /**
-     * Executado dentro da transação de união dos carrinhos. Bloqueia itens, categorias e
-     * produtos em ordem de ID para manter os dados consistentes durante outras escritas.
+     * Os carrinhos já estão bloqueados. Categorias e produtos são bloqueados antes de
+     * escrever itens, seguindo a ordem da limpeza de produtos indisponíveis do catálogo.
      *
      * @return list<array{product_id: int, requested_quantity: int, quantity: int, reason: string, message: string}>
      */
     private function mergeItems(Cart $account, Cart $guest): array
     {
-        $guestItems = $guest->items()->orderBy('product_id')->lockForUpdate()->get();
-        $accountItems = $account->items()->orderBy('product_id')->lockForUpdate()->get()->keyBy('product_id');
+        $guestItems = $guest->items()->orderBy('product_id')->get();
+        $accountItems = $account->items()->orderBy('product_id')->get()->keyBy('product_id');
         $productIds = $guestItems->pluck('product_id');
         $categoryIds = Product::whereIn('id', $productIds)->pluck('category_id')->unique();
         $categories = Category::whereIn('id', $categoryIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');

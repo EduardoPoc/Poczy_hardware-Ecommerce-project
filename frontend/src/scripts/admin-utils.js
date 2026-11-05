@@ -13,11 +13,17 @@ export const statusLabels = {
 };
 export const orderTransitions = {
   PENDING: ['PAID', 'CANCELLED'],
-  PAID: ['SHIPPED'],
-  SHIPPED: ['DELIVERED'],
+  PAID: ['SHIPPED', 'DELIVERED', 'CANCELLED'],
+  SHIPPED: ['DELIVERED', 'CANCELLED'],
   DELIVERED: [],
   CANCELLED: [],
 };
+
+export function allowedOrderTransitions(order) {
+  if (Array.isArray(order.allowed_statuses))
+    return order.allowed_statuses.filter((status) => Object.hasOwn(statusLabels, status));
+  return orderTransitions[order.status] || [];
+}
 export const movementLabels = { INBOUND: 'Entrada', OUTBOUND: 'Saída', ADJUSTMENT: 'Ajuste' };
 export function dateLabel(value) {
   const date = new Date(value);

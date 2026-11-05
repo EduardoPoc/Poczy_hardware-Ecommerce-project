@@ -19,13 +19,19 @@ class OrderService
 {
     private const TRANSITIONS = [
         'PENDING' => ['PAID', 'CANCELLED'],
-        'PAID' => ['SHIPPED'],
-        'SHIPPED' => ['DELIVERED'],
+        'PAID' => ['SHIPPED', 'DELIVERED', 'CANCELLED'],
+        'SHIPPED' => ['DELIVERED', 'CANCELLED'],
         'DELIVERED' => [],
         'CANCELLED' => [],
     ];
 
     public function __construct(private StockService $stock) {}
+
+    /** @return list<string> */
+    public static function allowedTransitions(Order $order): array
+    {
+        return self::TRANSITIONS[$order->status] ?? [];
+    }
 
     private function userOrders(User $user): HasMany
     {
@@ -215,7 +221,7 @@ class OrderService
         if ($order->status === $status) {
             return;
         }
-        if (! in_array($status, self::TRANSITIONS[$order->status] ?? [], true)) {
+        if (! in_array($status, self::allowedTransitions($order), true)) {
             throw new ConflictHttpException('Transição de status não permitida.');
         }
         if ($status === 'CANCELLED') {

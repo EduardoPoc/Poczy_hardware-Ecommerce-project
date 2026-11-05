@@ -12,22 +12,24 @@ function acceptCart(cart) {
   state.cart = details;
 }
 
-export async function loadCart({ force = false } = {}) {
+export async function loadCart({ force = false, quiet = false } = {}) {
   if (loadingPromise) return loadingPromise;
   if (state.cart && !force) return true;
 
-  state.loading = true;
-  state.error = '';
+  if (!quiet) {
+    state.loading = true;
+    state.error = '';
+  }
   loadingPromise = (async () => {
     try {
       acceptCart(await api.getCart());
       state.uncertain = false;
       return true;
     } catch (error) {
-      state.error = errorMessage(error);
+      if (!quiet) state.error = errorMessage(error);
       return false;
     } finally {
-      state.loading = false;
+      if (!quiet) state.loading = false;
       loadingPromise = null;
     }
   })();

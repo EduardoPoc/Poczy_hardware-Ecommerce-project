@@ -131,17 +131,21 @@ class OrderEndpointsTest extends TestCase
         $this->patchJson('/api/admin/orders/'.$order->id, ['status' => 'SHIPPED'])->assertForbidden();
     }
 
-    public function test_paid_orders_cannot_be_cancelled_by_the_owner_or_admin(): void
+    public function test_paid_orders_can_only_be_cancelled_through_the_administrative_status_update(): void
     {
         $order = $this->createOrder();
         $this->postJson('/api/orders/'.$order->id.'/pay')->assertOk();
         $this->deleteJson('/api/orders/'.$order->id)->assertConflict();
         $this->actingAs($this->admin, 'web')->deleteJson('/api/orders/'.$order->id)->assertConflict();
-        $this->patchJson('/api/admin/orders/'.$order->id, ['status' => 'CANCELLED'])->assertConflict();
         $this->assertSame('PAID', $order->fresh()->status);
         $this->assertSame(7, $this->product->fresh()->stock);
         $this->assertDatabaseCount('stock_movements', 1);
         $this->assertDatabaseCount('order_status_histories', 2);
+        $this->patchJson('/api/admin/orders/'.$order->id, ['status' => 'CANCELLED'])->assertOk()
+            ->assertJsonPath('data.status', 'CANCELLED')->assertJsonPath('data.allowed_statuses', []);
+        $this->assertSame(10, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->assertDatabaseCount('order_status_histories', 3);
     }
 
     public function test_admin_can_cancel_pending_orders_and_restore_stock_only_once(): void

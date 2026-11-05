@@ -1,6 +1,6 @@
 import { apiRequest, ApiError } from './session.js';
 import { allRecords, loadAdminData } from './admin-api.js';
-import { escapeHtml, orderTransitions, statusLabels } from './admin-utils.js';
+import { escapeHtml, allowedOrderTransitions, statusLabels } from './admin-utils.js';
 import { sections, overview, listing, listingResults } from './admin-views.js';
 import {
   productForm,
@@ -337,7 +337,7 @@ function renderEditor(kind, record, movements) {
   fields.innerHTML = builders[kind]();
   fields.disabled = false;
   saveButton.hidden =
-    kind === 'history' || (kind === 'order' && !(orderTransitions[record.status] || []).length);
+    kind === 'history' || (kind === 'order' && !allowedOrderTransitions(record).length);
   deleteButton.hidden = demo || !record || !['products', 'categories', 'brands'].includes(kind);
   setSaving(false);
   if (kind === 'products') refreshSpecificationFields();
@@ -508,12 +508,14 @@ fields.addEventListener('change', (event) => {
     const status = event.target.value;
     document.getElementById('admin-order-notice').textContent =
       status === 'CANCELLED'
-        ? 'O cancelamento preserva o histórico e devolve os itens ao estoque.'
-        : status === 'PAID'
-          ? 'O pagamento deste projeto é simulado. Confirme para marcar o pedido como pago.'
-          : status
-            ? `Confirme para alterar o pedido para “${statusLabels[status]}”.`
-            : 'Selecione uma próxima etapa.';
+        ? 'O cancelamento encerra o pedido e devolve os itens ao estoque uma única vez.'
+        : status === 'DELIVERED'
+          ? 'Confirme que o pedido foi entregue. Esta ação encerra o pedido.'
+          : status === 'PAID'
+            ? 'O pagamento deste projeto é simulado. Confirme para marcar o pedido como pago.'
+            : status
+              ? `Confirme para alterar o pedido para “${statusLabels[status]}”.`
+              : 'Selecione uma próxima etapa.';
   }
 });
 fields.addEventListener('click', (event) => {

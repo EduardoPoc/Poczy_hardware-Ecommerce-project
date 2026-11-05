@@ -127,7 +127,9 @@ class CartService
             'items.product.category',
             'items.product.brand',
         ]);
-        $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null)->values();
+        $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null && $item->product->is_active && $item->product->stock >= 1 &&
+            (bool) $item->product->category?->is_active
+        )->values();
         $productsTotal = BigDecimal::zero()->toScale(2);
         foreach ($items as $item) {
             $unitPrice = (string) $item->product->price;

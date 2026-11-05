@@ -40,6 +40,56 @@ class FakePixCheckoutTest extends TestCase
         return ['address_id' => $this->addressId, 'payment_method' => 'FAKE_PIX', 'checkout_token' => (string) Str::uuid(), 'expected_total' => '69.80'];
     }
 
+    private function admin(): User
+    {
+        $admin = User::create(['name' => 'Admin', 'email' => 'fakepix-admin@example.com', 'password' => 'SenhaAdmin!2026']);
+        $admin->forceFill(['role' => 'ADMIN'])->save();
+
+        return $admin;
+    }
+
+    public function test_admin_can_mark_a_paid_fake_pix_order_delivered_and_terminal_statuses_are_final(): void
+    {
+        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertForbidden();
+        $this->actingAs($this->admin(), 'web')->getJson('/api/admin/orders/'.$id)->assertOk()
+            ->assertJsonPath('data.allowed_statuses', ['SHIPPED', 'DELIVERED', 'CANCELLED']);
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertOk()
+            ->assertJsonPath('data.status', 'DELIVERED')->assertJsonPath('data.allowed_statuses', []);
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertOk();
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertConflict();
+        $this->assertSame(1, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('order_status_histories', 3);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->actingAs($this->customer, 'web')->getJson('/api/orders/'.$id)->assertOk()->assertJsonPath('data.status', 'DELIVERED');
+    }
+
+    public function test_admin_cancellation_of_a_paid_fake_pix_order_restores_stock_only_once(): void
+    {
+        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
+        $this->deleteJson('/api/orders/'.$id)->assertConflict();
+        $this->actingAs($this->admin(), 'web')->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])
+            ->assertOk()->assertJsonPath('data.status', 'CANCELLED')->assertJsonPath('data.allowed_statuses', []);
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk();
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertConflict();
+        $this->assertSame(3, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->assertDatabaseCount('order_status_histories', 3);
+        $this->actingAs($this->customer, 'web')->getJson('/api/orders/'.$id)->assertOk()->assertJsonPath('data.status', 'CANCELLED');
+    }
+
+    public function test_admin_can_cancel_a_shipped_order_and_stock_is_restored_only_once(): void
+    {
+        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
+        $this->actingAs($this->admin(), 'web')->patchJson('/api/admin/orders/'.$id, ['status' => 'SHIPPED'])
+            ->assertOk()->assertJsonPath('data.allowed_statuses', ['DELIVERED', 'CANCELLED']);
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk()->assertJsonPath('data.status', 'CANCELLED');
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk();
+        $this->assertSame(3, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->assertDatabaseCount('order_status_histories', 4);
+    }
+
     public function test_fake_pix_creates_a_paid_order_with_server_prices_shipping_and_address_and_clears_the_cart(): void
     {
         $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.shipping_total', '30.00')->assertJsonPath('data.total', '69.80');

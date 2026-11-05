@@ -40,6 +40,9 @@ class StockService
             throw ValidationException::withMessages(['stock' => 'Estoque insuficiente ou saldo acima do limite permitido.']);
         }
         $product->update(['stock' => $stock, 'is_active' => $product->is_active && $stock >= 1]);
+        if (! $product->is_active) {
+            $product->cartItems()->delete();
+        }
 
         return $product->stockMovements()->create([
             'type' => $type, 'quantity' => $quantity, 'reason' => $reason,

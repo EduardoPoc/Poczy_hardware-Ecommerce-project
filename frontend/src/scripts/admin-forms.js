@@ -1,7 +1,7 @@
 import {
   escapeHtml,
   statusLabels,
-  orderTransitions,
+  allowedOrderTransitions,
   movementLabels,
   money,
   moneyFromCents,
@@ -10,6 +10,7 @@ import {
   badge,
   asRecord,
 } from './admin-utils.js';
+import { paymentLabel } from '../domain/customer.js';
 
 let attributeIndex = 0;
 const idFor = (name) => `editor-${name.replaceAll('.', '-')}`;
@@ -394,10 +395,8 @@ export function movementHistory(product, movements) {
 
 export function orderForm(order) {
   const address = order.shipping_address;
-  const payment =
-    { PIX: 'Pix', CREDIT_CARD: 'Cartão de crédito', BOLETO: 'Boleto' }[order.payment_method] ||
-    'Não informado';
-  const next = orderTransitions[order.status] || [];
+  const payment = paymentLabel(order.payment_method);
+  const next = allowedOrderTransitions(order);
   const addressMarkup = address
     ? /* HTML */ `${escapeHtml(address.street)},
         ${escapeHtml(address.number)}${address.complement ? ` · ${escapeHtml(address.complement)}` : ''}<br />${escapeHtml(address.city)}

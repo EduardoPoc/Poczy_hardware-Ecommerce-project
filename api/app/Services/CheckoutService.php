@@ -26,7 +26,7 @@ class CheckoutService
             }
 
             $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
-            $items = $cart?->items()->orderBy('product_id')->lockForUpdate()->get(['product_id', 'quantity']);
+            $items = $cart?->items()->orderBy('product_id')->get(['product_id', 'quantity']);
             if ($items === null || $items->isEmpty()) {
                 throw ValidationException::withMessages(['cart' => 'Adicione produtos ao carrinho antes de finalizar a compra.']);
             }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Brand;
+use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Collection;
@@ -83,6 +84,9 @@ class CategoryService
                 }
             }
             $category->update($data);
+            if (! $category->is_active) {
+                CartItem::whereIn('product_id', $category->products()->select('id'))->delete();
+            }
 
             return $category;
         }, 3);

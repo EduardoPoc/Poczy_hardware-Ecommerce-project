@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { currentUser } from '../api/auth.js';
 import { useCart } from '../stores/cart.js';
 import logo from '../../assets/logo1.svg';
@@ -8,7 +8,8 @@ const props = defineProps({ searchTerm: { type: String, default: '' } });
 const search = ref(props.searchTerm);
 const searchInput = ref(null);
 const user = ref(null);
-const { quantity, load } = useCart();
+const { quantity, load, state } = useCart();
+let refreshTimer;
 const accountLabel = computed(() =>
   user.value?.role === 'ADMIN' ? 'Administração' : user.value ? 'Minha conta' : 'Entrar',
 );
@@ -21,9 +22,31 @@ function clearSearch() {
   searchInput.value?.focus();
 }
 
+function refreshCart() {
+  if (
+    document.visibilityState !== 'visible' ||
+    state.saving ||
+    state.loading ||
+    state.uncertain ||
+    state.error
+  )
+    return;
+  load({ force: true, quiet: true });
+}
+
 onMounted(async () => {
+  window.addEventListener('focus', refreshCart);
+  document.addEventListener('visibilitychange', refreshCart);
+  if (['cart', 'checkout'].includes(document.body.dataset.page))
+    refreshTimer = setInterval(refreshCart, 15000);
   load();
   user.value = await currentUser();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('focus', refreshCart);
+  document.removeEventListener('visibilitychange', refreshCart);
+  clearInterval(refreshTimer);
 });
 </script>
 
