@@ -45,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         RateLimiter::for('registration', fn (Request $request): Limit => Limit::perHour(5)->by($request->ip()));
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: array_filter(array_map('trim', explode(',', env('TRUSTED_PROXIES', '127.0.0.1,::1')))));
         $middleware->redirectGuestsTo(fn (Request $request): ?string => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
