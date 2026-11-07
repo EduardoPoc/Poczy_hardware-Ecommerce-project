@@ -4,7 +4,7 @@ Projeto de e-commerce de hardware, com frontend em `frontend/` e backend Laravel
 
 ## Estado atual e documentação
 
-O backend usa Laravel 12 e MySQL 8.4. Os fluxos previstos têm rotas e camadas HTTP conectadas, incluindo validação por Form Requests e respostas por Resources. A autenticação atual usa sessão, cookies e CSRF; autenticação por token Bearer não está implementada. A validação integrada de persistência depende de executar a suíte com o MySQL isolado, conforme o [guia da API](api/README.md#testes-com-mysql-isolado). A loja em Vue 3 consulta o catálogo e pesquisa os produtos pela API, com filtros e paginação no servidor.
+O backend usa Laravel 12 e MySQL 8.4. Os fluxos previstos têm rotas e camadas HTTP conectadas, incluindo validação por Form Requests e respostas por Resources. O navegador usa sessão, cookies e CSRF; clientes da API também podem autenticar com Bearer tokens Sanctum de oito horas. A validação integrada de persistência depende de executar a suíte com o MySQL isolado, conforme o [guia da API](api/README.md#testes-com-mysql-isolado). A loja em Vue 3 consulta o catálogo e pesquisa os produtos pela API, com filtros e paginação no servidor.
 
 O [README da API](api/README.md) reúne os comandos de desenvolvimento, testes MySQL isolados e produção com PHP-FPM/Nginx. O esquema do banco está descrito abaixo.
 
@@ -82,7 +82,7 @@ Esta base foi remodelada para instalações novas. Um banco que já executou as 
 | `role` | ENUM('CUSTOMER', 'ADMIN') | Padrão `CUSTOMER` |
 | `remember_token` | VARCHAR(100) | Anulável; recurso “lembrar de mim” da autenticação por sessão |
 
-`User` possui vários endereços e pedidos. O model gera o hash da senha e oculta `password` e `remember_token` na serialização automática. `role` não permite atribuição em massa. A coluna de confirmação de e-mail está disponível, mas o fluxo de verificação ainda precisa ser implementado. A autenticação escolhida usa sessões do Laravel com cookies e proteção CSRF; não há tabela de tokens Bearer no esquema atual.
+`User` possui vários endereços e pedidos. O model gera o hash da senha e oculta `password` e `remember_token` na serialização automática. `role` não permite atribuição em massa. A coluna de confirmação de e-mail está disponível, mas o fluxo de verificação permanece fora da primeira versão. A autenticação aceita sessões Laravel com cookies e CSRF e tokens Bearer Sanctum, cujos hashes ficam em `personal_access_tokens`.
 
 **`password_change_histories` — model `PasswordChangeHistory`**
 
@@ -128,9 +128,21 @@ O `CatalogSeeder` cadastra as 12 categorias e as definições iniciais dos atrib
 docker compose exec api php artisan db:seed --class=CatalogSeeder
 ```
 
-O `DatabaseSeeder` executa `ProductSeeder` (que carrega as categorias por `CatalogSeeder`) e `UserSeeder`. O catálogo é fixo: 24 produtos, dois por categoria, e 18 marcas, com configurações plausíveis para notebooks, PCs, monitores e componentes. São configurações ilustrativas, sem vínculo com SKUs específicos; preços, custos e estoques são exemplos para desenvolvimento, não cotações ou inventário real. As opções categóricas de tela, socket, DDR, formato e tipo também são definidas nas categorias.
+O `DatabaseSeeder` carrega categorias, marcas, produtos, usuários e cenários completos de compra. A base inicial contém 49 produtos, 12 categorias e 30 marcas, incluindo indisponibilidade e desativação. O `DemoOrdersSeeder` cria cinco pedidos nos diferentes estados e carrinhos de conta e visitante. Os exemplos são fictícios e os seeders bloqueiam execução em produção.
 
-`UserSeeder` cria a cliente de demonstração Mariana Costa (`mariana.costa@example.com`, senha `PoczyDemo!2026`). As cargas não geram dados aleatórios e não usam factories. As factories e o suporte `HasFactory` nos models foram removidos; os testes criam registros explícitos. As seeders preservam registros existentes e inserem somente os ausentes. Elas não apagam os antigos produtos de demonstração de um banco já preenchido. Identificam categorias e marcas pelo nome, produtos pelo par categoria/nome e usuários por e-mail; renomear registros iniciais pode recriar os nomes originais na próxima carga.
+Credenciais exclusivas de desenvolvimento/testes:
+
+| Papel | E-mail | Senha |
+| --- | --- | --- |
+| Admin | admin@example.com | PoczyAdmin!2026 |
+| Cliente | mariana.costa@example.com | PoczyDemo!2026 |
+| Cliente | lucas.ferreira@example.com | PoczyDemo!2026 |
+| Cliente | beatriz.oliveira@example.com | PoczyDemo!2026 |
+| Cliente | rafael.martins@example.com | PoczyDemo!2026 |
+| Cliente | ana.santos@example.com | PoczyDemo!2026 |
+| Pedidos demonstrativos | pedidos.demo@example.com | PoczyDemo!2026 |
+
+A reexecução preserva registros existentes e não repete os pedidos nem as movimentações de demonstração. Em produção, crie seu próprio administrador pelo comando interativo `php artisan app:create-admin` e cadastre os produtos pelo painel.
 
 **`brands` — model `Brand`**
 
@@ -206,7 +218,7 @@ A loja em Vue 3 pesquisa e pagina no servidor por `GET /api/products/filter`, en
 | --- | --- | --- |
 | `id` | BIGINT UNSIGNED | Chave primária, auto incremento |
 | `user_id` | BIGINT UNSIGNED | Obrigatório; referência a `users.id` |
-| `status` | VARCHAR(30) | `PENDING`, `PAID`, `PROCESSING`, `SHIPPED`, `DELIVERED` ou `CANCELLED`, controlados pelo service |
+| `status` | VARCHAR(30) | `PENDING`, `PAID`, `SHIPPED`, `DELIVERED` ou `CANCELLED`, controlados pelo service |
 | `payment_method` | VARCHAR(40) | Anulável |
 | `products_total` | DECIMAL(10,2) UNSIGNED | Obrigatório |
 | `shipping_total` | DECIMAL(10,2) UNSIGNED | Obrigatório |
@@ -295,6 +307,7 @@ Além das chaves primárias, estrangeiras e restrições de unicidade, existem o
 | --- | --- | --- |
 | `password_reset_tokens` | Recuperação de senha | `id` como chave primária, `email` único e `token` |
 | `sessions` | Sessões quando o driver de banco é utilizado | `id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity` |
+| `personal_access_tokens` | Autenticação Bearer com Sanctum | Identificação da conta, nome, hash único do token, abilities, last_used_at e expires_at |
 | `cache` | Cache quando o driver de banco é utilizado | `key` como chave primária, `value`, `expiration` |
 | `cache_locks` | Bloqueios do cache | `key` como chave primária, `owner`, `expiration` |
 | `jobs` | Fila de tarefas | `id`, `queue`, `payload`, `attempts`, `reserved_at`, `available_at` |
@@ -303,13 +316,13 @@ Além das chaves primárias, estrangeiras e restrições de unicidade, existem o
 
 `sessions.user_id` é uma chave estrangeira anulável para `users.id`: visitantes podem ter sessões sem usuário, e a exclusão de um usuário remove suas sessões em cascata. `payload` guarda os dados da sessão, incluindo o token CSRF. A proteção CSRF não precisa de uma tabela própria. As tabelas internas são administradas pelos serviços do Laravel e não precisam de models próprios em `App\Models`.
 
-### Autenticação por sessões e CSRF
+### Autenticação por sessão e token
 
-O esquema está preparado para sessões em banco e não cria `personal_access_tokens`. A rota protegida `/api/user` usa o guard `web`, sem autenticação Bearer. `password_reset_tokens` continua necessária para recuperação de senha, e `remember_token` para o recurso “lembrar de mim”.
+As rotas protegidas usam `auth:sanctum`. No navegador, `POST /api/login` preserva a sessão em banco, com cookies e CSRF. Obtenha `/sanctum/csrf-cookie` antes das escritas e envie `X-XSRF-TOKEN` com cookies.
 
-Para usar a tabela `sessions`, configure `SESSION_DRIVER=database`, já definido no `.env.example` atualizado. Instalações existentes com `array` em `api/.env` devem atualizar esse valor e limpar o cache de configuração; esse driver não persiste login entre requisições. `POST /api/login` e `POST /api/logout` estão implementados. As rotas de escrita usam `web` para sessão/CSRF e as pessoais também exigem `auth:web`; o CORS permite credenciais para origens autorizadas. O frontend deve obter `/sanctum/csrf-cookie`, enviar cookies e usar `X-XSRF-TOKEN` nas escritas. As telas de login, cadastro, carrinho e administração usam esse contrato; veja o [contrato de sessão](api/BUSINESS_RULES.md#cookies-e-csrf-na-spa).
+Para clientes da API, `POST /api/auth/login` retorna Bearer token de oito horas; envie-o em `Authorization`. `POST /api/auth/logout` revoga os tokens da conta. A migration de `personal_access_tokens` mantém hashes das credenciais. Troca de senha revoga tokens e sessões. As regras estão no [contrato da API](api/BUSINESS_RULES.md).
 
-Remover a migration de criação de tokens afeta instalações novas; não exclui uma tabela `personal_access_tokens` que já exista em outro banco. Alterar a migration de `sessions` também não adiciona a FK a uma tabela já migrada: nesse caso, será necessária uma migration de atualização específica.
+O Compose de produção publica frontend, API, documentação e imagens na mesma origem, com volumes persistentes. O README da API contém os passos de migrations, criação do administrador, HTTPS e backup. O workflow `.github/workflows/ci.yml` verifica testes MySQL e imagens de produção antes da entrega.
 
 ### Consultar e verificar o banco
 
@@ -355,4 +368,6 @@ O [contrato de escritas](api/BUSINESS_RULES.md) descreve cadastro, login/logout,
 
 O [guia da API](api/README.md) descreve as rotas atuais e os fluxos já disponíveis nos services. A pesquisa filtra e pagina os produtos no servidor; o carrinho de visitantes usa a sessão e os endpoints da API.
 
-O frete é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `0.00`. A forma de pagamento registra uma intenção; cobrança, confirmação por provedor e reembolso dependem de integração futura. Também permanecem pendentes autenticação por token Bearer, recuperação de senha e confirmação de e-mail, compatibilidade entre componentes, interface de checkout no frontend e chaves de idempotência para repetição de `POST /api/orders`.
+O frete fixo é configurado no servidor por `SHOP_SHIPPING_TOTAL`, inicialmente `30.00`. O checkout do frontend usa `POST /api/checkout` com uma chave de idempotência por tentativa. O pedido nasce pendente e o cliente confirma explicitamente o pagamento simulado ou cancela antes de pagar. A API não coleta dados financeiros nem integra um gateway real, conforme o escopo acadêmico.
+
+Recuperação de senha por link, confirmação de e-mail e análise de compatibilidade entre componentes permanecem fora da primeira versão. Antes da publicação, execute o CI completo e valide a jornada no navegador seguindo o guia de produção.

@@ -106,7 +106,7 @@ class OrderEndpointsTest extends TestCase
         $this->assertSame(10, $this->product->fresh()->stock);
     }
 
-    public function test_only_the_owner_or_admin_can_view_pay_or_cancel_an_order(): void
+    public function test_only_the_owner_pays_while_administrators_can_consult_orders(): void
     {
         $order = $this->createOrder();
         $this->actingAs($this->other, 'web')->getJson('/api/orders/'.$order->id)->assertNotFound();
@@ -117,7 +117,7 @@ class OrderEndpointsTest extends TestCase
         $this->postJson('/api/orders/'.$order->id.'/pay')->assertForbidden();
     }
 
-    public function test_owner_payment_is_simulated_and_repeated_payment_does_not_duplicate_history(): void
+    public function test_owner_payment_is_simulated_and_repeated_payment_is_rejected(): void
     {
         $order = $this->createOrder();
         $this->postJson('/api/orders/'.$order->id.'/pay', ['card_number' => '4111111111111111'])

@@ -3,15 +3,18 @@ info:
   title: 'Poczy Hardware API'
   version: 1.0.0
   description: |-
-    Contrato das rotas atuais de api/routes/api.php, controllers, Form Requests, Resources, services, models, migrations e bootstrap/app.php. Servido estaticamente em /api/docs/openapi.yaml.
+    API de catálogo, carrinho, perfil, endereços, pedidos e administração. Valores monetários são strings decimais e os preços são calculados no servidor.
 
-    Sessão e CSRF: GET /sanctum/csrf-cookie inicializa cookies; POST /api/login autentica pelo guard web (driver session). Preserve cookies em todas as chamadas e envie X-XSRF-TOKEN (cookie XSRF-TOKEN URL-decodificado) em POST/PUT/PATCH/DELETE. A UI faz isso automaticamente, sempre no mesmo host. Use login abaixo; cadastro não autentica. Logout e troca de senha invalidam sessão. O nome do cookie de sessão é configurável por SESSION_COOKIE, ou derivado de APP_NAME em config/session.php; não há token de autenticação emitido por estas rotas. Por isso a autenticação é descrita por operação, com sessão no navegador ou Bearer token obtido em POST /api/auth/login para clientes da API.
+    Navegador: obtenha GET /sanctum/csrf-cookie, preserve cookies e envie X-XSRF-TOKEN nas escritas; POST /api/login inicia a sessão. A UI realiza o handshake CSRF automaticamente. O cookie padrão é poczy-session, configurável por SESSION_COOKIE. Cadastro não faz login.
 
-    Acesso: catálogo/produtos/marcas/categorias públicos. Carrinho permite visitante vinculado à sessão. Perfil/endereços/pedidos/checkout exigem auth:sanctum. /api/admin/* exige também gate manage-shop, definido como role === ADMIN. Não há policies/permissões adicionais. Endereços sempre pertencem ao usuário; detalhe/pagamento/cancelamento de pedido permitem ADMIN acessar outras contas, enquanto listagem /api/orders continua própria.
+    Clientes da API: POST /api/auth/login emite access_token Sanctum por 8 horas. Envie Authorization: Bearer <token>. Rotas protegidas aceitam Bearer ou sessão do navegador. Logout revoga os tokens da conta; troca de senha também revoga tokens e sessões. Fusão de carrinho visitante exige preservar a sessão que o criou.
 
-    JSON: Resources usam {data: ...}; login e cadastro retornam campos do usuário diretamente, com cart_merge condicional. Listas de produtos, pedidos e estoque têm data/links/meta; outras listas não são paginadas. Dinheiro nas respostas é string decimal. Datas são ISO 8601 (nullable conforme persistência). Erros são JSON, podendo conter detalhes extras em APP_DEBUG. Strings de entrada são aparadas e vazias viram null pelo middleware padrão, exceto campos de senha. Campos não validados são descartados; campos explicitamente proibidos são indicados nos schemas. Escritas também podem retornar 409 em colisões de unicidade.
+    Produtos ativos sem estoque continuam visíveis como indisponíveis. Categorias e produtos inativos ficam fora do catálogo. Itens indisponíveis permanecem sinalizados no carrinho. O checkout cria PENDING, reserva estoque e esvazia o carrinho; pagar e cancelar são ações explícitas e separadas.
 
-    servers=/ e paths completos /api/... evitam duplicar prefixo e permitem /sanctum/csrf-cookie na raiz. /up é a verificação de saúde do framework. URLs internas de desenvolvimento (_boost) e URLs assinadas de storage do framework não são operações de negócio deste contrato. GET também aceita HEAD conforme registro Laravel.
+    Perfis e endereços pertencem à conta autenticada. A listagem de pedidos é própria; administradores podem consultar ou cancelar pedidos pendentes de outras contas. Somente o dono paga pela rota de pagamento. Administração exige role ADMIN. Pagamento é inteiramente simulado, sem dados financeiros.
+
+    Resources usam data; login e cadastro retornam campos do usuário na raiz. Erros e mensagens da API são em inglês; a interface apresenta mensagens em português. servers=/ preserva o mesmo host e evita duplicação do prefixo /api.
+
 servers:
   -
     url: /
@@ -579,7 +582,9 @@ paths:
       summary: 'Consultar próprio perfil'
       operationId: get_api_user
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -603,7 +608,9 @@ paths:
       summary: 'Atualizar próprio perfil'
       operationId: put_api_user
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -642,7 +649,9 @@ paths:
       summary: 'Atualizar próprio perfil'
       operationId: patch_api_user
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -681,7 +690,9 @@ paths:
       summary: 'Excluir própria conta'
       operationId: delete_api_user
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Exige senha atual correta (422). Pedidos ou histórico de alteração de senha impedem exclusão (409). Exclui endereços/carrinho por cascade e encerra a sessão.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -712,7 +723,9 @@ paths:
       summary: 'Encerrar sessão'
       operationId: post_api_logout
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Logout do guard web, invalida sessão e regenera token CSRF. Inicialize CSRF antes de novo login.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -733,7 +746,9 @@ paths:
       summary: 'Alterar senha e encerrar sessão'
       operationId: put_api_user_password
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Valida senha atual, registra histórico, renova remember_token; com SESSION_DRIVER=database remove todas as sessões do usuário. Logout invalida a sessão corrente.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -762,7 +777,9 @@ paths:
       summary: 'Listar próprios endereços'
       operationId: get_api_addresses
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Sem paginação; ordem crescente de id. Sempre limitado ao proprietário, inclusive ADMIN.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -788,7 +805,9 @@ paths:
       summary: 'Criar endereço'
       operationId: post_api_addresses
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -826,7 +845,9 @@ paths:
       summary: 'Consultar próprio endereço'
       operationId: get_api_addresses_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Endereço de outro usuário retorna 404, inclusive para ADMIN.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -852,7 +873,9 @@ paths:
       summary: 'Atualizar próprio endereço'
       operationId: put_api_addresses_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -891,7 +914,9 @@ paths:
       summary: 'Atualizar próprio endereço'
       operationId: patch_api_addresses_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -930,7 +955,9 @@ paths:
       summary: 'Excluir próprio endereço'
       operationId: delete_api_addresses_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Não modifica snapshots de pedidos anteriores.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -1106,7 +1133,9 @@ paths:
       summary: 'Listar próprios pedidos'
       operationId: get_api_orders
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Ordem created_at/id decrescente.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1143,7 +1172,9 @@ paths:
       summary: 'Criar pedido e reservar estoque'
       operationId: post_api_orders
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Aceita itens explícitos e esvazia o carrinho da conta na mesma transação. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -1185,7 +1216,9 @@ paths:
       summary: 'Consultar pedido e histórico'
       operationId: get_api_orders_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1211,7 +1244,9 @@ paths:
       summary: 'Cancelar pedido pendente'
       operationId: delete_api_orders_id
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Apenas PENDING pode ser cancelado; repetir CANCELLED retorna 204. Outros estados retornam 409. Preserva o pedido, registra histórico e devolve estoque com INBOUND; não reativa automaticamente produto desativado.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -1248,8 +1283,10 @@ paths:
         - Pedidos
       summary: 'Simular pagamento do pedido'
       operationId: post_api_orders_id_pay
-      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Somente o dono pode pagar; outra conta, inclusive ADMIN, recebe 403. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID retorna 409; outros estados retornam 409.'
-      security: []
+      description: 'Exige autenticação Sanctum. Somente o dono pode pagar; outra conta, inclusive ADMIN, recebe 403. Corpo vazio, sem dados financeiros. Apenas PENDING pode ser pago; repetir PAID ou pagar pedido cancelado, enviado ou entregue retorna 409. Registra PAID e sua data no histórico em transação.'
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1296,7 +1333,9 @@ paths:
       summary: 'Criar pedido pendente a partir do carrinho'
       operationId: post_api_checkout
       description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, mantém PENDING e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -1338,7 +1377,9 @@ paths:
       summary: 'Listar produtos'
       operationId: get_api_admin_products
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Inclui cost e timestamps.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1449,7 +1490,9 @@ paths:
       summary: 'Criar produto'
       operationId: post_api_admin_products
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -1496,7 +1539,9 @@ paths:
       summary: 'Consultar produto'
       operationId: get_api_admin_products_product
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1524,7 +1569,9 @@ paths:
       summary: 'Atualizar produto'
       operationId: put_api_admin_products_product
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1570,7 +1617,9 @@ paths:
       summary: 'Atualizar produto'
       operationId: patch_api_admin_products_product
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1616,7 +1665,9 @@ paths:
       summary: 'Excluir produto'
       operationId: delete_api_admin_products_product
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. 409 se possui itens de pedidos ou movimentações de estoque; desative para preservar histórico. Exclui imagem após commit.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -1654,7 +1705,9 @@ paths:
       summary: 'Listar marcas'
       operationId: get_api_admin_brands
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Sem paginação.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1682,7 +1735,9 @@ paths:
       summary: 'Criar marca'
       operationId: post_api_admin_brands
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -1724,7 +1779,9 @@ paths:
       summary: 'Consultar marca'
       operationId: get_api_admin_brands_brand
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1752,7 +1809,9 @@ paths:
       summary: 'Atualizar marca'
       operationId: put_api_admin_brands_brand
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1795,7 +1854,9 @@ paths:
       summary: 'Atualizar marca'
       operationId: patch_api_admin_brands_brand
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1838,7 +1899,9 @@ paths:
       summary: 'Excluir marca'
       operationId: delete_api_admin_brands_brand
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Exclui marca e define brand_id=null nos produtos por FK; não exige ausência de produtos.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -1874,7 +1937,9 @@ paths:
       summary: 'Listar categorias'
       operationId: get_api_admin_categories
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Sem paginação.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1902,7 +1967,9 @@ paths:
       summary: 'Criar categoria'
       operationId: post_api_admin_categories
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -1944,7 +2011,9 @@ paths:
       summary: 'Consultar categoria'
       operationId: get_api_admin_categories_category
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -1972,7 +2041,9 @@ paths:
       summary: 'Atualizar categoria'
       operationId: put_api_admin_categories_category
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2015,7 +2086,9 @@ paths:
       summary: 'Atualizar categoria'
       operationId: patch_api_admin_categories_category
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2058,7 +2131,9 @@ paths:
       summary: 'Excluir categoria'
       operationId: delete_api_admin_categories_category
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. 409 se possui produtos; desative ou remova associações antes de excluir.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         204:
           description: 'Sucesso, sem corpo.'
@@ -2096,7 +2171,9 @@ paths:
       summary: 'Listar todos os pedidos'
       operationId: get_api_admin_orders
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Todas as contas; ordem created_at/id decrescente. Inclui allowed_statuses; sem itens/endereço/histórico na listagem.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2136,7 +2213,9 @@ paths:
       summary: 'Consultar pedido com custos'
       operationId: get_api_admin_orders_id
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2164,7 +2243,9 @@ paths:
       summary: 'Alterar status do pedido'
       operationId: put_api_admin_orders_id
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, preservando a ativação do produto.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2207,7 +2288,9 @@ paths:
       summary: 'Alterar status do pedido'
       operationId: patch_api_admin_orders_id
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, preservando a ativação do produto.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2262,7 +2345,9 @@ paths:
       summary: 'Listar movimentações do produto'
       operationId: get_api_admin_products_id_stock_movements
       description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Ordem id decrescente; inclui movimentações automáticas de pedido/cancelamento/estoque inicial.'
-      security: []
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         200:
           description: Sucesso.
@@ -2302,8 +2387,10 @@ paths:
         - 'Admin · Estoque'
       summary: 'Movimentar estoque do produto'
       operationId: post_api_admin_products_id_stock_movements
-      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. INBOUND soma; OUTBOUND subtrai; ADJUSTMENT soma diferença assinada. Saldo resultante 0..2147483647. Saldo zero desativa produto e remove dos carrinhos; repor estoque não o reativa.'
-      security: []
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. INBOUND soma; OUTBOUND subtrai; ADJUSTMENT soma diferença assinada. Saldo resultante 0..2147483647. Saldo zero não altera is_active. Itens indisponíveis permanecem sinalizados nos carrinhos.'
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
       responses:
         201:
           description: Sucesso.
@@ -2372,6 +2459,11 @@ paths:
                 type: string
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: poczy-session
+      description: Sessão do navegador. Preserve cookies e use o handshake CSRF; o nome pode ser configurado por SESSION_COOKIE.
     bearerAuth:
       type: http
       scheme: bearer
@@ -3009,10 +3101,10 @@ components:
             $ref: '#/components/schemas/CartItem'
         items_count:
           type: integer
-          description: 'Número de linhas de produtos disponíveis.'
+          description: 'Número de linhas de produtos no carrinho.'
         items_quantity:
           type: integer
-          description: 'Soma das unidades disponíveis.'
+          description: 'Soma das quantidades no carrinho.'
         products_total:
           type: string
           pattern: '^\d+\.\d{2}$'
@@ -3032,7 +3124,7 @@ components:
           type: string
           pattern: '^[a-f0-9]{64}$'
           description: 'Somente na criação do carrinho visitante. Não substitui o cookie da sessão.'
-      description: 'Preços atuais; produtos inativos, sem estoque ou de categoria inativa são omitidos. Frete 0.00 no carrinho vazio; nos demais usa SHOP_SHIPPING_TOTAL (padrão 30.00). Não reserva estoque.'
+      description: 'Preços atuais; produtos indisponíveis permanecem com is_available=false, permitindo ajustar ou remover itens. Frete 0.00 no carrinho vazio; nos demais usa SHOP_SHIPPING_TOTAL (padrão 30.00). Não reserva estoque.'
       required:
         - id
         - user_id
@@ -4263,13 +4355,13 @@ components:
         stock:
           type: integer
           minimum: 0
-          maximum: 4294967295
+          maximum: 2147483647
           default: 0
-          description: 'Validação de entrada aceita até 4294967295; movimentação inicial limita saldo a 2147483647.'
+          description: 'Validação de entrada aceita até 2147483647; movimentação inicial limita saldo a 2147483647.'
         is_active:
           type: boolean
           default: true
-      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Ativar exige estoque >=1; sem estoque envie is_active=false. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
+      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Produtos ativos com estoque zero continuam visíveis como indisponíveis. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
       required:
         - category_id
         - name
@@ -4398,9 +4490,9 @@ components:
         stock:
           type: integer
           minimum: 0
-          maximum: 4294967295
+          maximum: 2147483647
           default: 0
-          description: 'Validação de entrada aceita até 4294967295; movimentação inicial limita saldo a 2147483647.'
+          description: 'Validação de entrada aceita até 2147483647; movimentação inicial limita saldo a 2147483647.'
         is_active:
           type: boolean
           default: true
@@ -4409,7 +4501,7 @@ components:
           format: binary
           description: 'PNG, JPG, JPEG ou WebP; conteúdo e extensão validados; máximo 5120 KiB. Substitui imagem anterior. null não remove a imagem.'
           nullable: true
-      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Ativar exige estoque >=1; sem estoque envie is_active=false. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
+      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Produtos ativos com estoque zero continuam visíveis como indisponíveis. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
       required:
         - category_id
         - name

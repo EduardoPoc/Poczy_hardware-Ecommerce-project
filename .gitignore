@@ -44,3 +44,5 @@ GEMINI.md
 boost.json
 
 .aws
+/backups/
+.env.restore

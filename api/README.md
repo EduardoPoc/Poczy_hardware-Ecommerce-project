@@ -1,161 +1,89 @@
-# Poczy Hardware API
+# API Poczy Hardware
 
-API Laravel 12 com PHP 8.5, MySQL 8.4 e PHPUnit 11. Desenvolvimento, testes com banco e produção usam MySQL. As imagens PHP incluem `pdo_mysql`, `bcmath`, `intl` e `zip`.
+Laravel 12, PHP 8.5, MySQL 8.4, Sanctum e PHPUnit. Controllers recebem Requests validados e delegam regras aos services; Resources formatam JSON. O contrato detalhado está em [BUSINESS_RULES.md](BUSINESS_RULES.md) e no Swagger UI em `/api/docs`.
 
 ## Desenvolvimento com Docker
 
-Na raiz do repositório, prepare `.env` a partir de `.env.example` se ainda não existir. No Linux/WSL, ajuste `LOCAL_UID` e `LOCAL_GID` conforme `id -u` e `id -g`.
+Na raiz do repositório, prepare `.env` usando `.env.example` e configure credenciais locais. Configure `LOCAL_UID`/`LOCAL_GID` conforme seu usuário no Linux/WSL. A API usa as variáveis MySQL do Compose; `api/.env` reúne as outras opções locais.
 
 ```sh
-docker compose up -d --build --wait
-docker compose exec api php artisan migrate
-docker compose exec api php artisan db:seed
+docker compose up -d --build
+docker compose exec api php artisan migrate --no-interaction
+docker compose exec api php artisan db:seed --no-interaction
 ```
 
-- API: `http://localhost/api/products`.
-- Saúde: `http://localhost/up`.
-- Frontend: `http://localhost`.
-- MySQL local: `127.0.0.1:3306`.
-
-O serviço Nginx `proxy` publica a porta 80 e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. A porta 8000 fica acessível apenas na rede Docker.
-
-O serviço `api` usa `Dockerfile.dev`, monta o código e mantém as dependências em um volume próprio. O entrypoint de desenvolvimento instala dependências, limpa o cache de configuração e cria `.env` e `APP_KEY` quando ausentes. As migrations e seeders são comandos explícitos. O servidor usa `--no-reload` para preservar as variáveis MySQL fornecidas pelo Compose no processo HTTP. Após alterar variáveis de ambiente, reinicie a API; mudanças nos arquivos PHP continuam disponíveis nas requisições.
-
-Dentro do Compose, `DB_HOST=mysql`. As credenciais vêm das variáveis `MYSQL_*` do `.env` da raiz. O MySQL mantém seus dados no volume `mysql_data`; alterar as variáveis não altera usuários de um volume já inicializado.
-
-## Executar localmente
-
-Com PHP 8.5, Composer, `pdo_mysql` e as demais extensões instaladas, inicie apenas o banco pelo Compose:
-
-```sh
-docker compose up -d mysql
-cd api
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate
-php artisan serve
-```
-
-Se `api/.env` já existir, ajuste as variáveis de banco em vez de sobrescrever o arquivo. Fora do container, use `DB_HOST=127.0.0.1`, porta 3306 e as mesmas credenciais do banco de desenvolvimento. Depois de alterar variáveis, execute `php artisan config:clear`.
+O proxy publica a loja em `http://localhost`, encaminhando `/api`, `/sanctum`, `/storage` e `/up`. O frontend seleciona o alvo `development` do seu único Dockerfile. Migrations e seeders são operações explícitas; subir os containers não recria dados.
 
 ## Testes com MySQL isolado
-
-Na raiz do repositório:
 
 ```sh
 docker compose -f compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests
 docker compose -f compose.test.yaml down
 ```
 
-O código de saída do primeiro comando é o resultado da suíte. O segundo remove os containers e a rede após a execução.
+O banco e usuário são `ecommerce_test`, em MySQL 8.4 temporário, sem porta publicada. `Tests\TestCase` verifica ambiente, driver, banco, usuário e ausência de cache de configuração antes de testes que usam `RefreshDatabase`. A suíte nunca deve usar um banco com dados a preservar.
 
-O arquivo de testes é independente do Compose de desenvolvimento. Ele cria `mysql_test` sem publicar portas e com armazenamento temporário. A imagem `Dockerfile.dev` contém as dependências de teste e o comando executado é `php artisan test --compact`.
+Testes sem banco podem ser executados diretamente com `php artisan test --compact <arquivo>`. Os cenários de persistência, estoque, snapshots, autorização Bearer, seeders e transações dependem da suíte MySQL. O workflow do GitHub também testa as imagens e páginas de produção.
 
-O `phpunit.xml` fixa `APP_ENV=testing`, driver MySQL, banco `ecommerce_test` e usuário `ecommerce_test`. Dentro do Compose de testes, o host é `mysql_test`; para executar PHP diretamente na máquina, é necessário que o MySQL de testes esteja acessível em `127.0.0.1:3306` (ou configure `DB_HOST`/`DB_PORT`) e tenha esse banco e usuário. O banco de desenvolvimento (`ecommerce`) e seu usuário não substituem essa configuração. Um MySQL pode estar saudável para a API dentro da rede Docker enquanto a porta local usada pelo PHP no host permanece inacessível.
+## Autenticação
 
-`Tests\TestCase` verifica o ambiente, a ausência de configuração em cache e o banco/usuário antes de qualquer `RefreshDatabase`. Os testes que usam esse trait recriam tabelas no banco de testes. Não compartilhe esse banco com dados de desenvolvimento ou produção.
+| Fluxo | Rotas |
+| --- | --- |
+| Navegador | `GET /sanctum/csrf-cookie`, `POST /api/login`, `POST /api/logout` |
+| Token | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout` |
+| Perfil | `GET/PUT/PATCH/DELETE /api/user`, `PUT /api/user/password` |
 
-A suíte cobre:
+O navegador preserva cookies e envia `X-XSRF-TOKEN` nas escritas. Clientes externos recebem `access_token`, `token_type=Bearer` e `expires_in=28800`, usando `Authorization: Bearer <token>`. O token é armazenado como hash e expira em oito horas. Logout revoga os tokens da conta; troca de senha revoga também as sessões em banco. Cadastro não autentica automaticamente.
 
-- Migrations reais no MySQL, tipos JSON/DECIMAL, chaves estrangeiras e unicidade.
-- Rotas atuais de produtos e marcas, permissões administrativas e respostas JSON.
-- Filtros dos services e opções de características por categoria.
-- Cadastro, autenticação, endereços e pedidos pelos services.
-- Transações, snapshots, cancelamentos e movimentações de estoque.
-- Reexecução dos seeders sem duplicação ou sobrescrita dos registros existentes.
+Rotas pessoais e administrativas usam `auth:sanctum`; administração também exige o Gate `manage-shop`, com `role=ADMIN`. CORS permite credenciais somente para `CORS_ALLOWED_ORIGINS`. No navegador, produção usa uma única origem e o cookie `poczy-session` por padrão.
 
-Os controllers estão conectados aos services, Form Requests e Resources existentes. As escritas de perfil, endereços e senha também encaminham somente dados validados. Os testes HTTP de conexão das camadas usam services simulados para verificar delegação e formato sem banco; testes de persistência, unicidade e isolamento usam MySQL.
+## Carrinho, catálogo e pedidos
 
-Para conferir manualmente o ciclo de migrations somente no ambiente de testes:
+O token visitante é emitido uma vez em `data.cart_token`, guardado pelo frontend e enviado em `X-Cart-Token`, junto da sessão original. A fusão soma quantidades, limita ao estoque e informa ajustes. O token sozinho não autoriza outra sessão a acessar o carrinho.
 
-```sh
-docker compose -f compose.test.yaml run --rm tests php artisan migrate
-docker compose -f compose.test.yaml run --rm tests php artisan migrate:rollback
-docker compose -f compose.test.yaml run --rm tests php artisan migrate
-```
+O catálogo aceita ordenação por nome, preço crescente/decrescente e mais recentes. Ativos sem estoque são exibidos como indisponíveis. Nos carrinhos, `is_available=false` sinaliza produtos ou quantidades indisponíveis, que impedem finalizar.
+
+`POST /api/checkout` usa os itens do carrinho, endereço próprio e `checkout_token` UUID. Cria PENDING, reserva estoque, congela valores e endereço e esvazia o carrinho em transação. Repetir a mesma tentativa retorna o pedido anterior sem duplicar efeitos. O cliente paga explicitamente em `POST /api/orders/{id}/pay` ou cancela o pendente em `DELETE /api/orders/{id}`. O pagamento é simulado e não recebe dados financeiros.
+
+O fluxo é `PENDING → PAID → SHIPPED → DELIVERED`; apenas PENDING admite CANCELLED. Cancelamento devolve estoque uma vez. Repetir pagamento retorna 409. O administrador pode consultar pedidos de outras contas, mas a rota de pagamento é exclusiva do dono.
 
 ## Produção
 
-`Dockerfile` tem os alvos `production` (PHP-FPM) e `web` (Nginx). A imagem PHP final contém o código e dependências de produção instaladas durante o build; não contém Composer ou a suíte de testes. O código não é montado da máquina host.
-
-Prepare `.env.production` na raiz usando `.env.production.example`. Configure credenciais próprias, `APP_URL`, origens CORS e uma `APP_KEY` persistente. Gere a chave antes do deploy, por exemplo com `php artisan key:generate --show` em um ambiente de desenvolvimento. Nunca publique o arquivo de ambiente.
+Prepare `.env.production` a partir de `.env.production.example`. Use uma `APP_KEY` própria e persistente, credenciais de banco próprias e a URL HTTPS real da loja em `APP_URL` e `CORS_ALLOWED_ORIGINS`. `VITE_API_URL` e `SESSION_DOMAIN` ficam vazios para a implantação padrão na mesma origem.
 
 ```sh
 docker compose --env-file .env.production -f compose.prod.yaml build
 docker compose --env-file .env.production -f compose.prod.yaml up -d mysql --wait
-docker compose --env-file .env.production -f compose.prod.yaml run --rm api php artisan migrate --force
+docker compose --env-file .env.production -f compose.prod.yaml run --rm api php artisan migrate --force --no-interaction
 docker compose --env-file .env.production -f compose.prod.yaml up -d --wait
+docker compose --env-file .env.production -f compose.prod.yaml exec api php artisan app:create-admin
 ```
 
-O entrypoint de produção exige `APP_KEY` e gera os caches de configuração e rotas com as variáveis do ambiente. Não instala dependências, não gera outra chave e não executa migrations ou seeders automaticamente.
+O último comando solicita a senha em prompts ocultos, valida sua força e cria uma conta administrativa nova. Seeders de demonstração são bloqueados em produção. Cadastre o catálogo pelo painel após criar o administrador.
 
-O Nginx publica HTTP em `127.0.0.1:8080` por padrão. Use um proxy HTTPS do servidor na frente desse endereço; `SESSION_SECURE_COOKIE=true` pressupõe acesso HTTPS no navegador. `HTTP_BIND` e `HTTP_PORT` permitem ajustar a publicação. O MySQL não publica porta no host. Banco e `storage` usam volumes persistentes. O frontend não faz parte deste Compose de produção.
+O frontend é compilado e servido por Nginx; não usa o servidor Vite em produção. Somente ele publica `127.0.0.1:8080` por padrão. API, banco e Nginx interno permanecem na rede Docker. Configure um proxy HTTPS do servidor na frente desse endereço, sobrescrevendo `Host`, `X-Forwarded-Proto` e `X-Forwarded-For` com os dados da conexão real. `SESSION_SECURE_COOKIE=true` pressupõe HTTPS no navegador. Restrinja `TRUSTED_PROXIES` às redes dos proxies usados.
 
-`APP_ENV=production`, `APP_DEBUG=false` e logs em stderr são configurados pelo Compose. Seeders com usuários fictícios são exclusivos de desenvolvimento/testes. O endpoint `/up` verifica a aplicação; a prontidão do MySQL é verificada pelo healthcheck do banco.
+Migrations não são executadas automaticamente ao iniciar. O entrypoint exige `APP_KEY`, gera caches de configuração e rotas e inicia PHP-FPM. Banco e `storage` têm volumes persistentes; o Nginx da API lê os uploads pelo mesmo volume. `APP_DEBUG=false`, logs em stderr e configurações PHP de produção são definidos na imagem/Compose.
 
-## Rotas atuais
+Para instalações com subdomínios, configure `SESSION_DOMAIN=.seu-dominio`, origens CORS e domínios stateful do Sanctum, além da URL de API no build. A mesma origem é o caminho padrão configurado e testado pelo CI.
 
-| Acesso            | Rotas                                                                          |
-| ----------------- | ------------------------------------------------------------------------------ |
-| Público           | `GET /api/products`, `GET /api/products/{product}`                             |
-| Público           | `GET /api/brands`, `GET /api/brands/{brand}`                                   |
-| Público           | `GET /api/categories`, `GET /api/categories/{category}`, `GET /api/catalog`    |
-| Público           | `GET /api/products/filter?filter={...}`                                        |
-| Público e autenticado | `GET /api/cart`, `POST /api/cart/items`, `PATCH/DELETE /api/cart/items/{product}` |
-| Sessão e cadastro | `POST /api/login`, `POST /api/user`                                            |
-| Autenticado       | `POST /api/logout`, `GET/PUT/PATCH/DELETE /api/user`, `PUT /api/user/password` |
-| Autenticado       | CRUD em `/api/addresses` e `/api/addresses/{id}`                               |
-| Autenticado       | `GET/POST /api/orders`, `GET/DELETE /api/orders/{id}`, `POST /api/orders/{id}/pay` |
-| Administrador     | CRUD em `/api/admin/products` e `/api/admin/products/{product}`                |
-| Administrador     | CRUD em `/api/admin/brands` e `/api/admin/brands/{brand}`                      |
-| Administrador     | CRUD em `/api/admin/categories` e `/api/admin/categories/{category}`           |
-| Administrador     | `GET /api/admin/orders`, `GET/PUT/PATCH /api/admin/orders/{id}`                |
-| Administrador     | `GET/POST /api/admin/products/{id}/stock-movements`                            |
-| Saúde             | `GET /up`                                                                      |
+## Backup e restauração
 
-As rotas administrativas usam sessão Laravel (`web`, `auth:web`) e o Gate `manage-shop`, que exige `role=ADMIN`. Perfil, endereços e pedidos exigem `auth:web`. As rotas de sessão e as escritas usam o middleware `web`, com CSRF. Login e cadastro usam os limitadores `login` e `registration` definidos em `bootstrap/app.php`.
+Banco e uploads fazem parte da mesma recuperação. Execute os comandos na raiz do repositório e guarde os arquivos em um destino protegido fora dos volumes da aplicação:
 
-A API usa autenticação por sessão/cookie e proteção CSRF. Autenticação por token Bearer não está implementada.
+```sh
+umask 077
+mkdir -p backups
+docker compose --env-file .env.production -f compose.prod.yaml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysqldump --single-transaction --no-tablespaces --user="$MYSQL_USER" "$MYSQL_DATABASE"' > backups/database.sql
+docker compose --env-file .env.production -f compose.prod.yaml exec -T api tar -czf - -C storage/app/public . > backups/uploads.tar.gz
+```
 
-Os controllers delegam consultas e escritas aos services e usam os Resources existentes. Perfil, endereços, categorias, produtos, marcas, estoque, pedidos, carrinho e catálogo retornam envelope `data`; listagens paginadas usam `links` e `meta`. Login e cadastro preservam os campos da conta na raiz, serializados por `UserResource`, e o campo opcional `cart_merge`. Operações sem corpo continuam retornando `204`. Os models representam dados, casts e relacionamentos; os services coordenam consultas, transações e regras de negócio. O catálogo agora utiliza `CatalogService` e `CatalogResource`, omitindo custos internos dos produtos.
+Ensaie a restauração antes de depender do procedimento. Prepare `.env.restore` com as credenciais e a `APP_KEY` do backup. O nome de projeto `poczy-restore` abaixo cria volumes separados da aplicação publicada, sem iniciar suas portas HTTP:
 
-A pesquisa do frontend ainda usa o catálogo local de demonstração. No backend, os filtros de produtos aceitam `q` (nome), `category_id`, `brand_ids`, `min_price`, `max_price` e `specifications`. Valores de especificações JSON usam os tipos definidos pela categoria. Categorias e marcas não exigem paginação; produtos usam `page` e `per_page`.
+```sh
+docker compose --project-name poczy-restore --env-file .env.restore -f compose.prod.yaml up -d mysql --wait
+docker compose --project-name poczy-restore --env-file .env.restore -f compose.prod.yaml exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --user="$MYSQL_USER" "$MYSQL_DATABASE"' < backups/database.sql
+docker compose --project-name poczy-restore --env-file .env.restore -f compose.prod.yaml run --rm --no-deps -T api tar -xzf - -C storage/app/public < backups/uploads.tar.gz
+```
 
-## Carrinho e fusão
-
-`GET /api/cart` obtém ou cria o carrinho da sessão ou da conta. Visitantes recebem `data.cart_token` somente na criação; o frontend deve guardar esse token e enviar `X-Cart-Token` junto aos cookies da mesma sessão. O token isolado não funciona em outra sessão. As escritas também exigem CSRF (`X-XSRF-TOKEN`), obtido pelo fluxo de `/sanctum/csrf-cookie`.
-
-- `POST /api/cart/items`: recebe `product_id` e `quantity`, somando ao item existente.
-- `PATCH /api/cart/items/{product}`: substitui a quantidade; zero remove o item.
-- `DELETE /api/cart/items/{product}`: remove o item.
-- `POST /api/orders/{id}/pay`: pagamento simulado pelo dono ou admin, sem dados de pagamento ou cartão.
-
-O carrinho não reserva estoque nem congela preços. Quantidades devem respeitar a disponibilidade; preços e totais usam os valores atuais do banco e aritmética decimal.
-
-Ao enviar `X-Cart-Token` no login (`POST /api/login`) ou cadastro (`POST /api/user`), a API funde os itens do visitante ao carrinho da conta. Produtos repetidos têm as quantidades somadas, limitadas ao estoque. Produtos do visitante que ficaram inativos, ou cuja categoria foi desativada, são removidos da fusão, inclusive o item correspondente da conta; os demais itens continuam sendo fundidos. Produtos exclusivos da conta são preservados.
-
-A resposta mantém os campos da conta na raiz e acrescenta `cart_merge.cart` e `cart_merge.adjustments`. Cada ajuste contém `product_id`, `requested_quantity`, `quantity`, `reason` e `message`: `stock_limit` indica redução por estoque, e `unavailable` indica remoção por indisponibilidade. O frontend deve exibir os avisos.
-
-Depois do sucesso, o carrinho de visitante é excluído, o token é invalidado e o frontend deve descartá-lo. Falhas preservam o carrinho e o vínculo do visitante para nova tentativa; cadastro e fusão são atômicos. O cadastro continua sem login automático. Sem o header do token, não ocorre fusão.
-
-O fluxo dos pedidos é `PENDING → PAID → SHIPPED → DELIVERED`, com cancelamento somente a partir de `PENDING`. Produtos vinculados a pedidos não podem ser excluídos fisicamente; use `is_active=false`.
-
-## Estado da implementação e validação
-
-As rotas atuais estão conectadas a controllers, services, Form Requests e Resources. Os cálculos de preço e totais do carrinho são preparados pelo `CartService`; os Resources apenas formatam os valores para JSON. A implementação da autenticação disponível usa sessão Laravel, não token Bearer.
-
-A suíte exige MySQL e banco isolado `ecommerce_test`. A execução local do PHP conecta a `127.0.0.1:3306`; no Compose de testes a conexão usa `mysql_test`. Assim, o MySQL de desenvolvimento pode estar funcionando dentro da rede Docker sem estar acessível a um processo de teste executado no host. Se a porta local não aceitar conexão, use o Compose de testes acima. Enquanto os testes de persistência não passarem, as regras de transação, estoque, unicidade e fusão não devem ser consideradas integradamente validadas.
-
-O método `CategoryService::availableFilters()` existe e tem cobertura direta de Service, mas não possui rota/controller conectado. O endpoint público de filtro disponível é `/api/products/filter`; não há endpoint de opções de filtro por categoria.
-
-## Banco e seeders
-
-São 20 tabelas da aplicação, além de `migrations`. Consulte o [esquema no README principal](../README.md#banco-de-dados). As migrations usam nomes em inglês, relações por chaves estrangeiras e dados técnicos em JSON. A coluna `stock_movements.quantity` aceita sinal em ajustes; não há coluna `change`.
-
-Os seeders criam 12 categorias, 30 marcas, 48 produtos, cinco clientes, um administrador e seis endereços fictícios. Produtos novos com saldo recebem uma movimentação de entrada inicial. A carga usa dados fixos, preserva registros existentes e não cria pedidos.
-
-- Administrador: `admin@example.com` / `PoczyAdmin!2026`.
-- Cliente: `mariana.costa@example.com` / `PoczyDemo!2026`.
-
-As migrations atuais descrevem uma instalação nova. Bancos com esquemas antigos precisam de conversão ou recriação explícita em desenvolvimento. Esta mudança de configuração não converte nem remove arquivos de bancos locais antigos.
+Preserve também a `APP_KEY` e as configurações do ambiente em um gerenciador de segredos. Antes de publicar, exija CI aprovado e confira a jornada visitante → login/fusão → pedido pendente → pagamento → administração em janela anônima e em outro dispositivo. Confirmação de e-mail e recuperação por link permanecem fora da primeira versão.
