@@ -36,7 +36,7 @@ class StoreProductRequest extends FormRequest
             'specifications' => ['nullable', 'array', 'max:100'],
             'price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
             'cost' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
-            'stock' => ['sometimes', 'integer', 'min:0', 'max:4294967295'],
+            'stock' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
             'image' => ['bail', 'nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'extensions:png,jpg,jpeg,webp', 'max:5120'],
             'image_url' => ['prohibited'],
             'image_path' => ['prohibited'],

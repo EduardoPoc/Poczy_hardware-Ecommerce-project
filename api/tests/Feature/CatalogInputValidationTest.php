@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\StoreProductRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class CatalogInputValidationTest extends TestCase
@@ -68,6 +70,17 @@ class CatalogInputValidationTest extends TestCase
         ] as $query) {
             $this->getJson('/api/admin/products/1/stock-movements?'.$query)->assertUnprocessable()
                 ->assertJsonStructure(['message', 'errors']);
+        }
+    }
+
+    public function test_initial_stock_stays_within_the_same_balance_limits_as_movements(): void
+    {
+        $rules = ['stock' => (new StoreProductRequest)->rules()['stock']];
+        foreach ([0, 2147483647] as $stock) {
+            $this->assertTrue(Validator::make(['stock' => $stock], $rules)->passes());
+        }
+        foreach ([-1, 2147483648] as $stock) {
+            $this->assertTrue(Validator::make(['stock' => $stock], $rules)->fails());
         }
     }
 
