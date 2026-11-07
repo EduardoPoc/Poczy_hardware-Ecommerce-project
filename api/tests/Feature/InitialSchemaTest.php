@@ -21,9 +21,9 @@ class InitialSchemaTest extends TestCase
         $this->assertSame('mysql', DB::connection()->getDriverName());
         $this->assertSame('ecommerce_test', DB::connection()->getDatabaseName());
         $tables = Schema::getTableListing(null, false);
-        $this->assertCount(21, $tables);
+        $this->assertCount(22, $tables);
         foreach (['users', 'addresses', 'password_change_histories', 'categories', 'brands', 'products', 'orders',
-            'order_items', 'order_shipping_addresses', 'order_status_histories', 'stock_movements', 'carts', 'cart_items'] as $table) {
+            'order_items', 'order_shipping_addresses', 'order_status_histories', 'stock_movements', 'carts', 'cart_items', 'personal_access_tokens'] as $table) {
             $this->assertContains($table, $tables);
         }
         $this->assertFalse(Schema::hasColumn('stock_movements', 'change'));

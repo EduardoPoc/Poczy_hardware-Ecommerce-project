@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -18,6 +19,9 @@ class CartMergeService
 
     public function validateGuest(Request $request): void
     {
+        if (! $request->hasSession() && ($request->hasHeader('X-Cart-Token') || $request->boolean('merge_cart'))) {
+            throw ValidationException::withMessages(['merge_cart' => 'Guest cart merging requires a browser session.']);
+        }
         if (! $request->hasHeader('X-Cart-Token')) {
             return;
         }
@@ -34,6 +38,9 @@ class CartMergeService
      */
     public function merge(User $user, Request $request): ?array
     {
+        if (! $request->hasSession()) {
+            return null;
+        }
         if (! $request->hasHeader('X-Cart-Token') &&
             (! $request->boolean('merge_cart') || $this->carts->findGuestForRequest($request) === null)) {
             return null;

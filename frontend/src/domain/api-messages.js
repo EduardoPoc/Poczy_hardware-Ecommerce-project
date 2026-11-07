@@ -1,5 +1,7 @@
 // Mensagens do contrato da API em inglês e sua apresentação em português.
 const messages = {
+  'Guest cart merging requires a browser session.':
+    'Entre pela loja para preservar o carrinho de visitante nesta sessão.',
   'Only orders awaiting payment can be paid.':
     'Somente pedidos aguardando pagamento podem ser pagos.',
   'A record with the provided unique values already exists.':

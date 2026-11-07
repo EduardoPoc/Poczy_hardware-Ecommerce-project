@@ -2,12 +2,26 @@
 
 namespace Tests;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
+    public function actingAs(Authenticatable $user, $guard = null): static
+    {
+        $this->app['auth']->guard('sanctum')->forgetUser();
+
+        return parent::actingAs($user, $guard);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withHeader('Origin', 'http://localhost');
+    }
+
     public function createApplication(): Application
     {
         $app = parent::createApplication();

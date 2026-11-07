@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class SessionController extends Controller
@@ -21,13 +22,28 @@ class SessionController extends Controller
         $carts->validateGuest($request);
         $guard = Auth::guard('web');
         $previousUser = $guard->user();
-        $previousSession = $request->session()->all();
-        try {
-            $user = $auth->login($request->validated(), $request->session());
+        $session = $request->hasSession() ? $request->session() : null;
+        $previousSession = $session?->all() ?? [];
+        $login = function () use ($request, $auth, $carts, $session): array {
+            $user = $auth->login($request->validated(), $session);
             $merge = $carts->merge($user, $request);
+            $payload = (new UserResource($user))->resolve($request);
+            if ($merge !== null) {
+                $payload['cart_merge'] = new CartMergeResource($merge);
+            }
+            if ($request->route('token_auth')) {
+                $payload['access_token'] = $auth->issueToken($user);
+                $payload['token_type'] = 'Bearer';
+                $payload['expires_in'] = 28800;
+            }
+
+            return $payload;
+        };
+        try {
+            $payload = $request->route('token_auth') ? DB::transaction($login, 3) : $login();
         } catch (Throwable $exception) {
-            $request->session()->flush();
-            $request->session()->put($previousSession);
+            $session?->flush();
+            $session?->put($previousSession);
             $guard->forgetUser();
             if ($previousUser !== null) {
                 $guard->setUser($previousUser);
@@ -35,17 +51,13 @@ class SessionController extends Controller
 
             throw $exception;
         }
-        $payload = (new UserResource($user))->resolve($request);
-        if ($merge !== null) {
-            $payload['cart_merge'] = new CartMergeResource($merge);
-        }
 
         return response()->json($payload);
     }
 
     public function destroy(Request $request, AuthService $auth): Response
     {
-        $auth->logout($request->session());
+        $auth->logout($request->hasSession() ? $request->session() : null);
 
         return response()->noContent();
     }

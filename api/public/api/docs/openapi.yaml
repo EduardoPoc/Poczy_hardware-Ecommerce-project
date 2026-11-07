@@ -5,9 +5,9 @@ info:
   description: |-
     Contrato das rotas atuais de api/routes/api.php, controllers, Form Requests, Resources, services, models, migrations e bootstrap/app.php. Servido estaticamente em /api/docs/openapi.yaml.
 
-    Sessão e CSRF: GET /sanctum/csrf-cookie inicializa cookies; POST /api/login autentica pelo guard web (driver session). Preserve cookies em todas as chamadas e envie X-XSRF-TOKEN (cookie XSRF-TOKEN URL-decodificado) em POST/PUT/PATCH/DELETE. A UI faz isso automaticamente, sempre no mesmo host. Use login abaixo; cadastro não autentica. Logout e troca de senha invalidam sessão. O nome do cookie de sessão é configurável por SESSION_COOKIE, ou derivado de APP_NAME em config/session.php; não há token de autenticação emitido por estas rotas. Por isso a autenticação é descrita por operação, sem esquema manual de credenciais no botão Authorize.
+    Sessão e CSRF: GET /sanctum/csrf-cookie inicializa cookies; POST /api/login autentica pelo guard web (driver session). Preserve cookies em todas as chamadas e envie X-XSRF-TOKEN (cookie XSRF-TOKEN URL-decodificado) em POST/PUT/PATCH/DELETE. A UI faz isso automaticamente, sempre no mesmo host. Use login abaixo; cadastro não autentica. Logout e troca de senha invalidam sessão. O nome do cookie de sessão é configurável por SESSION_COOKIE, ou derivado de APP_NAME em config/session.php; não há token de autenticação emitido por estas rotas. Por isso a autenticação é descrita por operação, com sessão no navegador ou Bearer token obtido em POST /api/auth/login para clientes da API.
 
-    Acesso: catálogo/produtos/marcas/categorias públicos. Carrinho permite visitante vinculado à sessão. Perfil/endereços/pedidos/checkout exigem auth:web. /api/admin/* exige também gate manage-shop, definido como role === ADMIN. Não há policies/permissões adicionais. Endereços sempre pertencem ao usuário; detalhe/pagamento/cancelamento de pedido permitem ADMIN acessar outras contas, enquanto listagem /api/orders continua própria.
+    Acesso: catálogo/produtos/marcas/categorias públicos. Carrinho permite visitante vinculado à sessão. Perfil/endereços/pedidos/checkout exigem auth:sanctum. /api/admin/* exige também gate manage-shop, definido como role === ADMIN. Não há policies/permissões adicionais. Endereços sempre pertencem ao usuário; detalhe/pagamento/cancelamento de pedido permitem ADMIN acessar outras contas, enquanto listagem /api/orders continua própria.
 
     JSON: Resources usam {data: ...}; login e cadastro retornam campos do usuário diretamente, com cart_merge condicional. Listas de produtos, pedidos e estoque têm data/links/meta; outras listas não são paginadas. Dinheiro nas respostas é string decimal. Datas são ISO 8601 (nullable conforme persistência). Erros são JSON, podendo conter detalhes extras em APP_DEBUG. Strings de entrada são aparadas e vazias viram null pelo middleware padrão, exceto campos de senha. Campos não validados são descartados; campos explicitamente proibidos são indicados nos schemas. Escritas também podem retornar 409 em colisões de unicidade.
 
@@ -110,6 +110,12 @@ paths:
           $ref: '#/components/parameters/Page'
         -
           $ref: '#/components/parameters/PerPage'
+        -
+          name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, price_asc, price_desc, newest]
         -
           name: q
           in: query
@@ -361,6 +367,9 @@ paths:
               schema:
                 type: object
                 properties:
+                  sort:
+                    type: string
+                    enum: [name, price_asc, price_desc, newest]
                   q:
                     type: string
                     maxLength: 150
@@ -432,6 +441,66 @@ paths:
           maximum: 9223372036854775807
           format: int64
         required: true
+  /api/auth/login:
+    post:
+      tags: ['Sessão e conta']
+      summary: Autenticar e emitir Bearer token
+      operationId: post_api_auth_login
+      description: Token Sanctum válido por 8 horas, armazenado somente como hash. Use Authorization Bearer nas rotas protegidas. O navegador também pode continuar usando POST /api/login com cookies e CSRF. Fusão de visitante exige a sessão original do navegador.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        200:
+          description: Usuário e credencial de acesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SessionUser'
+                  - type: object
+                    required: [access_token, token_type, expires_in]
+                    properties:
+                      access_token: {type: string}
+                      token_type: {type: string, enum: [Bearer]}
+                      expires_in: {type: integer, enum: [28800]}
+        422:
+          $ref: '#/components/responses/Http422'
+        429:
+          $ref: '#/components/responses/Http429'
+  /api/auth/register:
+    post:
+      tags: ['Sessão e conta']
+      summary: Cadastrar cliente da API
+      operationId: post_api_auth_register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+      responses:
+        201:
+          description: Conta criada. Faça login para obter o token.
+        422:
+          $ref: '#/components/responses/Http422'
+  /api/auth/logout:
+    post:
+      tags: ['Sessão e conta']
+      summary: Revogar os tokens da conta e encerrar a sessão atual
+      operationId: post_api_auth_logout
+      security:
+        - bearerAuth: []
+      responses:
+        204:
+          description: Credenciais revogadas.
+        401:
+          $ref: '#/components/responses/Http401'
   /api/login:
     post:
       tags:
@@ -509,7 +578,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Consultar próprio perfil'
       operationId: get_api_user
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         200:
@@ -533,7 +602,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Atualizar próprio perfil'
       operationId: put_api_user
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         200:
@@ -572,7 +641,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Atualizar próprio perfil'
       operationId: patch_api_user
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         200:
@@ -611,7 +680,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Excluir própria conta'
       operationId: delete_api_user
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Exige senha atual correta (422). Pedidos ou histórico de alteração de senha impedem exclusão (409). Exclui endereços/carrinho por cascade e encerra a sessão.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Exige senha atual correta (422). Pedidos ou histórico de alteração de senha impedem exclusão (409). Exclui endereços/carrinho por cascade e encerra a sessão.'
       security: []
       responses:
         204:
@@ -642,7 +711,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Encerrar sessão'
       operationId: post_api_logout
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Logout do guard web, invalida sessão e regenera token CSRF. Inicialize CSRF antes de novo login.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Logout do guard web, invalida sessão e regenera token CSRF. Inicialize CSRF antes de novo login.'
       security: []
       responses:
         204:
@@ -663,7 +732,7 @@ paths:
         - 'Sessão e conta'
       summary: 'Alterar senha e encerrar sessão'
       operationId: put_api_user_password
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Valida senha atual, registra histórico, renova remember_token; com SESSION_DRIVER=database remove todas as sessões do usuário. Logout invalida a sessão corrente.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Valida senha atual, registra histórico, renova remember_token; com SESSION_DRIVER=database remove todas as sessões do usuário. Logout invalida a sessão corrente.'
       security: []
       responses:
         204:
@@ -692,7 +761,7 @@ paths:
         - Endereços
       summary: 'Listar próprios endereços'
       operationId: get_api_addresses
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Sem paginação; ordem crescente de id. Sempre limitado ao proprietário, inclusive ADMIN.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Sem paginação; ordem crescente de id. Sempre limitado ao proprietário, inclusive ADMIN.'
       security: []
       responses:
         200:
@@ -718,7 +787,7 @@ paths:
         - Endereços
       summary: 'Criar endereço'
       operationId: post_api_addresses
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         201:
@@ -756,7 +825,7 @@ paths:
         - Endereços
       summary: 'Consultar próprio endereço'
       operationId: get_api_addresses_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Endereço de outro usuário retorna 404, inclusive para ADMIN.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Endereço de outro usuário retorna 404, inclusive para ADMIN.'
       security: []
       responses:
         200:
@@ -782,7 +851,7 @@ paths:
         - Endereços
       summary: 'Atualizar próprio endereço'
       operationId: put_api_addresses_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         200:
@@ -821,7 +890,7 @@ paths:
         - Endereços
       summary: 'Atualizar próprio endereço'
       operationId: patch_api_addresses_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. '
       security: []
       responses:
         200:
@@ -860,7 +929,7 @@ paths:
         - Endereços
       summary: 'Excluir próprio endereço'
       operationId: delete_api_addresses_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Não modifica snapshots de pedidos anteriores.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Não modifica snapshots de pedidos anteriores.'
       security: []
       responses:
         204:
@@ -1036,7 +1105,7 @@ paths:
         - Pedidos
       summary: 'Listar próprios pedidos'
       operationId: get_api_orders
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Ordem created_at/id decrescente.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Ordem created_at/id decrescente.'
       security: []
       responses:
         200:
@@ -1073,7 +1142,7 @@ paths:
         - Pedidos
       summary: 'Criar pedido e reservar estoque'
       operationId: post_api_orders
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Aceita itens explícitos e esvazia o carrinho da conta na mesma transação. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Aceita itens explícitos e esvazia o carrinho da conta na mesma transação. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
       security: []
       responses:
         201:
@@ -1115,7 +1184,7 @@ paths:
         - Pedidos
       summary: 'Consultar pedido e histórico'
       operationId: get_api_orders_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN.'
       security: []
       responses:
         200:
@@ -1141,7 +1210,7 @@ paths:
         - Pedidos
       summary: 'Cancelar pedido pendente'
       operationId: delete_api_orders_id
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Apenas PENDING pode ser cancelado; repetir CANCELLED retorna 204. Outros estados retornam 409. Preserva o pedido, registra histórico e devolve estoque com INBOUND; não reativa automaticamente produto desativado.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Apenas PENDING pode ser cancelado; repetir CANCELLED retorna 204. Outros estados retornam 409. Preserva o pedido, registra histórico e devolve estoque com INBOUND; não reativa automaticamente produto desativado.'
       security: []
       responses:
         204:
@@ -1179,7 +1248,7 @@ paths:
         - Pedidos
       summary: 'Simular pagamento do pedido'
       operationId: post_api_orders_id_pay
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Somente o dono pode pagar; outra conta, inclusive ADMIN, recebe 403. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID retorna 409; outros estados retornam 409.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Somente o dono pode pagar; outra conta, inclusive ADMIN, recebe 403. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID retorna 409; outros estados retornam 409.'
       security: []
       responses:
         200:
@@ -1226,7 +1295,7 @@ paths:
         - Checkout
       summary: 'Criar pedido pendente a partir do carrinho'
       operationId: post_api_checkout
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, mantém PENDING e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
+      description: 'Exige sessão autenticada (auth:sanctum), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, mantém PENDING e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
       security: []
       responses:
         201:
@@ -2302,6 +2371,11 @@ paths:
               schema:
                 type: string
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
   parameters:
     Page:
       name: page

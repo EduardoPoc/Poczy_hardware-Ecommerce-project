@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 Route::get('catalog', CatalogController::class)->name('catalog');
 Route::get('products/filter', ProductFilterController::class)->name('products.filter');
@@ -36,20 +37,23 @@ Route::apiResource('categories', CategoryController::class)
     ->only(['index', 'show'])
     ->whereNumber('category');
 
-Route::name('user.')->middleware('web')->group(function (): void {
-    Route::get('cart', [CartController::class, 'show'])->block()->name('cart.show');
-    Route::post('cart/items', [CartController::class, 'storeItem'])->block()->name('cart.items.store');
-    Route::patch('cart/items/{product}', [CartController::class, 'updateItem'])
-        ->whereNumber('product')->block()->name('cart.items.update');
-    Route::delete('cart/items/{product}', [CartController::class, 'destroyItem'])
-        ->whereNumber('product')->block()->name('cart.items.destroy');
+Route::name('user.')->group(function (): void {
+    Route::middleware('web')->group(function (): void {
+        Route::get('cart', [CartController::class, 'show'])->block()->name('cart.show');
+        Route::post('cart/items', [CartController::class, 'storeItem'])->block()->name('cart.items.store');
+        Route::patch('cart/items/{product}', [CartController::class, 'updateItem'])
+            ->whereNumber('product')->block()->name('cart.items.update');
+        Route::delete('cart/items/{product}', [CartController::class, 'destroyItem'])
+            ->whereNumber('product')->block()->name('cart.items.destroy');
+
+    });
 
     Route::post('login', [SessionController::class, 'store'])
-        ->middleware('throttle:login')->block()->name('login');
+        ->middleware(['web', 'throttle:login'])->block()->name('login');
     Route::post('user', [UserController::class, 'store'])
-        ->middleware('throttle:registration')->block()->name('user.store');
+        ->middleware(['web', 'throttle:registration'])->block()->name('user.store');
 
-    Route::middleware('auth:web')->group(function (): void {
+    Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum'])->group(function (): void {
         Route::post('checkout', CheckoutController::class)->block()->name('checkout');
         Route::post('logout', [SessionController::class, 'destroy'])->name('logout');
 
@@ -71,7 +75,7 @@ Route::name('user.')->middleware('web')->group(function (): void {
     });
 });
 
-Route::prefix('admin')->name('admin.')->middleware(['web', 'auth:web', 'can:manage-shop'])->group(function (): void {
+Route::prefix('admin')->name('admin.')->middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', 'can:manage-shop'])->group(function (): void {
     Route::apiResource('products', AdminProductController::class)
         ->whereNumber('product');
     Route::apiResource('brands', AdminBrandController::class)
@@ -89,3 +93,10 @@ Route::prefix('admin')->name('admin.')->middleware(['web', 'auth:web', 'can:mana
     Route::post('products/{id}/stock-movements', [StockMovementController::class, 'store'])
         ->whereNumber('id')->name('products.stock-movements.store');
 });
+
+Route::post('auth/login', [SessionController::class, 'store'])
+    ->defaults('token_auth', true)->middleware([EnsureFrontendRequestsAreStateful::class, 'throttle:login'])->name('auth.token');
+Route::post('auth/register', [UserController::class, 'store'])
+    ->middleware([EnsureFrontendRequestsAreStateful::class, 'throttle:registration'])->name('auth.register');
+Route::post('auth/logout', [SessionController::class, 'destroy'])
+    ->middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum'])->name('auth.logout');

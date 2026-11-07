@@ -15,7 +15,6 @@ class ExampleTest extends TestCase
     public function test_administrative_routes_require_session_authentication(): void
     {
         $this->getJson('/api/admin/products')->assertUnauthorized();
-        $this->withToken('1|'.str_repeat('a', 40))->getJson('/api/admin/brands')->assertUnauthorized();
     }
 
     public function test_profile_requires_session_authentication(): void

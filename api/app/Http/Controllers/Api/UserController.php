@@ -52,7 +52,7 @@ class UserController extends Controller
     public function destroy(DeleteUserRequest $request, UserService $users, AuthService $auth): Response
     {
         $users->delete($request->user(), $request->validated('current_password'));
-        $auth->logout($request->session());
+        $auth->logout($request->hasSession() ? $request->session() : null);
 
         return response()->noContent();
     }

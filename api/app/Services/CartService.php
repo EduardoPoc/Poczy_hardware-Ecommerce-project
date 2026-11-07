@@ -20,8 +20,8 @@ class CartService
 {
     public function getForRequest(Request $request): Cart
     {
-        if ($request->user() !== null) {
-            return $this->details($this->getUserCart($request->user()));
+        if ($request->user('sanctum') !== null) {
+            return $this->details($this->getUserCart($request->user('sanctum')));
         }
 
         $cart = $this->findGuestForRequest($request);

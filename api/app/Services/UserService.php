@@ -45,6 +45,7 @@ class UserService
             $this->checkPassword($user, $data['current_password']);
             $user->forceFill(['password' => $data['password'], 'remember_token' => Str::random(60)])->save();
             $user->passwordChanges()->create();
+            $user->tokens()->delete();
             if (config('session.driver') === 'database') {
                 DB::connection(config('session.connection'))->table(config('session.table'))
                     ->where('user_id', $user->id)->delete();
@@ -67,6 +68,7 @@ class UserService
             if ($user->orders()->exists() || $user->passwordChanges()->exists()) {
                 throw new ConflictHttpException('The account has orders or password history that must be preserved.');
             }
+            $user->tokens()->delete();
             $user->delete();
         }, 3);
     }

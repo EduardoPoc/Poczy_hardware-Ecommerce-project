@@ -13,7 +13,7 @@ class PasswordController extends Controller
     public function update(UpdatePasswordRequest $request, UserService $users, AuthService $auth): Response
     {
         $users->changePassword($request->user(), $request->validated());
-        $auth->logout($request->session());
+        $auth->logout($request->hasSession() ? $request->session() : null);
 
         return response()->noContent();
     }
