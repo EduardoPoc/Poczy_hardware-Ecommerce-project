@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Closure;
+use App\Rules\MaxBytes;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,11 +17,7 @@ class StoreCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')],
-            'description' => ['nullable', 'string', 'max:65535', function (string $attribute, mixed $value, Closure $fail): void {
-                if (is_string($value) && strlen($value) > 65535) {
-                    $fail('The description must not exceed 65535 bytes.');
-                }
-            }],
+            'description' => ['nullable', 'string', 'max:65535', new MaxBytes(65535)],
             'attributes' => ['nullable', 'array', 'max:100'],
             'attributes.*' => ['array:name,type,unit,options,required,is_filterable,minimum,maximum,exclusive_minimum,exclusive_maximum'],
             'attributes.*.name' => ['required', 'string'],
