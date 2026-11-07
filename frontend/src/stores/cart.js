@@ -1,14 +1,15 @@
 import { computed, reactive, readonly } from 'vue';
 import * as api from '../api/cart.js';
 import { ApiError, errorMessage } from '../api/http.js';
+import { rememberGuestCartToken } from '../api/guest-cart.js';
 
 const state = reactive({ cart: null, loading: false, saving: false, error: '', uncertain: false });
 let loadingPromise;
 
 function acceptCart(cart) {
   if (!Array.isArray(cart?.items)) throw new ApiError('Não foi possível confirmar o carrinho.');
-  // A sessão identifica o carrinho; credenciais não devem fazer parte do estado visual.
   const { cart_token, ...details } = cart;
+  if (cart_token) rememberGuestCartToken(cart_token);
   state.cart = details;
 }
 

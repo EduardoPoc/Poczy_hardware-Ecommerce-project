@@ -1,4 +1,5 @@
 import { translateApiMessage, translateValidationErrors } from '../domain/api-messages.js';
+import { guestCartToken } from './guest-cart.js';
 
 const apiOrigin = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = 12000;
@@ -108,6 +109,10 @@ async function ensureSession() {
 
 export async function apiRequest(path, { method = 'GET', data, signal } = {}) {
   const headers = {};
+  const cartToken = guestCartToken();
+  const usesGuestCart = path === '/api/cart' || path.startsWith('/api/cart/') ||
+    (method === 'POST' && ['/api/login', '/api/user', '/api/auth/login', '/api/auth/register'].includes(path));
+  if (cartToken && usesGuestCart) headers['X-Cart-Token'] = cartToken;
   const multipart = data instanceof FormData;
   await ensureSession();
 

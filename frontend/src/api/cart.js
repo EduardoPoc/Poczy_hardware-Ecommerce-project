@@ -1,7 +1,14 @@
 import { apiRequest, resourceData } from './http.js';
+import { forgetGuestCartToken, guestCartToken } from './guest-cart.js';
 
 export async function getCart() {
-  return resourceData(await apiRequest('/api/cart'));
+  try {
+    return resourceData(await apiRequest('/api/cart'));
+  } catch (failure) {
+    if (failure.status !== 404 || !guestCartToken()) throw failure;
+    forgetGuestCartToken();
+    return resourceData(await apiRequest('/api/cart'));
+  }
 }
 
 export async function addCartItem(productId, quantity) {
