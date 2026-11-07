@@ -57,6 +57,18 @@ export function accountDestination(value, fallback = '/conta') {
   return ['/checkout', '/conta', '/carrinho'].includes(value) ? value : fallback;
 }
 
+export function profilePayload(values, user) {
+  const data = {};
+  const name = String(values.name ?? '').trim();
+  const email = String(values.email ?? '').trim().toLowerCase();
+  if (name !== user.name) data.name = name;
+  if (email !== user.email.toLowerCase()) {
+    data.email = email;
+    data.current_password = values.current_password;
+  }
+  return data;
+}
+
 export function addressPayload(values) {
   const data = Object.fromEntries(
     ['postal_code', 'street', 'number', 'complement', 'city', 'state'].map((key) => [

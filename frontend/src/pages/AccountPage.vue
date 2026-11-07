@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import CustomerLayout from '../components/CustomerLayout.vue';
 import AddressBook from '../components/AddressBook.vue';
+import AccountSettings from '../components/AccountSettings.vue';
 import OrderDetails from '../components/OrderDetails.vue';
 import RequestState from '../components/RequestState.vue';
 import { getOrder, getProfile, listAddresses, listOrders } from '../api/customer.js';
@@ -10,6 +11,7 @@ import { dateLabel, orderStatuses, paymentLabel } from '../domain/customer.js';
 import { money } from '../domain/products.js';
 
 const user = ref(null);
+const passwordChanged = ref(false);
 const loading = ref(true);
 const error = ref('');
 const section = ref('overview');
@@ -32,6 +34,11 @@ function unauthorized(failure) {
     return true;
   }
   return false;
+}
+
+function finishPasswordChange() {
+  passwordChanged.value = true;
+  user.value = null;
 }
 
 function changeSection() {
@@ -93,7 +100,15 @@ onUnmounted(() => window.removeEventListener('hashchange', changeSection));
 </script>
 
 <template>
-  <div v-if="!user" class="customer-access-gate">
+  <div v-if="passwordChanged" class="customer-access-gate">
+    <a href="/">Poczy Hardware</a>
+    <h1>Senha alterada com sucesso</h1>
+    <p role="status">Sua sessão foi encerrada. Entre novamente com a nova senha.</p>
+    <a class="customer-login-link admin-primary btn btn-primary" href="/login?next=/conta">
+      Entrar na minha conta
+    </a>
+  </div>
+  <div v-else-if="!user" class="customer-access-gate">
     <a href="/">Poczy Hardware</a>
     <h1>Minha conta</h1>
     <RequestState :loading="loading" :error="error" @retry="load" />
@@ -143,19 +158,12 @@ onUnmounted(() => window.removeEventListener('hashchange', changeSection));
           </div>
           <i class="bi bi-cpu" aria-hidden="true"></i>
         </section>
-        <section class="customer-panel">
-          <h2>Dados da sua conta</h2>
-          <dl class="customer-profile">
-            <div>
-              <dt>Nome</dt>
-              <dd>{{ user.name }}</dd>
-            </div>
-            <div>
-              <dt>E-mail</dt>
-              <dd>{{ user.email }}</dd>
-            </div>
-          </dl>
-        </section>
+        <AccountSettings
+          :user="user"
+          @updated="user = $event"
+          @password-changed="finishPasswordChange"
+          @unauthorized="unauthorized()"
+        />
       </template>
       <AddressBook
         v-else-if="section === 'addresses'"

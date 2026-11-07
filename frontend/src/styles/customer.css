@@ -130,6 +130,28 @@
   overflow-wrap: anywhere;
   margin: 0;
 }
+.customer-account-form .customer-field-error {
+  color: #ffbcbc;
+}
+.customer-password-visibility {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.customer-password-visibility input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--lime);
+}
+.customer-access-gate > .customer-login-link {
+  display: inline-flex;
+  margin: 20px 0 0;
+  color: var(--bg);
+  font-size: 14px;
+}
 .customer-address-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

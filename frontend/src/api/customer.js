@@ -7,6 +7,14 @@ export async function getProfile() {
   return user;
 }
 
+export async function updateProfile(data) {
+  return resourceData(await apiRequest('/api/user', { method: 'PATCH', data }));
+}
+
+export function changePassword(data) {
+  return apiRequest('/api/user/password', { method: 'PUT', data });
+}
+
 export async function listAddresses() {
   const addresses = resourceData(await apiRequest('/api/addresses'));
   if (!Array.isArray(addresses)) throw new ApiError('Não foi possível carregar seus endereços.');
