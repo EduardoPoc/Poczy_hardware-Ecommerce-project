@@ -43,7 +43,6 @@ class CheckoutService
                 throw new ConflictHttpException('The cart amount has changed. Review the new total before confirming Fake Pix.');
             }
             $order->forceFill(['checkout_token' => $data['checkout_token']])->save();
-            $order = $this->orders->pay($user, $order->id);
             $cart->items()->delete();
 
             return $order;

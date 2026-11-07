@@ -49,3 +49,12 @@ export async function getOrder(id) {
 export async function completeCheckout(attempt) {
   return resourceData(await apiRequest('/api/checkout', { method: 'POST', data: attempt }));
 }
+
+export async function payOrder(id) {
+  return resourceData(await apiRequest(`/api/orders/${encodeURIComponent(id)}/pay`, { method: 'POST' }));
+}
+
+export async function cancelOrder(id) {
+  await apiRequest(`/api/orders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return getOrder(id);
+}

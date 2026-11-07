@@ -48,64 +48,22 @@ class FakePixCheckoutTest extends TestCase
         return $admin;
     }
 
-    public function test_admin_can_mark_a_paid_fake_pix_order_delivered_and_terminal_statuses_are_final(): void
-    {
-        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertForbidden();
-        $this->actingAs($this->admin(), 'web')->getJson('/api/admin/orders/'.$id)->assertOk()
-            ->assertJsonPath('data.allowed_statuses', ['SHIPPED', 'DELIVERED', 'CANCELLED']);
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertOk()
-            ->assertJsonPath('data.status', 'DELIVERED')->assertJsonPath('data.allowed_statuses', []);
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertOk();
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertConflict();
-        $this->assertSame(1, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('order_status_histories', 3);
-        $this->assertDatabaseCount('stock_movements', 1);
-        $this->actingAs($this->customer, 'web')->getJson('/api/orders/'.$id)->assertOk()->assertJsonPath('data.status', 'DELIVERED');
-    }
-
-    public function test_admin_cancellation_of_a_paid_fake_pix_order_restores_stock_only_once(): void
-    {
-        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
-        $this->deleteJson('/api/orders/'.$id)->assertConflict();
-        $this->actingAs($this->admin(), 'web')->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])
-            ->assertOk()->assertJsonPath('data.status', 'CANCELLED')->assertJsonPath('data.allowed_statuses', []);
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk();
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertConflict();
-        $this->assertSame(3, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('stock_movements', 2);
-        $this->assertDatabaseCount('order_status_histories', 3);
-        $this->actingAs($this->customer, 'web')->getJson('/api/orders/'.$id)->assertOk()->assertJsonPath('data.status', 'CANCELLED');
-    }
-
-    public function test_admin_can_cancel_a_shipped_order_and_stock_is_restored_only_once(): void
-    {
-        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
-        $this->actingAs($this->admin(), 'web')->patchJson('/api/admin/orders/'.$id, ['status' => 'SHIPPED'])
-            ->assertOk()->assertJsonPath('data.allowed_statuses', ['DELIVERED', 'CANCELLED']);
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk()->assertJsonPath('data.status', 'CANCELLED');
-        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertOk();
-        $this->assertSame(3, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('stock_movements', 2);
-        $this->assertDatabaseCount('order_status_histories', 4);
-    }
-
-    public function test_fake_pix_creates_a_paid_order_with_server_prices_shipping_and_address_and_clears_the_cart(): void
+    public function test_fake_pix_creates_a_pending_order_with_server_prices_shipping_and_address_and_clears_the_cart(): void
     {
         $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.shipping_total', '30.00')->assertJsonPath('data.total', '69.80');
         $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()
-            ->assertJsonPath('data.status', 'PAID')->assertJsonPath('data.payment_method', 'FAKE_PIX')
+            ->assertJsonPath('data.status', 'PENDING')->assertJsonPath('data.payment_method', 'FAKE_PIX')
             ->assertJsonPath('data.products_total', '39.80')->assertJsonPath('data.shipping_total', '30.00')
             ->assertJsonPath('data.total', '69.80')->assertJsonPath('data.shipping_address.street', 'Rua de Entrega')
             ->assertJsonPath('data.items.0.unit_price', '19.90')->assertJsonPath('data.items.0.quantity', 2)
             ->assertJsonMissingPath('data.items.0.unit_cost')->assertJsonMissingPath('data.checkout_token')->json('data.id');
 
-        $this->assertDatabaseHas('orders', ['id' => $id, 'user_id' => $this->customer->id, 'payment_method' => 'FAKE_PIX', 'status' => 'PAID']);
+        $this->assertDatabaseHas('orders', ['id' => $id, 'user_id' => $this->customer->id, 'payment_method' => 'FAKE_PIX', 'status' => 'PENDING']);
         $this->assertDatabaseHas('stock_movements', ['product_id' => $this->product->id, 'type' => 'OUTBOUND', 'quantity' => 2]);
         $this->assertSame(1, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('order_status_histories', 2);
+        $this->assertDatabaseCount('order_status_histories', 1);
         $this->getJson('/api/cart')->assertOk()->assertJsonCount(0, 'data.items')->assertJsonPath('data.total', '0.00')->assertJsonPath('data.shipping_total', '0.00');
-        $this->getJson('/api/orders')->assertOk()->assertJsonPath('data.0.id', $id)->assertJsonPath('data.0.status', 'PAID');
+        $this->getJson('/api/orders')->assertOk()->assertJsonPath('data.0.id', $id)->assertJsonPath('data.0.status', 'PENDING');
         $this->customer->addresses()->findOrFail($this->addressId)->update(['street' => 'Rua Alterada']);
         $this->getJson('/api/orders/'.$id)->assertOk()->assertJsonPath('data.shipping_address.street', 'Rua de Entrega');
     }
@@ -118,7 +76,7 @@ class FakePixCheckoutTest extends TestCase
         $this->postJson('/api/checkout', $data)->assertCreated()->assertJsonPath('data.id', $id);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('stock_movements', 1);
-        $this->assertDatabaseCount('order_status_histories', 2);
+        $this->assertDatabaseCount('order_status_histories', 1);
         $this->assertSame(1, $this->product->fresh()->stock);
         $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
     }
@@ -172,7 +130,7 @@ class FakePixCheckoutTest extends TestCase
     public function test_a_failed_fake_payment_rolls_back_order_history_stock_and_cart_removal(): void
     {
         OrderStatusHistory::creating(function (OrderStatusHistory $history): void {
-            if ($history->status === 'PAID') {
+            if ($history->status === 'PENDING') {
                 throw new \RuntimeException('Falha ao registrar pagamento');
             }
         });
@@ -194,7 +152,7 @@ class FakePixCheckoutTest extends TestCase
         $this->postJson('/api/checkout', [])->assertUnprocessable()->assertJsonValidationErrors(['address_id', 'payment_method', 'checkout_token', 'expected_total']);
         foreach ([
             ['payment_method' => 'PIX'], ['checkout_token' => 'invalid'], ['address_id' => 0], ['expected_total' => '-1'],
-            ['expected_total' => '1.001'], ['total' => '0.01'], ['user_id' => 999], ['status' => 'PAID'],
+            ['expected_total' => '1.001'], ['total' => '0.01'], ['user_id' => 999], ['status' => 'PENDING'],
             ['items' => [['product_id' => $this->product->id, 'quantity' => 1]]], ['card_number' => '4111111111111111'],
         ] as $invalid) {
             $this->postJson('/api/checkout', array_replace($this->checkoutData(), $invalid))->assertUnprocessable()->assertJsonValidationErrors(array_keys($invalid));
@@ -219,5 +177,32 @@ class FakePixCheckoutTest extends TestCase
         $this->actingAs($other, 'web')->postJson('/api/checkout', $data)->assertUnprocessable()->assertJsonValidationErrors('cart');
         $this->getJson('/api/orders/'.$id)->assertNotFound();
         $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_payment_is_explicit_and_only_the_owner_can_pay_once(): void
+    {
+        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
+        $this->actingAs($this->admin(), 'web')->postJson('/api/orders/'.$id.'/pay')->assertForbidden();
+        $this->actingAs($this->customer, 'web')->postJson('/api/orders/'.$id.'/pay')
+            ->assertOk()->assertJsonPath('data.status', 'PAID');
+        $this->postJson('/api/orders/'.$id.'/pay')->assertConflict();
+        $this->deleteJson('/api/orders/'.$id)->assertConflict();
+        $this->assertDatabaseCount('order_status_histories', 2);
+        $this->actingAs($this->admin(), 'web')->patchJson('/api/admin/orders/'.$id, ['status' => 'CANCELLED'])->assertConflict();
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertConflict();
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'SHIPPED'])->assertOk();
+        $this->patchJson('/api/admin/orders/'.$id, ['status' => 'DELIVERED'])->assertOk();
+        $this->assertSame(1, $this->product->fresh()->stock);
+    }
+
+    public function test_pending_cancellation_returns_stock_once_and_cannot_be_paid(): void
+    {
+        $id = $this->postJson('/api/checkout', $this->checkoutData())->assertCreated()->json('data.id');
+        $this->deleteJson('/api/orders/'.$id)->assertNoContent();
+        $this->deleteJson('/api/orders/'.$id)->assertNoContent();
+        $this->postJson('/api/orders/'.$id.'/pay')->assertConflict();
+        $this->assertSame(3, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('stock_movements', 2);
+        $this->assertDatabaseCount('order_status_histories', 2);
     }
 }

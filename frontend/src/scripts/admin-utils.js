@@ -13,8 +13,8 @@ export const statusLabels = {
 };
 export const orderTransitions = {
   PENDING: ['PAID', 'CANCELLED'],
-  PAID: ['SHIPPED', 'DELIVERED', 'CANCELLED'],
-  SHIPPED: ['DELIVERED', 'CANCELLED'],
+  PAID: ['SHIPPED'],
+  SHIPPED: ['DELIVERED'],
   DELIVERED: [],
   CANCELLED: [],
 };

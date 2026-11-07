@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
@@ -19,8 +20,8 @@ class OrderService
 {
     private const TRANSITIONS = [
         'PENDING' => ['PAID', 'CANCELLED'],
-        'PAID' => ['SHIPPED', 'DELIVERED', 'CANCELLED'],
-        'SHIPPED' => ['DELIVERED', 'CANCELLED'],
+        'PAID' => ['SHIPPED'],
+        'SHIPPED' => ['DELIVERED'],
         'DELIVERED' => [],
         'CANCELLED' => [],
     ];
@@ -89,6 +90,8 @@ class OrderService
     public function create(User $user, array $data): Order
     {
         return DB::transaction(function () use ($user, $data): Order {
+            User::lockForUpdate()->findOrFail($user->id);
+            $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
             $address = $user->addresses()->lockForUpdate()->findOrFail($data['address_id']);
             [$categories, $products] = $this->lockCatalog(array_column($data['items'], 'product_id'));
             $total = $this->calculateProductsTotal($data['items'], $products, $categories);
@@ -103,6 +106,7 @@ class OrderService
             $order->shippingAddress()->create($address->only(['postal_code', 'street', 'number', 'complement', 'city', 'state']));
             $this->reserveItems($order, $data['items'], $products, $categories);
             $order->statusHistory()->create(['status' => 'PENDING', 'changed_at' => now()]);
+            $cart?->items()->delete();
 
             return $this->details($order);
         }, 3);
@@ -206,7 +210,11 @@ class OrderService
     public function pay(User $user, int $id): Order
     {
         return DB::transaction(function () use ($user, $id): Order {
-            $order = $this->accessibleOrders($user)->lockForUpdate()->findOrFail($id);
+            $order = Order::lockForUpdate()->findOrFail($id);
+            abort_unless($order->user_id === $user->id, 403);
+            if ($order->status !== 'PENDING') {
+                throw new ConflictHttpException('Only orders awaiting payment can be paid.');
+            }
             $this->transition($order, 'PAID');
 
             return $this->details($order);

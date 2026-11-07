@@ -83,7 +83,7 @@ async function load() {
   }
 }
 
-async function pay() {
+async function placeOrder() {
   if (!canSubmit.value) return;
   submitting.value = true;
   error.value = '';
@@ -111,7 +111,7 @@ async function pay() {
       await cart.load({ force: true });
     }
     error.value = attempt.value
-      ? 'Não foi possível confirmar a resposta do pagamento. Clique em “Verificar pagamento” para consultar a mesma tentativa, sem criar um pedido duplicado.'
+      ? 'Não foi possível confirmar a criação do pedido. Clique em “Verificar pedido” para consultar a mesma tentativa, sem criar um pedido duplicado.'
       : errorMessage(failure);
   } finally {
     submitting.value = false;
@@ -140,7 +140,7 @@ onMounted(load);
               {{
                 order
                   ? 'Confira os detalhes da sua compra.'
-                  : 'Escolha seu endereço e confirme o pagamento simulado.'
+                  : 'Escolha seu endereço e confirme o pedido.'
               }}
             </p>
           </div>
@@ -162,20 +162,20 @@ onMounted(load);
             <div>
               <p class="eyebrow">
                 {{
-                  order.payment_method === 'FAKE_PIX' ? 'FAKE PIX APROVADO' : 'PEDIDO REGISTRADO'
+                  order.status === 'PENDING' ? 'AGUARDANDO PAGAMENTO' : 'PEDIDO REGISTRADO'
                 }}
               </p>
               <h2>Seu pedido #{{ order.id }} foi registrado!</h2>
               <p>
                 {{
-                  order.payment_method === 'FAKE_PIX'
-                    ? 'O pagamento foi simulado com sucesso. Nenhum valor foi cobrado.'
+                  order.status === 'PENDING'
+                    ? 'Seu estoque foi reservado. Confirme o pagamento simulado abaixo ou cancele o pedido.'
                     : 'Acompanhe o status e os detalhes na sua conta.'
                 }}
               </p>
             </div>
           </section>
-          <section class="customer-panel"><OrderDetails :order="order" /></section>
+          <section class="customer-panel"><OrderDetails :order="order" @updated="order = $event" @unauthorized="login" /></section>
           <div class="customer-actions">
             <a class="admin-primary btn btn-primary" href="/conta#orders"
               >Ver meus pedidos <i class="bi bi-arrow-right" aria-hidden="true"></i></a
@@ -195,7 +195,7 @@ onMounted(load);
             <div class="customer-checkout-steps">
               <ol class="customer-steps" aria-label="Etapas da compra">
                 <li><span>1</span> Endereço</li>
-                <li><span>2</span> Pagamento</li>
+                <li><span>2</span> Revisão</li>
                 <li><span>3</span> Confirmação</li>
               </ol>
               <AddressBook
@@ -223,16 +223,16 @@ onMounted(load);
                     :disabled="submitting || Boolean(attempt)"
                   /><span
                     ><strong>Fake Pix <span class="customer-status">Simulação</span></strong
-                    ><span>Aprovação instantânea, sem cobrança real.</span></span
+                    ><span>Confirmação no pedido, sem cobrança real.</span></span
                   ></label
                 >
                 <p class="customer-simulation-note">
-                  <i class="bi bi-info-circle" aria-hidden="true"></i> Ao confirmar, o pagamento é
-                  aprovado de forma simulada e seu pedido é criado na loja.
+                  <i class="bi bi-info-circle" aria-hidden="true"></i> Ao confirmar, seu pedido será criado aguardando pagamento.
+                  A simulação do pagamento acontece na próxima etapa.
                 </p>
               </section>
               <p v-if="attempt" class="alert alert-info" role="status">
-                Uma tentativa de pagamento está em andamento. Verifique o resultado antes de alterar
+                Uma tentativa de criação do pedido está em andamento. Verifique o resultado antes de alterar
                 a compra.
               </p>
             </div>
@@ -270,7 +270,7 @@ onMounted(load);
                 class="admin-primary btn btn-primary customer-pay-button"
                 type="button"
                 :disabled="!canSubmit"
-                @click="pay"
+                @click="placeOrder"
               >
                 <i
                   class="bi"
@@ -279,10 +279,10 @@ onMounted(load);
                 ></i
                 >{{
                   submitting
-                    ? 'Confirmando pagamento…'
+                    ? 'Criando pedido…'
                     : attempt
-                      ? 'Verificar pagamento'
-                      : 'Pagar com Fake Pix'
+                      ? 'Verificar pedido'
+                      : 'Confirmar pedido'
                 }}
               </button>
               <p v-if="!selectedAddress && !attempt" class="customer-checkout-help">

@@ -1073,7 +1073,7 @@ paths:
         - Pedidos
       summary: 'Criar pedido e reservar estoque'
       operationId: post_api_orders
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Não depende do carrinho nem o esvazia. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Aceita itens explícitos e esvazia o carrinho da conta na mesma transação. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
       security: []
       responses:
         201:
@@ -1179,7 +1179,7 @@ paths:
         - Pedidos
       summary: 'Simular pagamento do pedido'
       operationId: post_api_orders_id_pay
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID é idempotente; outros estados retornam 409.'
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Somente o dono pode pagar; outra conta, inclusive ADMIN, recebe 403. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID retorna 409; outros estados retornam 409.'
       security: []
       responses:
         200:
@@ -1224,9 +1224,9 @@ paths:
     post:
       tags:
         - Checkout
-      summary: 'Concluir carrinho com Fake Pix'
+      summary: 'Criar pedido pendente a partir do carrinho'
       operationId: post_api_checkout
-      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, marca PAID e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, mantém PENDING e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
       security: []
       responses:
         201:
@@ -2094,7 +2094,7 @@ paths:
         - 'Admin · Pedidos'
       summary: 'Alterar status do pedido'
       operationId: put_api_admin_orders_id
-      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED/DELIVERED/CANCELLED; SHIPPED → DELIVERED/CANCELLED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
       security: []
       responses:
         200:
@@ -2137,7 +2137,7 @@ paths:
         - 'Admin · Pedidos'
       summary: 'Alterar status do pedido'
       operationId: patch_api_admin_orders_id
-      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED/DELIVERED/CANCELLED; SHIPPED → DELIVERED/CANCELLED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
       security: []
       responses:
         200:

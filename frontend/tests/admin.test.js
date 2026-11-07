@@ -152,31 +152,17 @@ test('status do pedido permite somente a próxima transição', () => {
   assert.throws(() => payload('PAID', 'DELIVERED'), /próxima etapa/);
 });
 
-test('admin pode encerrar pedidos Fake Pix pagos como entregues ou cancelados', () => {
-  const record = {
-    id: 31,
-    status: 'PAID',
-    payment_method: 'FAKE_PIX',
-    products_total: '19.90',
-    shipping_total: '30.00',
-    total: '49.90',
-  };
+test('admin respeita a sequência pago, enviado e entregue e só cancela pendentes', () => {
+  const record = { id: 31, status: 'PAID', payment_method: 'FAKE_PIX', total: '49.90' };
   const html = orderForm(record);
-  assert.match(html, /value="DELIVERED"/);
-  assert.match(html, /value="CANCELLED"/);
-  assert.match(html, /Fake Pix/);
-  for (const status of ['DELIVERED', 'CANCELLED'])
-    assert.deepEqual(readPayload('order', formWith({ status }), {}, record), { status });
-  assert.deepEqual(allowedOrderTransitions({ ...record, status: 'DELIVERED' }), []);
-  assert.deepEqual(allowedOrderTransitions({ ...record, status: 'CANCELLED' }), []);
-  assert.deepEqual(allowedOrderTransitions({ ...record, status: 'SHIPPED' }), [
-    'DELIVERED',
-    'CANCELLED',
-  ]);
-  assert.deepEqual(
-    readPayload('order', formWith({ status: 'CANCELLED' }), {}, { ...record, status: 'SHIPPED' }),
-    { status: 'CANCELLED' },
-  );
+  assert.match(html, /value="SHIPPED"/);
+  assert.doesNotMatch(html, /value="CANCELLED"/);
+  assert.deepEqual(allowedOrderTransitions(record), ['SHIPPED']);
+  assert.deepEqual(allowedOrderTransitions({ status: 'SHIPPED' }), ['DELIVERED']);
+  for (const status of ['DELIVERED', 'CANCELLED']) {
+    assert.deepEqual(allowedOrderTransitions({ status }), []);
+    assert.throws(() => readPayload('order', formWith({ status }), {}, record), /próxima etapa/);
+  }
 });
 
 test('ações administrativas respeitam as transições retornadas pela API', () => {
@@ -186,11 +172,7 @@ test('ações administrativas respeitam as transições retornadas pela API', ()
     () => readPayload('order', formWith({ status: 'DELIVERED' }), {}, record),
     /próxima etapa/,
   );
-  assert.deepEqual(allowedOrderTransitions({ status: 'PAID', payment_method: 'PIX' }), [
-    'SHIPPED',
-    'DELIVERED',
-    'CANCELLED',
-  ]);
+  assert.deepEqual(allowedOrderTransitions({ status: 'PAID', payment_method: 'PIX' }), ['SHIPPED']);
 });
 
 test('atributos da categoria mantêm opções e limites tipados', () => {

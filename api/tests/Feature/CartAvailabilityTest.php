@@ -81,7 +81,7 @@ class CartAvailabilityTest extends TestCase
         $this->actingAs($this->customer, 'web')->postJson('/api/checkout', [
             'address_id' => $address->id, 'payment_method' => 'FAKE_PIX',
             'checkout_token' => (string) Str::uuid(), 'expected_total' => '59.80',
-        ])->assertCreated()->assertJsonPath('data.status', 'PAID');
+        ])->assertCreated()->assertJsonPath('data.status', 'PENDING');
         $this->assertDatabaseMissing('cart_items', ['product_id' => $this->product->id]);
         $this->assertDatabaseCount('cart_items', 2);
         $this->assertSame(0, $this->product->fresh()->stock);

@@ -1,7 +1,9 @@
 <script setup>
 import { money } from '../domain/products.js';
 import { dateLabel, orderStatuses, paymentLabel } from '../domain/customer.js';
+import OrderActions from './OrderActions.vue';
 defineProps({ order: { type: Object, required: true } });
+const emit = defineEmits(['updated', 'unauthorized']);
 </script>
 
 <template>
@@ -52,8 +54,8 @@ defineProps({ order: { type: Object, required: true } });
       </dl>
     </div>
     <p v-if="order.payment_method === 'FAKE_PIX'" class="customer-simulation-note">
-      <i class="bi bi-info-circle" aria-hidden="true"></i> Pagamento simulado com Fake Pix. Nenhuma
-      cobrança real foi realizada.
+      <i class="bi bi-info-circle" aria-hidden="true"></i> Pagamento simulado com Fake Pix, sem cobrança real.
     </p>
+    <OrderActions :key="order.id" :order="order" @updated="emit('updated', $event)" @unauthorized="emit('unauthorized')" />
   </div>
 </template>

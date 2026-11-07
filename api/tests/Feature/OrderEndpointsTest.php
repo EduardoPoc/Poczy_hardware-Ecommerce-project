@@ -110,11 +110,11 @@ class OrderEndpointsTest extends TestCase
     {
         $order = $this->createOrder();
         $this->actingAs($this->other, 'web')->getJson('/api/orders/'.$order->id)->assertNotFound();
-        $this->postJson('/api/orders/'.$order->id.'/pay')->assertNotFound();
+        $this->postJson('/api/orders/'.$order->id.'/pay')->assertForbidden();
         $this->deleteJson('/api/orders/'.$order->id)->assertNotFound();
         $this->assertSame('PENDING', $order->fresh()->status);
         $this->actingAs($this->admin, 'web')->getJson('/api/orders/'.$order->id)->assertOk()->assertJsonPath('data.id', $order->id);
-        $this->postJson('/api/orders/'.$order->id.'/pay')->assertOk()->assertJsonPath('data.status', 'PAID');
+        $this->postJson('/api/orders/'.$order->id.'/pay')->assertForbidden();
     }
 
     public function test_owner_payment_is_simulated_and_repeated_payment_does_not_duplicate_history(): void
@@ -124,28 +124,22 @@ class OrderEndpointsTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('payment');
         $this->assertSame('PENDING', $order->fresh()->status);
         $this->postJson('/api/orders/'.$order->id.'/pay')->assertOk()->assertJsonPath('data.status', 'PAID');
-        $this->postJson('/api/orders/'.$order->id.'/pay')->assertOk()->assertJsonPath('data.status', 'PAID');
+        $this->postJson('/api/orders/'.$order->id.'/pay')->assertConflict();
         $this->assertDatabaseCount('order_status_histories', 2);
         $this->assertDatabaseCount('stock_movements', 1);
         $this->assertSame(7, $this->product->fresh()->stock);
         $this->patchJson('/api/admin/orders/'.$order->id, ['status' => 'SHIPPED'])->assertForbidden();
     }
 
-    public function test_paid_orders_can_only_be_cancelled_through_the_administrative_status_update(): void
+    public function test_paid_orders_cannot_be_cancelled_by_customer_or_administrator(): void
     {
         $order = $this->createOrder();
         $this->postJson('/api/orders/'.$order->id.'/pay')->assertOk();
         $this->deleteJson('/api/orders/'.$order->id)->assertConflict();
-        $this->actingAs($this->admin, 'web')->deleteJson('/api/orders/'.$order->id)->assertConflict();
+        $this->actingAs($this->admin, 'web')->patchJson('/api/admin/orders/'.$order->id, ['status' => 'CANCELLED'])->assertConflict();
         $this->assertSame('PAID', $order->fresh()->status);
         $this->assertSame(7, $this->product->fresh()->stock);
         $this->assertDatabaseCount('stock_movements', 1);
-        $this->assertDatabaseCount('order_status_histories', 2);
-        $this->patchJson('/api/admin/orders/'.$order->id, ['status' => 'CANCELLED'])->assertOk()
-            ->assertJsonPath('data.status', 'CANCELLED')->assertJsonPath('data.allowed_statuses', []);
-        $this->assertSame(10, $this->product->fresh()->stock);
-        $this->assertDatabaseCount('stock_movements', 2);
-        $this->assertDatabaseCount('order_status_histories', 3);
     }
 
     public function test_admin_can_cancel_pending_orders_and_restore_stock_only_once(): void

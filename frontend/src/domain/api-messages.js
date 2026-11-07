@@ -1,5 +1,7 @@
 // Mensagens do contrato da API em inglês e sua apresentação em português.
 const messages = {
+  'Only orders awaiting payment can be paid.':
+    'Somente pedidos aguardando pagamento podem ser pagos.',
   'A record with the provided unique values already exists.':
     'Já existe um registro com os dados únicos informados.',
   'The password must not exceed 72 bytes for the configured hashing algorithm.':

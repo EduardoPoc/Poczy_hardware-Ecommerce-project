@@ -41,6 +41,11 @@ function finishPasswordChange() {
   user.value = null;
 }
 
+function updateOrder(record) {
+  order.value = record;
+  orders.value = orders.value.map((item) => item.id === record.id ? { ...item, ...record } : item);
+}
+
 function changeSection() {
   const next = location.hash.slice(1);
   section.value = Object.hasOwn(titles, next) ? next : 'overview';
@@ -266,7 +271,7 @@ onUnmounted(() => window.removeEventListener('hashchange', changeSection));
           :loading="orderLoading"
           :error="orderError"
           @retry="showOrder(selectedOrderId)"
-        /><OrderDetails v-if="order" :order="order" />
+        /><OrderDetails v-if="order" :order="order" @updated="updateOrder" @unauthorized="unauthorized()" />
       </div>
     </dialog>
   </CustomerLayout>
