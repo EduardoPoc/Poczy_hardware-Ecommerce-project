@@ -12,6 +12,7 @@ class CartItemResource extends JsonResource
         return [
             'product_id' => $this->product_id,
             'quantity' => $this->quantity,
+            'is_available' => $this->whenHas('is_available'),
             'unit_price' => $this->unit_price,
             'line_total' => $this->line_total,
             'product' => ProductResource::make($this->whenLoaded('product')),

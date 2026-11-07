@@ -127,11 +127,11 @@ class CartService
             'items.product.category',
             'items.product.brand',
         ]);
-        $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null && $item->product->is_active && $item->product->stock >= 1 &&
-            (bool) $item->product->category?->is_active
-        )->values();
+        $items = $cart->items->filter(fn (CartItem $item): bool => $item->product !== null)->values();
         $productsTotal = BigDecimal::zero()->toScale(2);
         foreach ($items as $item) {
+            $item->setAttribute('is_available', $item->product->is_active &&
+                (bool) $item->product->category?->is_active && $item->product->stock >= $item->quantity);
             $unitPrice = (string) $item->product->price;
             $lineTotal = (string) BigDecimal::of($unitPrice)->multipliedBy($item->quantity)->toScale(2);
             $item->setAttribute('unit_price', $unitPrice);

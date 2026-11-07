@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Throwable;
@@ -22,7 +21,6 @@ class ProductService
     private function publicProducts(): Builder
     {
         return Product::where('is_active', true)
-            ->where('stock', '>=', 1)
             ->whereHas('category', fn (Builder $query): Builder => $query->where('is_active', true));
     }
 
@@ -43,8 +41,15 @@ class ProductService
 
     public function filterPublicProducts(array $filter = [], int $perPage = 20): LengthAwarePaginator
     {
+        [$column, $direction] = match ($filter['sort'] ?? 'name') {
+            'price_asc' => ['price', 'asc'],
+            'price_desc' => ['price', 'desc'],
+            'newest' => ['created_at', 'desc'],
+            default => ['name', 'asc'],
+        };
+
         return $this->applyFilters($this->publicProducts(), $filter)
-            ->with(['category', 'brand'])->orderBy('name')->orderBy('id')
+            ->with(['category', 'brand'])->orderBy($column, $direction)->orderBy('id', $direction)
             ->paginate($perPage)->withQueryString();
     }
 
@@ -106,7 +111,6 @@ class ProductService
                 }
                 $this->specifications->validateValues($data['specifications'] ?? [], $category->getAttribute('attributes') ?? []);
                 $initialStock = (int) ($data['stock'] ?? 0);
-                $this->validateActivation((bool) ($data['is_active'] ?? true), $initialStock);
                 $product = Product::create(array_merge($data, ['stock' => 0]))->refresh();
                 if ($initialStock > 0) {
                     $this->stock->move($product, 'INBOUND', $initialStock, 'Estoque inicial');
@@ -140,12 +144,8 @@ class ProductService
                 $values = array_key_exists('specifications', $data) ? $data['specifications'] : $product->specifications;
                 $this->specifications->validateValues($values ?? [], $category->getAttribute('attributes') ?? []);
                 unset($data['stock']);
-                $this->validateActivation((bool) ($data['is_active'] ?? $product->is_active), $product->stock);
                 $previousImage = $product->image_path;
                 $product->update($data);
-                if (! $product->is_active || ! $category->is_active) {
-                    $product->cartItems()->delete();
-                }
                 if ($imagePath !== null) {
                     $this->deleteImageAfterCommit($previousImage);
                 }
@@ -174,15 +174,6 @@ class ProductService
             $product->delete();
             $this->deleteImageAfterCommit($product->image_path);
         }, 3);
-    }
-
-    private function validateActivation(bool $isActive, int $stock): void
-    {
-        if ($isActive && $stock < 1) {
-            throw ValidationException::withMessages([
-                'is_active' => 'The product must have at least 1 unit in stock to be active.',
-            ]);
-        }
     }
 
     private function storeImage(array &$data): ?string

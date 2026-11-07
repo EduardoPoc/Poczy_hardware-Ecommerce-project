@@ -63,7 +63,7 @@ paths:
         - Catálogo
       summary: 'Catálogo completo sem paginação'
       operationId: get_api_catalog
-      description: 'Pública. Categorias ativas e todos os produtos ativos com estoque >=1 em categorias ativas; ordenados por name/id. Produtos incluem brand, sem category.'
+      description: 'Pública. Categorias ativas e todos os produtos ativos, inclusive sem estoque em categorias ativas; ordenados por name/id. Produtos incluem brand, sem category.'
       security: []
       responses:
         200:
@@ -83,7 +83,7 @@ paths:
         - Produtos
       summary: 'Listar produtos'
       operationId: get_api_products
-      description: 'Pública. Somente ativos com estoque >=1 e categoria ativa; ordenação name/id.'
+      description: 'Pública. Somente ativos, inclusive sem estoque e categoria ativa; ordenação configurável por name, price_asc, price_desc ou newest; desempate por id.'
       security: []
       responses:
         200:
@@ -182,7 +182,7 @@ paths:
         - Produtos
       summary: 'Consultar produto'
       operationId: get_api_products_product
-      description: 'Pública. Somente ativos com estoque >=1 e categoria ativa; ordenação name/id.'
+      description: 'Pública. Somente ativos, inclusive sem estoque e categoria ativa; ordenação configurável por name, price_asc, price_desc ou newest; desempate por id.'
       security: []
       responses:
         200:
@@ -2094,7 +2094,7 @@ paths:
         - 'Admin · Pedidos'
       summary: 'Alterar status do pedido'
       operationId: put_api_admin_orders_id
-      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, preservando a ativação do produto.'
       security: []
       responses:
         200:
@@ -2137,7 +2137,7 @@ paths:
         - 'Admin · Pedidos'
       summary: 'Alterar status do pedido'
       operationId: patch_api_admin_orders_id
-      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED; SHIPPED → DELIVERED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, preservando a ativação do produto.'
       security: []
       responses:
         200:
@@ -2896,6 +2896,9 @@ components:
         product_id:
           type: integer
           format: int64
+        is_available:
+          type: boolean
+          description: Produto e categoria ativos, com estoque suficiente para a quantidade.
         quantity:
           type: integer
         unit_price:

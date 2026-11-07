@@ -8,6 +8,7 @@ const SEARCH_DEBOUNCE_MS = 200;
 export function useProductSearch(initial = {}) {
   const criteria = reactive({
     search: '',
+    sort: 'name',
     categoryId: '',
     brandIds: [],
     minPrice: '',

@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Brand;
-use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Collection;
@@ -39,7 +38,7 @@ class CategoryService
     public function availableFilters(int $categoryId): array
     {
         $category = $this->getPublicCategory($categoryId);
-        $products = $category->products()->where('is_active', true)->where('stock', '>=', 1)->with('brand')
+        $products = $category->products()->where('is_active', true)->with('brand')
             ->get(['id', 'brand_id', 'price', 'specifications']);
         $attributes = [];
         foreach ($category->getAttribute('attributes') ?? [] as $key => $definition) {
@@ -84,9 +83,6 @@ class CategoryService
                 }
             }
             $category->update($data);
-            if (! $category->is_active) {
-                CartItem::whereIn('product_id', $category->products()->select('id'))->delete();
-            }
 
             return $category;
         }, 3);

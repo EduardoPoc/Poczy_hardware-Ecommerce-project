@@ -25,7 +25,7 @@ const total = computed(() => state.cart?.total ?? '0.00');
 const available = computed(
   () =>
     items.value.length &&
-    items.value.every((item) => item.product.is_active && item.product.stock >= item.quantity),
+    items.value.every((item) => item.is_available !== false && item.product.is_active && item.product.stock >= item.quantity),
 );
 const canSubmit = computed(
   () =>

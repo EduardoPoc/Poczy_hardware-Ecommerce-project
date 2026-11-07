@@ -67,13 +67,13 @@ class OrderWriteEndpointsTest extends TestCase
         app(OrderService::class)->create($this->other, $this->checkoutData());
     }
 
-    public function test_buying_the_last_unit_deactivates_the_product_and_charges_shipping_once(): void
+    public function test_buying_the_last_unit_preserves_the_active_product_and_charges_shipping_once(): void
     {
         $this->product->update(['stock' => 1]);
         $order = app(OrderService::class)->create($this->customer, $this->checkoutData(1));
 
         $this->assertSame(0, $this->product->fresh()->stock);
-        $this->assertFalse($this->product->fresh()->is_active);
+        $this->assertTrue($this->product->fresh()->is_active);
         $this->assertSame('30.00', $order->shipping_total);
         $this->assertSame('30.10', $order->total);
     }

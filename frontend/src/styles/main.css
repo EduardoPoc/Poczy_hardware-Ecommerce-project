@@ -425,3 +425,9 @@ a.product-card-inner:focus-visible {
   color: var(--lime);
   text-decoration: none;
 }
+
+.product-availability {
+  color: #ffbcbc;
+  font-size: 12px;
+  margin: 0 0 12px;
+}

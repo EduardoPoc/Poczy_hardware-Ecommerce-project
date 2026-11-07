@@ -139,8 +139,8 @@ export function productForm(product, data) {
       ${productCatalogFields(product, data)} ${productPricingFields(product)}
       ${activeField(product?.is_active ?? true)} ${imageField}
       <p class="admin-field admin-form-help wide">
-        Para estar ativo, o produto precisa ter pelo menos 1 unidade em estoque. Ao zerar o estoque,
-        ele será desativado automaticamente. Após repor o estoque, ative-o novamente no cadastro.
+        Produtos ativos sem estoque continuam visíveis como indisponíveis.
+        Desative o produto para removê-lo do catálogo.
       </p>
       ${textarea('description', 'Descrição', product?.description)}
     </div>

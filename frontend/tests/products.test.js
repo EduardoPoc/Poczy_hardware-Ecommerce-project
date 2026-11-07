@@ -34,6 +34,15 @@ test('os filtros enviados ao backend preservam false, zero e números', () => {
   assert.equal(query.get('per_page'), '12');
 });
 
+test('ordenação é enviada à API junto da paginação e dos filtros', () => {
+  for (const sort of ['price_asc', 'price_desc', 'newest']) {
+    const query = new URLSearchParams(productQuery({ sort, categoryId: 7, page: 2 }));
+    assert.equal(JSON.parse(query.get('filter')).sort, sort);
+    assert.equal(JSON.parse(query.get('filter')).category_id, 7);
+    assert.equal(query.get('page'), '2');
+  }
+});
+
 test('limpar filtros não envia critérios vazios ou categoria fictícia', () => {
   assert.deepEqual(
     productFilter({

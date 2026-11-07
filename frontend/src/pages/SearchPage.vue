@@ -7,12 +7,14 @@ import ProductPagination from '../components/ProductPagination.vue';
 import RequestState from '../components/RequestState.vue';
 import { listCategories, listBrands, getCategoryFilters } from '../api/categories.js';
 import { errorMessage } from '../api/http.js';
+import { productSortOptions } from '../domain/products.js';
 import { useProductSearch } from '../composables/useProductSearch.js';
 
 const params = new URLSearchParams(location.search);
 const initialCategory = Number(params.get('categoria')) || '';
 const { criteria, products, pagination, loading, error, reload } = useProductSearch({
   search: params.get('q') || '',
+  sort: params.get('sort') || 'name',
   categoryId: initialCategory,
   page: Math.max(1, Number(params.get('page')) || 1),
 });
@@ -109,9 +111,11 @@ function closePanels(event) {
 
 watch(() => criteria.categoryId, loadFilters, { immediate: true });
 watch(
-  () => [criteria.categoryId, criteria.page],
+  () => [criteria.categoryId, criteria.page, criteria.sort],
   () => {
     const url = new URL(location.href);
+    if (criteria.sort !== 'name') url.searchParams.set('sort', criteria.sort);
+    else url.searchParams.delete('sort');
     if (criteria.categoryId) url.searchParams.set('categoria', criteria.categoryId);
     else url.searchParams.delete('categoria');
     if (criteria.page > 1) url.searchParams.set('page', criteria.page);
@@ -193,6 +197,12 @@ onUnmounted(() => {
             <a href="/">Início</a><span aria-hidden="true">/</span><span>Pesquisa</span>
           </nav>
           <h1 id="search-title" tabindex="-1">{{ title }}</h1>
+          <label class="search-sort">
+            Ordenar por
+            <select class="form-select" :value="criteria.sort" @change="changeFilters({ sort: $event.target.value })">
+              <option v-for="option in productSortOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
+          </label>
           <p class="search-summary" role="status" aria-live="polite">
             {{
               loading

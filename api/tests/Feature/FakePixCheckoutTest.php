@@ -81,13 +81,13 @@ class FakePixCheckoutTest extends TestCase
         $this->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
     }
 
-    public function test_buying_the_last_units_deactivates_the_product_and_a_retry_still_succeeds(): void
+    public function test_buying_the_last_units_preserves_the_active_product_and_a_retry_still_succeeds(): void
     {
         $this->product->update(['stock' => 2]);
         $data = $this->checkoutData();
         $id = $this->postJson('/api/checkout', $data)->assertCreated()->json('data.id');
         $this->assertSame(0, $this->product->fresh()->stock);
-        $this->assertFalse($this->product->fresh()->is_active);
+        $this->assertTrue($this->product->fresh()->is_active);
         $this->postJson('/api/checkout', $data)->assertCreated()->assertJsonPath('data.id', $id);
         $this->assertDatabaseCount('orders', 1);
     }

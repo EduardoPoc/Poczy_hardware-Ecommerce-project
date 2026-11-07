@@ -2,6 +2,13 @@ const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 
 export const SHIPPING_TOTAL = 30;
 
+export const productSortOptions = [
+  { value: 'name', label: 'Nome' },
+  { value: 'price_asc', label: 'Menor preço' },
+  { value: 'price_desc', label: 'Maior preço' },
+  { value: 'newest', label: 'Mais recentes' },
+];
+
 export function money(value) {
   return currency.format(Number(value ?? 0));
 }
@@ -17,6 +24,7 @@ export function categoryUrl(category) {
 export function productFilter(criteria = {}) {
   const filter = {};
   if (criteria.search?.trim()) filter.q = criteria.search.trim();
+  if (criteria.sort && criteria.sort !== 'name') filter.sort = criteria.sort;
   if (criteria.categoryId) filter.category_id = Number(criteria.categoryId);
   if (criteria.brandIds?.length) filter.brand_ids = criteria.brandIds.map(Number);
   if (criteria.minPrice !== '' && criteria.minPrice != null) filter.min_price = criteria.minPrice;

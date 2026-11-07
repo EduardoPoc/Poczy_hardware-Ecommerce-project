@@ -40,64 +40,48 @@ class ProductBusinessRulesTest extends TestCase
         ], $attributes))->refresh();
     }
 
-    public function test_active_product_creation_requires_at_least_one_unit(): void
+    public function test_active_products_without_stock_are_visible_but_cannot_be_added_to_cart(): void
     {
         $this->actingAs($this->admin, 'web');
-        $data = ['category_id' => $this->category->id, 'name' => 'Memória', 'price' => '249.90'];
-        $this->postJson('/api/admin/products', $data)->assertUnprocessable()->assertJsonValidationErrors('is_active');
-        $this->postJson('/api/admin/products', $data + ['stock' => 0, 'is_active' => true])
-            ->assertUnprocessable()->assertJsonValidationErrors('is_active');
-        $this->assertDatabaseCount('products', 0);
-        $this->assertDatabaseCount('stock_movements', 0);
-
-        $this->postJson('/api/admin/products', $data + ['stock' => 1, 'is_active' => true])
-            ->assertCreated()->assertJsonPath('data.is_active', true)->assertJsonPath('data.stock', 1);
-        $this->postJson('/api/admin/products', $data + ['stock' => 0, 'is_active' => false])
-            ->assertCreated()->assertJsonPath('data.is_active', false)->assertJsonPath('data.stock', 0);
+        $data = ['category_id' => $this->category->id, 'name' => 'Sem estoque', 'price' => '249.90', 'stock' => 0, 'is_active' => true];
+        $id = $this->postJson('/api/admin/products', $data)->assertCreated()->assertJsonPath('data.stock', 0)->json('data.id');
+        $this->getJson('/api/products/'.$id)->assertOk()->assertJsonPath('data.is_active', true);
+        $this->postJson('/api/cart/items', ['product_id' => $id, 'quantity' => 1])->assertUnprocessable();
     }
 
-    public function test_empty_stock_cannot_be_activated_until_replenished(): void
-    {
-        $product = $this->product(['stock' => 0, 'is_active' => false]);
-        $url = '/api/admin/products/'.$product->id;
-        $this->actingAs($this->admin, 'web')->patchJson($url, ['is_active' => true])
-            ->assertUnprocessable()->assertJsonValidationErrors('is_active');
-        $this->assertFalse($product->fresh()->is_active);
-
-        $this->postJson($url.'/stock-movements', ['type' => 'INBOUND', 'quantity' => 1, 'reason' => 'Reposição'])
-            ->assertCreated();
-        $this->assertFalse($product->fresh()->is_active);
-        $this->patchJson($url, ['is_active' => true])->assertOk()->assertJsonPath('data.is_active', true);
-        $this->getJson('/api/products/'.$product->id)->assertOk();
-    }
-
-    public function test_outbound_and_adjustment_deactivate_products_when_stock_reaches_zero(): void
+    public function test_stock_changes_preserve_the_administrative_active_flag(): void
     {
         $this->actingAs($this->admin, 'web');
-        foreach (['OUTBOUND' => 1, 'ADJUSTMENT' => -1] as $type => $quantity) {
-            $product = $this->product(['stock' => 1]);
-            $this->postJson('/api/admin/products/'.$product->id.'/stock-movements', [
-                'type' => $type, 'quantity' => $quantity, 'reason' => 'Última unidade',
-            ])->assertCreated();
-
-            $this->assertSame(0, $product->fresh()->stock);
-            $this->assertFalse($product->fresh()->is_active);
-            $this->getJson('/api/products/'.$product->id)->assertNotFound();
+        foreach ([true, false] as $active) {
+            $product = $this->product(['stock' => 1, 'is_active' => $active]);
+            $url = '/api/admin/products/'.$product->id.'/stock-movements';
+            $this->postJson($url, ['type' => 'OUTBOUND', 'quantity' => 1])->assertCreated();
+            $this->assertSame($active, $product->fresh()->is_active);
+            $this->postJson($url, ['type' => 'INBOUND', 'quantity' => 1])->assertCreated();
+            $this->assertSame($active, $product->fresh()->is_active);
         }
     }
 
-    public function test_public_catalog_and_filters_hide_existing_active_products_without_stock(): void
+    public function test_public_catalog_includes_active_products_without_stock_and_hides_inactive_products(): void
     {
-        $this->category->update(['attributes' => ['capacity' => ['name' => 'Capacidade', 'type' => 'integer']]]);
-        $product = $this->product(['stock' => 0, 'specifications' => ['capacity' => 32]]);
-        $available = $this->product(['stock' => 1, 'specifications' => ['capacity' => 16]]);
+        $empty = $this->product(['stock' => 0]);
+        $this->product(['stock' => 1]);
+        $this->product(['is_active' => false]);
+        $this->getJson('/api/products/'.$empty->id)->assertOk();
+        $this->getJson('/api/products')->assertOk()->assertJsonCount(2, 'data');
+        $this->getJson('/api/products/filter')->assertOk()->assertJsonPath('meta.total', 2);
+        $this->getJson('/api/catalog')->assertOk()->assertJsonCount(2, 'data.products');
+    }
 
-        $this->getJson('/api/products/'.$product->id)->assertNotFound();
-        $this->getJson('/api/products')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $available->id);
-        $this->getJson('/api/products/filter')->assertOk()->assertJsonPath('meta.total', 1);
-        $this->getJson('/api/catalog')->assertOk()->assertJsonCount(1, 'data.products');
-        $this->getJson('/api/categories/'.$this->category->id.'/filters')->assertOk()
-            ->assertJsonPath('data.attributes.capacity.values', [16]);
+    public function test_sorting_is_applied_before_pagination_with_stable_ties(): void
+    {
+        $cheap = $this->product(['name' => 'Z barato', 'price' => '10.00', 'created_at' => now()->subDays(2)]);
+        $expensive = $this->product(['name' => 'A caro', 'price' => '99.00', 'created_at' => now()->subDay()]);
+        $newest = $this->product(['name' => 'M recente', 'price' => '50.00']);
+        foreach (['price_asc' => $cheap->id, 'price_desc' => $expensive->id, 'newest' => $newest->id] as $sort => $id) {
+            $query = http_build_query(['filter' => ['sort' => $sort], 'per_page' => 1]);
+            $this->getJson('/api/products/filter?'.$query)->assertOk()->assertJsonPath('data.0.id', $id)->assertJsonPath('meta.total', 3);
+        }
     }
 
     public function test_upgrade_deactivates_empty_stock_and_preserves_other_product_statuses(): void

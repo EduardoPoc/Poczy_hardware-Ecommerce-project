@@ -71,11 +71,9 @@ test('edição do produto não altera estoque fora das movimentações', () => {
   assert.equal(Object.hasOwn(productPayload({}, { id: 1, stock: 3 }), 'stock'), false);
 });
 
-test('produto ativo exige ao menos uma unidade no cadastro e na edição', () => {
-  assert.throws(() => productPayload({ stock: '0' }), /pelo menos 1 unidade/);
-  assert.throws(() => productPayload({}, { id: 1, stock: 0 }), /pelo menos 1 unidade/);
-  assert.equal(productPayload({ stock: '1' }).is_active, true);
-  assert.equal(productPayload({ stock: '0', is_active: false }).stock, 0);
+test('produtos ativos sem estoque permanecem no catálogo como indisponíveis', () => {
+  assert.equal(productPayload({ stock: '0' }).stock, 0);
+  assert.equal(productPayload({}, { id: 1, stock: 0 }).is_active, true);
   assert.equal(productPayload({ is_active: false }, { id: 1, stock: 0 }).is_active, false);
 });
 

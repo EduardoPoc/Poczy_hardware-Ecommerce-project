@@ -39,10 +39,7 @@ class StockService
         if ($stock < 0 || $stock > 2147483647) {
             throw ValidationException::withMessages(['stock' => 'Insufficient stock or stock balance exceeds the allowed limit.']);
         }
-        $product->update(['stock' => $stock, 'is_active' => $product->is_active && $stock >= 1]);
-        if (! $product->is_active) {
-            $product->cartItems()->delete();
-        }
+        $product->update(['stock' => $stock]);
 
         return $product->stockMovements()->create([
             'type' => $type, 'quantity' => $quantity, 'reason' => $reason,

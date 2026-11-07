@@ -45,36 +45,26 @@ class CartAvailabilityTest extends TestCase
         $this->actingAs($this->admin, 'web');
     }
 
-    private function assertProductRemovedFromAllCarts(): void
-    {
-        $this->assertDatabaseMissing('cart_items', ['product_id' => $this->product->id]);
-        $this->assertDatabaseCount('cart_items', 3);
-        $this->assertDatabaseCount('carts', 3);
-    }
-
-    public function test_deactivating_a_product_removes_it_from_customer_and_guest_carts_and_recalculates_totals(): void
+    public function test_deactivation_preserves_items_and_marks_them_unavailable(): void
     {
         $this->patchJson('/api/admin/products/'.$this->product->id, ['is_active' => false])->assertOk();
-        $this->assertProductRemovedFromAllCarts();
-        $this->assertSame(2, $this->product->fresh()->stock);
+        $this->assertDatabaseCount('cart_items', 6);
         $this->actingAs($this->customer, 'web')->getJson('/api/cart')->assertOk()
-            ->assertJsonCount(1, 'data.items')->assertJsonPath('data.items.0.product_id', $this->otherProduct->id)
-            ->assertJsonPath('data.products_total', '9.90')->assertJsonPath('data.shipping_total', '30.00')
-            ->assertJsonPath('data.total', '39.90');
+            ->assertJsonCount(2, 'data.items')->assertJsonPath('data.items.0.is_available', false);
+        $this->patchJson('/api/cart/items/'.$this->product->id, ['quantity' => 0])->assertOk()->assertJsonCount(1, 'data.items');
     }
 
-    public function test_stock_depletion_removes_the_product_and_replenishment_does_not_restore_cart_items(): void
+    public function test_stock_depletion_is_visible_and_replenishment_restores_availability(): void
     {
-        $url = '/api/admin/products/'.$this->product->id;
-        $this->postJson($url.'/stock-movements', ['type' => 'OUTBOUND', 'quantity' => 2, 'reason' => 'Últimas unidades'])->assertCreated();
-        $this->assertProductRemovedFromAllCarts();
-        $this->assertFalse($this->product->fresh()->is_active);
-        $this->postJson($url.'/stock-movements', ['type' => 'INBOUND', 'quantity' => 2, 'reason' => 'Reposição'])->assertCreated();
-        $this->patchJson($url, ['is_active' => true])->assertOk();
-        $this->assertProductRemovedFromAllCarts();
+        $url = '/api/admin/products/'.$this->product->id.'/stock-movements';
+        $this->postJson($url, ['type' => 'OUTBOUND', 'quantity' => 2])->assertCreated();
+        $this->assertTrue($this->product->fresh()->is_active);
+        $this->actingAs($this->customer, 'web')->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.is_available', false);
+        $this->actingAs($this->admin, 'web')->postJson($url, ['type' => 'INBOUND', 'quantity' => 2])->assertCreated();
+        $this->actingAs($this->customer, 'web')->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.is_available', true);
     }
 
-    public function test_buying_the_last_unit_cleans_other_carts_and_preserves_unrelated_products(): void
+    public function test_buying_last_units_clears_only_the_buyers_cart(): void
     {
         $this->product->update(['stock' => 1]);
         $address = $this->customer->addresses()->create(['postal_code' => '01001-000', 'street' => 'Rua de Entrega', 'number' => '1', 'city' => 'São Paulo', 'state' => 'SP']);
@@ -82,16 +72,16 @@ class CartAvailabilityTest extends TestCase
             'address_id' => $address->id, 'payment_method' => 'FAKE_PIX',
             'checkout_token' => (string) Str::uuid(), 'expected_total' => '59.80',
         ])->assertCreated()->assertJsonPath('data.status', 'PENDING');
-        $this->assertDatabaseMissing('cart_items', ['product_id' => $this->product->id]);
-        $this->assertDatabaseCount('cart_items', 2);
-        $this->assertSame(0, $this->product->fresh()->stock);
-        $this->getJson('/api/cart')->assertOk()->assertJsonCount(0, 'data.items')->assertJsonPath('data.total', '0.00');
+        $this->getJson('/api/cart')->assertOk()->assertJsonCount(0, 'data.items');
+        $this->assertDatabaseCount('cart_items', 4);
+        $this->actingAs($this->admin, 'web')->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.is_available', false);
     }
 
-    public function test_category_deactivation_also_removes_its_products_from_all_carts(): void
+    public function test_category_deactivation_marks_its_cart_items_unavailable(): void
     {
         $this->patchJson('/api/admin/categories/'.$this->product->category_id, ['is_active' => false])->assertOk();
-        $this->assertProductRemovedFromAllCarts();
+        $this->actingAs($this->customer, 'web')->getJson('/api/cart')->assertOk()->assertJsonPath('data.items.0.is_available', false);
+        $this->assertDatabaseCount('cart_items', 6);
     }
 
     public function test_failed_stock_movements_roll_back_cart_cleanup_and_product_deactivation(): void
@@ -119,13 +109,13 @@ class CartAvailabilityTest extends TestCase
         $this->assertTrue($this->product->fresh()->is_active);
     }
 
-    public function test_old_unavailable_items_are_hidden_and_the_upgrade_removes_them_without_losing_other_items(): void
+    public function test_legacy_cleanup_migration_remains_repeatable(): void
     {
         $this->product->update(['is_active' => false]);
-        $this->actingAs($this->customer, 'web')->getJson('/api/cart')->assertOk()
-            ->assertJsonCount(1, 'data.items')->assertJsonPath('data.items.0.product_id', $this->otherProduct->id);
         $migration = require database_path('migrations/2026_11_05_141358_remove_unavailable_products_from_carts.php');
         $migration->up();
-        $this->assertProductRemovedFromAllCarts();
+        $migration->up();
+        $this->assertDatabaseMissing('cart_items', ['product_id' => $this->product->id]);
+        $this->assertDatabaseCount('cart_items', 3);
     }
 }

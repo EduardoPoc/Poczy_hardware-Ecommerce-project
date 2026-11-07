@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class FilterProductsRequest extends FormRequest
 {
@@ -32,6 +33,7 @@ class FilterProductsRequest extends FormRequest
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'between:1,100'],
             'q' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'sort' => ['sometimes', Rule::in(['name', 'price_asc', 'price_desc', 'newest'])],
             'category_id' => ['sometimes', 'integer', 'min:1'],
             'brand_ids' => ['sometimes', 'array', 'max:100'],
             'brand_ids.*' => ['required', 'integer', 'min:1', 'distinct'],

@@ -348,3 +348,19 @@
     --search-columns: 1;
   }
 }
+
+.search-sort {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+  font-size: 12px;
+}
+.search-sort select {
+  width: auto;
+  max-width: 100%;
+  color: var(--text);
+  background-color: var(--surface);
+  border-color: var(--border);
+}

@@ -96,4 +96,10 @@ class CatalogInputValidationTest extends TestCase
                 ->assertUnprocessable()->assertJsonStructure(['message', 'errors']);
         }
     }
+
+    public function test_unknown_sort_modes_are_rejected_before_querying_products(): void
+    {
+        $this->getJson('/api/products/filter?'.http_build_query(['filter' => ['sort' => 'unsafe_sql']]))
+            ->assertUnprocessable()->assertJsonValidationErrors('filter.sort');
+    }
 }

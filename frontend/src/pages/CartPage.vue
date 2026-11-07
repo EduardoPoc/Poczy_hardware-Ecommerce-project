@@ -16,9 +16,10 @@ const shipping = computed(() => state.cart?.shipping_total ?? SHIPPING_TOTAL);
 const total = computed(
   () => state.cart?.total ?? Number(subtotal.value) + (items.value.length ? SHIPPING_TOTAL : 0),
 );
+const hasUnavailableItems = computed(() => items.value.some((item) => item.is_available === false));
 
 function checkout() {
-  if (!state.saving && !state.loading && !state.uncertain && !state.error && items.value.length)
+  if (!state.saving && !state.loading && !state.uncertain && !state.error && items.value.length && !hasUnavailableItems.value)
     location.assign('/checkout');
 }
 const recommendations = ref([]);
@@ -147,6 +148,9 @@ onMounted(() => {
                       <a :href="productUrl(item.product)">{{ item.product.name }}</a>
                     </h3>
                     <p class="cart-unit-price m-0">{{ money(item.unit_price) }} por unidade</p>
+                    <p v-if="item.is_available === false" class="customer-field-error" role="status">
+                      Produto indisponível ou quantidade acima do estoque. Ajuste a quantidade ou remova o item.
+                    </p>
                   </div>
                 </div>
                 <div class="cart-quantity">
@@ -228,7 +232,7 @@ onMounted(() => {
             <button
               class="purchase-button cart-checkout d-inline-flex align-items-center justify-content-center gap-2 btn btn-primary"
               type="button"
-              :disabled="state.saving || state.loading || state.uncertain || Boolean(state.error)"
+              :disabled="state.saving || state.loading || state.uncertain || Boolean(state.error) || hasUnavailableItems"
               @click="checkout"
               aria-describedby="cart-checkout-notice"
             >
