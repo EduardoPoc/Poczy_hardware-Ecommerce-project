@@ -139,8 +139,8 @@ export function productForm(product, data) {
       ${productCatalogFields(product, data)} ${productPricingFields(product)}
       ${activeField(product?.is_active ?? true)} ${imageField}
       <p class="admin-field admin-form-help wide">
-        Produtos ativos sem estoque continuam visíveis como indisponíveis.
-        Desative o produto para removê-lo do catálogo.
+        Produtos ativos sem estoque continuam visíveis como indisponíveis. Desative o produto para
+        removê-lo do catálogo.
       </p>
       ${textarea('description', 'Descrição', product?.description)}
     </div>

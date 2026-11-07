@@ -4,7 +4,9 @@ import { cancelOrder, payOrder } from '../src/api/customer.js';
 
 function session(context, handler) {
   globalThis.document = { cookie: 'XSRF-TOKEN=orders' };
-  context.after(() => { delete globalThis.document; });
+  context.after(() => {
+    delete globalThis.document;
+  });
   context.mock.method(globalThis, 'fetch', async (path, options) => {
     if (path === '/sanctum/csrf-cookie') return new Response(null, { status: 204 });
     assert.equal(options.credentials, 'include');
@@ -37,6 +39,11 @@ test('cancelamento confirma o estado persistido após a resposta sem corpo', asy
 });
 
 test('transições rejeitadas não são apresentadas como sucesso', async (context) => {
-  session(context, () => Response.json({ message: 'Only orders awaiting payment can be paid.' }, { status: 409 }));
-  await assert.rejects(payOrder(7), (error) => error.status === 409 && error.message.includes('aguardando pagamento'));
+  session(context, () =>
+    Response.json({ message: 'Only orders awaiting payment can be paid.' }, { status: 409 }),
+  );
+  await assert.rejects(
+    payOrder(7),
+    (error) => error.status === 409 && error.message.includes('aguardando pagamento'),
+  );
 });

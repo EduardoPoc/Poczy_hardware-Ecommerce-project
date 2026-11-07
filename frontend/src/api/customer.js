@@ -51,7 +51,9 @@ export async function completeCheckout(attempt) {
 }
 
 export async function payOrder(id) {
-  return resourceData(await apiRequest(`/api/orders/${encodeURIComponent(id)}/pay`, { method: 'POST' }));
+  return resourceData(
+    await apiRequest(`/api/orders/${encodeURIComponent(id)}/pay`, { method: 'POST' }),
+  );
 }
 
 export async function cancelOrder(id) {

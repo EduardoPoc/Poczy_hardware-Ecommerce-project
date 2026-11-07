@@ -60,7 +60,9 @@ export function accountDestination(value, fallback = '/conta') {
 export function profilePayload(values, user) {
   const data = {};
   const name = String(values.name ?? '').trim();
-  const email = String(values.email ?? '').trim().toLowerCase();
+  const email = String(values.email ?? '')
+    .trim()
+    .toLowerCase();
   if (name !== user.name) data.name = name;
   if (email !== user.email.toLowerCase()) {
     data.email = email;

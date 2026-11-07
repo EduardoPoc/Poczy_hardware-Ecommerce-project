@@ -16,7 +16,8 @@ export async function submitSession(path, values) {
   try {
     response = await apiRequest(path, { method: 'POST', data: values });
   } catch (failure) {
-    if (failure.status !== 404 || !guestCartToken() || !['/api/login', '/api/user'].includes(path)) throw failure;
+    if (failure.status !== 404 || !guestCartToken() || !['/api/login', '/api/user'].includes(path))
+      throw failure;
     forgetGuestCartToken();
     response = await apiRequest(path, { method: 'POST', data: values });
   }

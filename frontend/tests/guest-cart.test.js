@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { forgetGuestCartToken, guestCartToken, rememberGuestCartToken } from '../src/api/guest-cart.js';
+import {
+  forgetGuestCartToken,
+  guestCartToken,
+  rememberGuestCartToken,
+} from '../src/api/guest-cart.js';
 import { getCart } from '../src/api/cart.js';
 import { submitSession } from '../src/api/auth.js';
 
@@ -29,7 +33,10 @@ test('login envia o token persistido e o descarta somente após a fusão', async
     assert.equal(options.credentials, 'include');
     return Response.json({ id: 7, cart_merge: { adjustments: [] } });
   });
-  await submitSession('/api/login', { email: 'cliente@example.com', password: 'SenhaCliente!2026' });
+  await submitSession('/api/login', {
+    email: 'cliente@example.com',
+    password: 'SenhaCliente!2026',
+  });
   assert.equal(guestCartToken(), null);
 });
 
@@ -51,7 +58,12 @@ test('sessão de visitante expirada permite carregar um novo carrinho uma única
 test('falha de login preserva o token para não perder o carrinho', async (context) => {
   setup(context);
   rememberGuestCartToken('c'.repeat(64));
-  context.mock.method(globalThis, 'fetch', async () => Response.json({ errors: { email: ['The provided credentials are invalid.'] } }, { status: 422 }));
+  context.mock.method(globalThis, 'fetch', async () =>
+    Response.json(
+      { errors: { email: ['The provided credentials are invalid.'] } },
+      { status: 422 },
+    ),
+  );
   await assert.rejects(submitSession('/api/login', {}), (error) => error.status === 422);
   assert.equal(guestCartToken(), 'c'.repeat(64));
 });

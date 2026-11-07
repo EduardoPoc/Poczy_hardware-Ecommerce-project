@@ -57,10 +57,18 @@ async function perform(action) {
     <div v-else-if="order.status === 'PENDING'" class="customer-actions">
       <template v-if="confirmingCancellation">
         <p>Cancelar este pedido e devolver os itens ao estoque?</p>
-        <button class="admin-secondary btn btn-outline-secondary" :disabled="saving" @click="perform(cancelOrder)">
+        <button
+          class="admin-secondary btn btn-outline-secondary"
+          :disabled="saving"
+          @click="perform(cancelOrder)"
+        >
           {{ saving ? 'Cancelando…' : 'Sim, cancelar pedido' }}
         </button>
-        <button class="customer-text-button" :disabled="saving" @click="confirmingCancellation = false">
+        <button
+          class="customer-text-button"
+          :disabled="saving"
+          @click="confirmingCancellation = false"
+        >
           Manter pedido
         </button>
       </template>
@@ -68,7 +76,11 @@ async function perform(action) {
         <button class="admin-primary btn btn-primary" :disabled="saving" @click="perform(payOrder)">
           {{ saving ? 'Confirmando…' : 'Confirmar pagamento simulado' }}
         </button>
-        <button class="customer-text-button danger" :disabled="saving" @click="confirmingCancellation = true">
+        <button
+          class="customer-text-button danger"
+          :disabled="saving"
+          @click="confirmingCancellation = true"
+        >
           Cancelar pedido
         </button>
       </template>

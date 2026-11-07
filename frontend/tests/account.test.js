@@ -38,7 +38,10 @@ test('nome alterado mantém o e-mail e dispensa senha atual', () => {
 
 test('novo e-mail é normalizado e exige enviar a senha atual sem aparar espaços', () => {
   assert.deepEqual(
-    profilePayload({ ...user, email: ' NOVO@example.com ', current_password: ' Senha atual! ' }, user),
+    profilePayload(
+      { ...user, email: ' NOVO@example.com ', current_password: ' Senha atual! ' },
+      user,
+    ),
     { email: 'novo@example.com', current_password: ' Senha atual! ' },
   );
 });

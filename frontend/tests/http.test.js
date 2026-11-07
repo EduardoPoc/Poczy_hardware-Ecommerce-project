@@ -64,7 +64,10 @@ test('sessão expirada exige novo handshake antes da próxima tentativa', async 
 });
 
 test('erros de validação preservam os campos e traduzem mensagens da API', async (context) => {
-  const errors = { quantity: ['Insufficient stock.'], product_id: ['The product is not available.'] };
+  const errors = {
+    quantity: ['Insufficient stock.'],
+    product_id: ['The product is not available.'],
+  };
   context.mock.method(globalThis, 'fetch', async (path) =>
     path === '/sanctum/csrf-cookie'
       ? new Response(null, { status: 204 })

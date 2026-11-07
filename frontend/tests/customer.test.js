@@ -60,11 +60,15 @@ test('cadastro de endereço usa a sessão e mantém erros de validação', async
     assert.equal(options.credentials, 'include');
     assert.equal(options.headers['X-XSRF-TOKEN'], 'csrf-token');
     assert.deepEqual(JSON.parse(options.body), address);
-    return Response.json({ errors: { postal_code: ['The postal code field format is invalid.'] } }, { status: 422 });
+    return Response.json(
+      { errors: { postal_code: ['The postal code field format is invalid.'] } },
+      { status: 422 },
+    );
   });
   await assert.rejects(
     saveAddress(address),
-    (error) => error.status === 422 && error.errors.postal_code[0] === 'CEP: tem um formato inválido.',
+    (error) =>
+      error.status === 422 && error.errors.postal_code[0] === 'CEP: tem um formato inválido.',
   );
 });
 

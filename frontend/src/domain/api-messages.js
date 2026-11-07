@@ -158,16 +158,41 @@ const validationRules = [
   [/^(?:format is invalid|is invalid)\.$/, () => 'tem um formato inválido.'],
   [/^is prohibited\.$/, () => 'não pode ser enviado.'],
   [/^must be a valid UUID\.$/, () => 'deve conter um identificador válido.'],
-  [/^must not be greater than (\d+(?:\.\d+)?) characters\.$/, ([, max]) => `deve ter no máximo ${max} caracteres.`],
+  [
+    /^must not be greater than (\d+(?:\.\d+)?) characters\.$/,
+    ([, max]) => `deve ter no máximo ${max} caracteres.`,
+  ],
   [/^must be at least (\d+) characters\.$/, ([, min]) => `deve ter pelo menos ${min} caracteres.`],
-  [/^must (?:not have more than|have at least) (\d+) items\.$/, ([text, value]) => `deve ter ${text.includes('not') ? 'no máximo' : 'pelo menos'} ${value} itens.`],
+  [
+    /^must (?:not have more than|have at least) (\d+) items\.$/,
+    ([text, value]) =>
+      `deve ter ${text.includes('not') ? 'no máximo' : 'pelo menos'} ${value} itens.`,
+  ],
   [/^must not be greater than (\d+(?:\.\d+)?)\.$/, ([, max]) => `deve ser no máximo ${max}.`],
   [/^must be at least (\d+(?:\.\d+)?)\.$/, ([, min]) => `deve ser pelo menos ${min}.`],
-  [/^must be between (\d+(?:\.\d+)?) and (\d+(?:\.\d+)?)( characters| items| kilobytes)?\.$/, ([, min, max, unit]) => `deve estar entre ${min} e ${max}${({ ' characters': ' caracteres', ' items': ' itens', ' kilobytes': ' KB' })[unit] || ''}.`],
-  [/^must have (\d+(?:-\d+)?) decimal places\.$/, ([, places]) => `deve ter ${places.replace('-', ' a ')} casas decimais.`],
-  [/^must be greater than or equal to (.+)\.$/, ([, min]) => `deve ser maior ou igual a ${/^\d+(?:\.\d+)?$/.test(min) ? min : fieldLabel(min.replaceAll(' ', '_'))}.`],
-  [/^must contain at least one uppercase and one lowercase letter\.$/, () => 'deve conter letras maiúsculas e minúsculas.'],
-  [/^must contain at least one (letter|number|symbol)\.$/, ([, type]) => `deve conter pelo menos ${({ letter: 'uma letra', number: 'um número', symbol: 'um símbolo' })[type]}.`],
+  [
+    /^must be between (\d+(?:\.\d+)?) and (\d+(?:\.\d+)?)( characters| items| kilobytes)?\.$/,
+    ([, min, max, unit]) =>
+      `deve estar entre ${min} e ${max}${{ ' characters': ' caracteres', ' items': ' itens', ' kilobytes': ' KB' }[unit] || ''}.`,
+  ],
+  [
+    /^must have (\d+(?:-\d+)?) decimal places\.$/,
+    ([, places]) => `deve ter ${places.replace('-', ' a ')} casas decimais.`,
+  ],
+  [
+    /^must be greater than or equal to (.+)\.$/,
+    ([, min]) =>
+      `deve ser maior ou igual a ${/^\d+(?:\.\d+)?$/.test(min) ? min : fieldLabel(min.replaceAll(' ', '_'))}.`,
+  ],
+  [
+    /^must contain at least one uppercase and one lowercase letter\.$/,
+    () => 'deve conter letras maiúsculas e minúsculas.',
+  ],
+  [
+    /^must contain at least one (letter|number|symbol)\.$/,
+    ([, type]) =>
+      `deve conter pelo menos ${{ letter: 'uma letra', number: 'um número', symbol: 'um símbolo' }[type]}.`,
+  ],
 ];
 
 export function translateApiMessage(
@@ -178,7 +203,8 @@ export function translateApiMessage(
   if (Object.hasOwn(messages, message)) return messages[message];
   // Permite respostas antigas durante a atualização da API e do frontend.
   if (Object.values(messages).includes(message)) return message;
-  if (/^The .+ has already been taken\.$/.test(message)) return `${fieldLabel(field)}: já está em uso.`;
+  if (/^The .+ has already been taken\.$/.test(message))
+    return `${fieldLabel(field)}: já está em uso.`;
   if (/^The .+ failed to upload\.$/.test(message))
     return `${fieldLabel(field)}: não foi possível enviar o arquivo.`;
   if (/^The selected .+ is invalid\.$/.test(message))

@@ -25,7 +25,12 @@ const total = computed(() => state.cart?.total ?? '0.00');
 const available = computed(
   () =>
     items.value.length &&
-    items.value.every((item) => item.is_available !== false && item.product.is_active && item.product.stock >= item.quantity),
+    items.value.every(
+      (item) =>
+        item.is_available !== false &&
+        item.product.is_active &&
+        item.product.stock >= item.quantity,
+    ),
 );
 const canSubmit = computed(
   () =>
@@ -161,9 +166,7 @@ onMounted(load);
             ></span>
             <div>
               <p class="eyebrow">
-                {{
-                  order.status === 'PENDING' ? 'AGUARDANDO PAGAMENTO' : 'PEDIDO REGISTRADO'
-                }}
+                {{ order.status === 'PENDING' ? 'AGUARDANDO PAGAMENTO' : 'PEDIDO REGISTRADO' }}
               </p>
               <h2>Seu pedido #{{ order.id }} foi registrado!</h2>
               <p>
@@ -175,7 +178,9 @@ onMounted(load);
               </p>
             </div>
           </section>
-          <section class="customer-panel"><OrderDetails :order="order" @updated="order = $event" @unauthorized="login" /></section>
+          <section class="customer-panel">
+            <OrderDetails :order="order" @updated="order = $event" @unauthorized="login" />
+          </section>
           <div class="customer-actions">
             <a class="admin-primary btn btn-primary" href="/conta#orders"
               >Ver meus pedidos <i class="bi bi-arrow-right" aria-hidden="true"></i></a
@@ -227,13 +232,13 @@ onMounted(load);
                   ></label
                 >
                 <p class="customer-simulation-note">
-                  <i class="bi bi-info-circle" aria-hidden="true"></i> Ao confirmar, seu pedido será criado aguardando pagamento.
-                  A simulação do pagamento acontece na próxima etapa.
+                  <i class="bi bi-info-circle" aria-hidden="true"></i> Ao confirmar, seu pedido será
+                  criado aguardando pagamento. A simulação do pagamento acontece na próxima etapa.
                 </p>
               </section>
               <p v-if="attempt" class="alert alert-info" role="status">
-                Uma tentativa de criação do pedido está em andamento. Verifique o resultado antes de alterar
-                a compra.
+                Uma tentativa de criação do pedido está em andamento. Verifique o resultado antes de
+                alterar a compra.
               </p>
             </div>
             <aside
@@ -278,11 +283,7 @@ onMounted(load);
                   aria-hidden="true"
                 ></i
                 >{{
-                  submitting
-                    ? 'Criando pedido…'
-                    : attempt
-                      ? 'Verificar pedido'
-                      : 'Confirmar pedido'
+                  submitting ? 'Criando pedido…' : attempt ? 'Verificar pedido' : 'Confirmar pedido'
                 }}
               </button>
               <p v-if="!selectedAddress && !attempt" class="customer-checkout-help">

@@ -199,8 +199,18 @@ onUnmounted(() => {
           <h1 id="search-title" tabindex="-1">{{ title }}</h1>
           <label class="search-sort">
             Ordenar por
-            <select class="form-select" :value="criteria.sort" @change="changeFilters({ sort: $event.target.value })">
-              <option v-for="option in productSortOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            <select
+              class="form-select"
+              :value="criteria.sort"
+              @change="changeFilters({ sort: $event.target.value })"
+            >
+              <option
+                v-for="option in productSortOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
             </select>
           </label>
           <p class="search-summary" role="status" aria-live="polite">

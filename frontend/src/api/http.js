@@ -69,9 +69,7 @@ async function readJsonResponse(response) {
 
 function responseError(status, payload) {
   const errors = translateValidationErrors(payload?.errors);
-  const validationMessages = Object.values(errors)
-    .flat()
-    .filter(Boolean);
+  const validationMessages = Object.values(errors).flat().filter(Boolean);
   const messages = {
     401: 'Entre na sua conta para continuar.',
     403: 'Sua conta não tem permissão para acessar este recurso.',
@@ -110,8 +108,11 @@ async function ensureSession() {
 export async function apiRequest(path, { method = 'GET', data, signal } = {}) {
   const headers = {};
   const cartToken = guestCartToken();
-  const usesGuestCart = path === '/api/cart' || path.startsWith('/api/cart/') ||
-    (method === 'POST' && ['/api/login', '/api/user', '/api/auth/login', '/api/auth/register'].includes(path));
+  const usesGuestCart =
+    path === '/api/cart' ||
+    path.startsWith('/api/cart/') ||
+    (method === 'POST' &&
+      ['/api/login', '/api/user', '/api/auth/login', '/api/auth/register'].includes(path));
   if (cartToken && usesGuestCart) headers['X-Cart-Token'] = cartToken;
   const multipart = data instanceof FormData;
   await ensureSession();

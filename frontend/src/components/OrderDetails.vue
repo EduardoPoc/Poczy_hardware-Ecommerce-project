@@ -54,8 +54,14 @@ const emit = defineEmits(['updated', 'unauthorized']);
       </dl>
     </div>
     <p v-if="order.payment_method === 'FAKE_PIX'" class="customer-simulation-note">
-      <i class="bi bi-info-circle" aria-hidden="true"></i> Pagamento simulado com Fake Pix, sem cobrança real.
+      <i class="bi bi-info-circle" aria-hidden="true"></i> Pagamento simulado com Fake Pix, sem
+      cobrança real.
     </p>
-    <OrderActions :key="order.id" :order="order" @updated="emit('updated', $event)" @unauthorized="emit('unauthorized')" />
+    <OrderActions
+      :key="order.id"
+      :order="order"
+      @updated="emit('updated', $event)"
+      @unauthorized="emit('unauthorized')"
+    />
   </div>
 </template>
