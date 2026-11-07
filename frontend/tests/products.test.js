@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { imageUrl } from '../src/shared/lib/images.js';
 import {
-  imageUrl,
   paginationPages,
   productFilter,
   productQuery,
   productSpecifications,
-} from '../src/domain/products.js';
-import { listProducts, getProduct } from '../src/api/products.js';
-import { ApiError } from '../src/api/http.js';
+} from '../src/features/catalog/domain.js';
+import { listProducts, getProduct } from '../src/features/catalog/api.js';
+import { ApiError } from '../src/shared/api/http.js';
 
 test('os filtros enviados ao backend preservam false, zero e números', () => {
   const query = new URLSearchParams(

@@ -1,6 +1,6 @@
 # Frontend Poczy Hardware
 
-A loja usa Vue 3, Vite e Bootstrap 5. A página inicial, a pesquisa, os detalhes de produto e o carrinho são componentes Vue. Login, cadastro e administração mantêm módulos JavaScript separados, com a mesma camada HTTP.
+A loja usa Vue 3, Vite e Bootstrap 5. Catálogo, carrinho, conta e checkout usam componentes Vue. Login, cadastro e administração usam módulos JavaScript, com a mesma camada HTTP.
 
 ## Executar
 
@@ -16,15 +16,20 @@ As páginas usam URLs sem extensão: `/`, `/pesquisa`, `/produto?id=<id-numéric
 
 ## Organização
 
-- `src/api/`: cliente HTTP, autenticação, produtos, categorias e carrinho.
-- `src/domain/`: critérios de busca, formatação e apresentação de características.
-- `src/components/`: cabeçalho, cards, imagens, filtros, paginação e rodapés.
-- `src/pages/`: componentes Vue das páginas da loja, conta e checkout.
-- `src/composables/`: busca reativa com debounce e cancelamento de requisições anteriores.
-- `src/stores/`: estado do carrinho confirmado pelo servidor.
-- `src/scripts/`: autenticação e painel administrativo. `admin.js` coordena acesso e eventos; `admin-api.js` carrega dados; `admin-views.js` e `admin-forms.js` geram HTML; `admin-listing.js` filtra e pagina as listas; `admin-payload.js` lê e valida os formulários.
+- `src/entrypoints/`: inicialização das páginas da loja, autenticação e administração. Os HTMLs apontam somente para essas entradas.
+- `src/features/catalog/`: API pública, critérios de busca, componentes de produto, composable de pesquisa e páginas do catálogo.
+- `src/features/cart/`: API, estado reativo confirmado pelo servidor e página do carrinho.
+- `src/features/account/`: API de perfil e endereços, montagem dos payloads, componentes e página da conta.
+- `src/features/orders/`: API, estados e transições dos pedidos, detalhes e ações de pagamento/cancelamento.
+- `src/features/checkout/`: API de finalização e página do checkout.
+- `src/features/auth/`: sessão, destinos de retorno e formulários de login/cadastro.
+- `src/features/admin/`: coordenação do painel, API, regras de formulários, listagem e apresentação. `demo/` concentra os dados fictícios carregados explicitamente por `?demo=1`.
+- `src/shared/`: transporte HTTP, tradução de erros, credencial do carrinho visitante, estado visual de requisições e helpers de dinheiro, datas e imagens.
+- `src/layouts/`: composição de cabeçalhos, rodapés e navegação das páginas. Pode integrar recursos de várias funcionalidades.
+- `src/assets/`: imagens e ícones processados pelo Vite, organizados em `brand/`, `icons/` e `images/`. Arquivos servidos sem processamento, como favicon e página 404, ficam em `public/`.
 - `src/styles/`: tema Bootstrap, estilos compartilhados e ajustes visuais por página.
-- `src/data/`: dados fictícios usados exclusivamente na demonstração administrativa explícita.
+
+Cada funcionalidade concentra seus componentes, regras e acesso aos endpoints em `api.js`. Módulos `domain.js` contêm funções sem DOM ou Vue; `shared/` não depende das funcionalidades. Imports relativos explícitos funcionam tanto no Vite quanto nos testes Node. A estrutura é multipágina: cada URL pública continua sendo uma entrada HTML.
 
 ## Produtos e pesquisa
 

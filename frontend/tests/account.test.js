@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { changePassword, updateProfile } from '../src/api/customer.js';
-import { profilePayload } from '../src/domain/customer.js';
+import { changePassword, updateProfile } from '../src/features/account/api.js';
+import { profilePayload } from '../src/features/account/domain.js';
 
 const user = { id: 7, name: 'Mariana Costa', email: 'mariana@example.com' };
 

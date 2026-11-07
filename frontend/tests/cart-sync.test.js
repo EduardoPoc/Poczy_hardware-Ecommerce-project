@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { useCart } from '../src/stores/cart.js';
+import { useCart } from '../src/features/cart/store.js';
 
 test('atualização silenciosa remove itens indisponíveis e atualiza contador e totais', async (context) => {
   let data = {

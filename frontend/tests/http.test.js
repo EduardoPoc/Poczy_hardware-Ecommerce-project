@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 let sequence = 0;
-const freshClient = () => import(`../src/api/http.js?test=${sequence++}`);
+const freshClient = () => import(`../src/shared/api/http.js?test=${sequence++}`);
 
 test('upload envia multipart com cookies e CSRF e usa POST com _method na edição', async (context) => {
   globalThis.document = { cookie: 'XSRF-TOKEN=token%3D' };

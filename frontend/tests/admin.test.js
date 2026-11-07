@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readPayload } from '../src/scripts/admin-payload.js';
-import { filteredRecords, paginateRecords } from '../src/scripts/admin-listing.js';
-import { cents, moneyFromCents } from '../src/scripts/admin-utils.js';
-import { listingResults } from '../src/scripts/admin-views.js';
-import { orderForm } from '../src/scripts/admin-forms.js';
-import { allowedOrderTransitions } from '../src/scripts/admin-utils.js';
+import { readPayload } from '../src/features/admin/payload.js';
+import { filteredRecords, paginateRecords } from '../src/features/admin/listing.js';
+import { cents, moneyFromCents } from '../src/shared/lib/money.js';
+import { listingResults } from '../src/features/admin/views.js';
+import { orderForm } from '../src/features/admin/forms.js';
+import { allowedOrderTransitions } from '../src/features/orders/domain.js';
 
 // Only the form interface consumed by readPayload is needed for these business rules.
 function formWith(values, prefixes = []) {

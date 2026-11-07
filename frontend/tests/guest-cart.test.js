@@ -4,9 +4,9 @@ import {
   forgetGuestCartToken,
   guestCartToken,
   rememberGuestCartToken,
-} from '../src/api/guest-cart.js';
-import { getCart } from '../src/api/cart.js';
-import { submitSession } from '../src/api/auth.js';
+} from '../src/shared/session/guest-cart.js';
+import { getCart } from '../src/features/cart/api.js';
+import { submitSession } from '../src/features/auth/api.js';
 
 function setup(context) {
   const values = new Map();

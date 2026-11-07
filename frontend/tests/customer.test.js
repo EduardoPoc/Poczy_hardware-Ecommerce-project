@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { accountDestination, addressPayload, paymentLabel } from '../src/domain/customer.js';
-import { completeCheckout, getProfile, listAddresses, saveAddress } from '../src/api/customer.js';
+import { accountDestination } from '../src/features/auth/domain.js';
+import { addressPayload } from '../src/features/account/domain.js';
+import { paymentLabel } from '../src/features/orders/domain.js';
+import { completeCheckout } from '../src/features/checkout/api.js';
+import { getProfile, listAddresses, saveAddress } from '../src/features/account/api.js';
 
 test('endereços enviam somente campos próprios, sem permitir escolher o dono', () => {
   assert.deepEqual(

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cancelOrder, payOrder } from '../src/api/customer.js';
+import { cancelOrder, payOrder } from '../src/features/orders/api.js';
 
 function session(context, handler) {
   globalThis.document = { cookie: 'XSRF-TOKEN=orders' };

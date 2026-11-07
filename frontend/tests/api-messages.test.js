@@ -4,8 +4,8 @@ import {
   translateApiMessage,
   translateValidationErrors,
   cartAdjustmentMessage,
-} from '../src/domain/api-messages.js';
-import { submitSession } from '../src/api/auth.js';
+} from '../src/shared/api/messages.js';
+import { submitSession } from '../src/features/auth/api.js';
 
 test('validações do Laravel são apresentadas em português com limites e campos preservados', () => {
   const cases = [
@@ -95,7 +95,7 @@ test('respostas HTTP traduzem conflitos conhecidos e ocultam conflitos desconhec
       ? new Response(null, { status: 204 })
       : Response.json({ message }, { status: 409 }),
   );
-  const { apiRequest } = await import('../src/api/http.js?translations');
+  const { apiRequest } = await import('../src/shared/api/http.js?translations');
   await assert.rejects(apiRequest('/api/admin/products'), {
     message: 'Já existe um registro com os dados únicos informados.',
   });
