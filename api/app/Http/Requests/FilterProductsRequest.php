@@ -40,14 +40,14 @@ class FilterProductsRequest extends FormRequest
             'specifications' => ['bail', 'sometimes', 'array', 'max:100', function (string $attribute, mixed $value, Closure $fail): void {
                 foreach (array_keys($value) as $key) {
                     if (! is_string($key) || ! preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key)) {
-                        $fail('As chaves das especificações devem usar snake_case e ter até 60 caracteres.');
+                        $fail('Specification keys must use snake_case and must not exceed 60 characters.');
                     }
                 }
             }],
             'specifications.*' => ['array', 'max:100'],
             'specifications.*.*' => [function (string $attribute, mixed $value, Closure $fail): void {
                 if (! is_string($value) && ! is_int($value) && ! is_float($value) && ! is_bool($value)) {
-                    $fail('O valor do filtro deve ser texto, número ou booleano.');
+                    $fail('The filter value must be a string, number, or boolean.');
                 }
             }],
         ];

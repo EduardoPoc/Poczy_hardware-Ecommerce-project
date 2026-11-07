@@ -19,7 +19,7 @@ class UpdatePasswordRequest extends FormRequest
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'max:72', 'not_regex:/\x00/', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols(), function (string $attribute, mixed $value, Closure $fail): void {
                 if (is_string($value) && strlen($value) > 72) {
-                    $fail('A senha deve ter no máximo 72 bytes para o algoritmo de hash utilizado.');
+                    $fail('The password must not exceed 72 bytes for the configured hashing algorithm.');
                 }
             }],
         ];

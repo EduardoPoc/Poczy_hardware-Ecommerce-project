@@ -23,6 +23,24 @@ class ExampleTest extends TestCase
         $this->getJson('/api/user')->assertUnauthorized();
     }
 
+    public function test_api_validation_messages_are_english_even_when_portuguese_is_requested(): void
+    {
+        $this->withHeader('Accept-Language', 'pt-BR')->postJson('/api/login', [])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.email.0', 'The email field is required.')
+            ->assertJsonPath('errors.password.0', 'The password field is required.');
+
+        $password = str_repeat('é', 37).'Aa1!';
+        $response = $this->postJson('/api/user', [
+            'password' => $password,
+            'password_confirmation' => $password,
+        ])->assertUnprocessable();
+        $this->assertContains(
+            'The password must not exceed 72 bytes for the configured hashing algorithm.',
+            $response->json('errors.password'),
+        );
+    }
+
     public function test_customers_cannot_access_administrative_routes(): void
     {
         $user = new User(['name' => 'Cliente', 'email' => 'cliente@example.com']);

@@ -97,7 +97,7 @@ class CategoryService
         DB::transaction(function () use ($id): void {
             $category = Category::lockForUpdate()->findOrFail($id);
             if ($category->products()->exists()) {
-                throw new ConflictHttpException('A categoria possui produtos. Desative-a ou remova os vínculos antes de excluir.');
+                throw new ConflictHttpException('The category has products. Deactivate it or remove the associations before deleting it.');
             }
             $category->delete();
         }, 3);

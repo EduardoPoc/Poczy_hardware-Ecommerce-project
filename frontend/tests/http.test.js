@@ -63,8 +63,8 @@ test('sessão expirada exige novo handshake antes da próxima tentativa', async 
   assert.equal(handshakes, 2);
 });
 
-test('erros de validação preservam os campos e mensagens retornados pela API', async (context) => {
-  const errors = { quantity: ['Estoque insuficiente.'], product_id: ['Produto indisponível.'] };
+test('erros de validação preservam os campos e traduzem mensagens da API', async (context) => {
+  const errors = { quantity: ['Insufficient stock.'], product_id: ['The product is not available.'] };
   context.mock.method(globalThis, 'fetch', async (path) =>
     path === '/sanctum/csrf-cookie'
       ? new Response(null, { status: 204 })
@@ -73,8 +73,11 @@ test('erros de validação preservam os campos e mensagens retornados pela API',
   const { apiRequest } = await freshClient();
   await assert.rejects(apiRequest('/api/cart'), (error) => {
     assert.equal(error.status, 422);
-    assert.deepEqual(error.errors, errors);
-    assert.equal(error.message, 'Estoque insuficiente. Produto indisponível.');
+    assert.deepEqual(error.errors, {
+      quantity: ['Estoque insuficiente.'],
+      product_id: ['O produto não está disponível.'],
+    });
+    assert.equal(error.message, 'Estoque insuficiente. O produto não está disponível.');
     return true;
   });
 });

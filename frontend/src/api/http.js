@@ -1,3 +1,5 @@
+import { translateApiMessage, translateValidationErrors } from '../domain/api-messages.js';
+
 const apiOrigin = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = 12000;
 let csrfReady = false;
@@ -17,7 +19,9 @@ export function resourceData(response) {
 }
 
 export function errorMessage(error) {
-  return error?.message || 'Não foi possível carregar os dados da loja. Tente novamente.';
+  return error instanceof ApiError
+    ? error.message
+    : 'Não foi possível carregar os dados da loja. Tente novamente.';
 }
 
 async function request(path, options = {}) {
@@ -63,14 +67,17 @@ async function readJsonResponse(response) {
 }
 
 function responseError(status, payload) {
-  const validationMessages = Object.values(payload?.errors || {})
+  const errors = translateValidationErrors(payload?.errors);
+  const validationMessages = Object.values(errors)
     .flat()
     .filter(Boolean);
   const messages = {
     401: 'Entre na sua conta para continuar.',
     403: 'Sua conta não tem permissão para acessar este recurso.',
     404: 'Este registro não foi encontrado.',
-    409: payload?.message || 'Os dados foram alterados. Atualize e confira o registro.',
+    409: translateApiMessage(payload?.message, {
+      fallback: 'Os dados foram alterados. Atualize e confira o registro.',
+    }),
     413: 'O arquivo ou a requisição ultrapassa o tamanho permitido.',
     419: 'Sua sessão expirou. Atualize a página e tente novamente.',
     422: validationMessages.join(' ') || 'Confira os dados informados e tente novamente.',
@@ -80,7 +87,7 @@ function responseError(status, payload) {
   return new ApiError(
     messages[status] || 'Não foi possível concluir. Tente novamente em instantes.',
     status,
-    payload?.errors,
+    errors,
   );
 }
 

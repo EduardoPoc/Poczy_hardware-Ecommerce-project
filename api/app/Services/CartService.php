@@ -57,7 +57,7 @@ class CartService
         $binding = $request->session()->get('guest_cart_binding');
         if ($cartId === null || ! is_string($binding)) {
             if ($token !== null) {
-                throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
+                throw new NotFoundHttpException('Guest cart not found.');
             }
 
             return null;
@@ -74,7 +74,7 @@ class CartService
             return null;
         }
         if ($cart === null || ! $this->matchesGuestCredentials($cart, $binding, $token)) {
-            throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
+            throw new NotFoundHttpException('Guest cart not found.');
         }
 
         return $cart;
@@ -173,7 +173,7 @@ class CartService
     private function changeQuantity(Cart $cart, int $productId, int $quantity, bool $increment): Cart
     {
         if ($quantity < 0 || $quantity > 2147483647) {
-            throw ValidationException::withMessages(['quantity' => 'Informe uma quantidade inteira entre zero e 2147483647.']);
+            throw ValidationException::withMessages(['quantity' => 'Enter an integer quantity between zero and 2147483647.']);
         }
 
         return DB::transaction(function () use ($cart, $productId, $quantity, $increment): Cart {
@@ -188,7 +188,7 @@ class CartService
             $item = $cart->items()->where('product_id', $productId)->first();
             $desiredQuantity = $quantity + ($increment ? ($item?->quantity ?? 0) : 0);
             if ($desiredQuantity > $product->stock || $desiredQuantity > 2147483647) {
-                throw ValidationException::withMessages(['quantity' => 'A quantidade não pode ultrapassar o estoque disponível.']);
+                throw ValidationException::withMessages(['quantity' => 'The quantity must not exceed the available stock.']);
             }
             $cart->items()->updateOrCreate(['product_id' => $productId], ['quantity' => $desiredQuantity]);
 
@@ -203,10 +203,10 @@ class CartService
         $category = Category::lockForUpdate()->findOrFail($categoryId);
         $product = Product::lockForUpdate()->findOrFail($productId);
         if ($product->category_id !== $category->id) {
-            throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
+            throw new ConflictHttpException('The product category has changed. Try again.');
         }
         if (! $product->is_active || ! $category->is_active || $product->stock === 0) {
-            throw ValidationException::withMessages(['product_id' => 'O produto não está disponível.']);
+            throw ValidationException::withMessages(['product_id' => 'The product is not available.']);
         }
 
         return $product;

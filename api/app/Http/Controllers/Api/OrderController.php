@@ -38,7 +38,7 @@ class OrderController extends Controller
     public function pay(Request $request, int $id, OrderService $orders): OrderResource
     {
         if ($request->except('_token') !== []) {
-            throw ValidationException::withMessages(['payment' => 'O pagamento é simulado e não recebe dados de pagamento.']);
+            throw ValidationException::withMessages(['payment' => 'Payment is simulated and does not accept payment details.']);
         }
 
         return new OrderResource($orders->pay($request->user(), $id));

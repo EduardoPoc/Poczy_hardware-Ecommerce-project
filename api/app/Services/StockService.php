@@ -33,11 +33,11 @@ class StockService
         if (! in_array($type, ['INBOUND', 'OUTBOUND', 'ADJUSTMENT'], true) || $quantity === 0 ||
             $quantity < -2147483647 || $quantity > 2147483647 ||
             ($type !== 'ADJUSTMENT' && $quantity < 0)) {
-            throw ValidationException::withMessages(['quantity' => 'Informe uma quantidade positiva para entradas e saídas, ou uma variação diferente de zero para ajustes.']);
+            throw ValidationException::withMessages(['quantity' => 'Enter a positive quantity for inbound and outbound movements, or a nonzero difference for adjustments.']);
         }
         $stock = $product->stock + ($type === 'OUTBOUND' ? -$quantity : $quantity);
         if ($stock < 0 || $stock > 2147483647) {
-            throw ValidationException::withMessages(['stock' => 'Estoque insuficiente ou saldo acima do limite permitido.']);
+            throw ValidationException::withMessages(['stock' => 'Insufficient stock or stock balance exceeds the allowed limit.']);
         }
         $product->update(['stock' => $stock, 'is_active' => $product->is_active && $stock >= 1]);
         if (! $product->is_active) {

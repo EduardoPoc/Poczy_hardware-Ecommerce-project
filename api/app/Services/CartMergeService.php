@@ -23,7 +23,7 @@ class CartMergeService
         }
 
         if ($this->carts->findGuestForRequest($request) === null) {
-            throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
+            throw new NotFoundHttpException('Guest cart not found.');
         }
     }
 
@@ -45,7 +45,7 @@ class CartMergeService
             $account = Cart::lockForUpdate()->findOrFail($account->id);
             $guest = $this->carts->findGuestForRequest($request, true);
             if ($guest === null) {
-                throw new NotFoundHttpException('Carrinho de visitante não encontrado.');
+                throw new NotFoundHttpException('Guest cart not found.');
             }
 
             $adjustments = $this->mergeItems($account, $guest);
@@ -83,7 +83,7 @@ class CartMergeService
             $accountItem = $accountItems->get($productId);
             $category = $product === null ? null : $categories->get($product->category_id);
             if ($product !== null && $category === null) {
-                throw new ConflictHttpException('A categoria do produto foi alterada. Tente novamente.');
+                throw new ConflictHttpException('The product category has changed. Try again.');
             }
             $adjustment = $this->mergeItem($account, $guestItem, $accountItem, $product, $category);
             if ($adjustment !== null) {
@@ -107,7 +107,7 @@ class CartMergeService
                 'requested_quantity' => $requestedQuantity,
                 'quantity' => 0,
                 'reason' => 'unavailable',
-                'message' => 'O produto foi removido do carrinho porque não está disponível.',
+                'message' => 'The product was removed from the cart because it is unavailable.',
             ];
         }
 
@@ -122,7 +122,7 @@ class CartMergeService
             'requested_quantity' => $requestedQuantity,
             'quantity' => $quantity,
             'reason' => 'stock_limit',
-            'message' => 'A quantidade foi ajustada de '.$requestedQuantity.' para '.$quantity.' conforme o estoque disponível.',
+            'message' => 'The quantity was adjusted from '.$requestedQuantity.' to '.$quantity.' according to available stock.',
         ];
     }
 

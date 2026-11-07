@@ -55,7 +55,7 @@ class UserService
     private function checkPassword(User $user, string $password): void
     {
         if (! Hash::check($password, $user->password)) {
-            throw ValidationException::withMessages(['current_password' => 'A senha atual está incorreta.']);
+            throw ValidationException::withMessages(['current_password' => 'The current password is incorrect.']);
         }
     }
 
@@ -65,7 +65,7 @@ class UserService
             $user = User::lockForUpdate()->findOrFail($user->id);
             $this->checkPassword($user, $password);
             if ($user->orders()->exists() || $user->passwordChanges()->exists()) {
-                throw new ConflictHttpException('A conta possui pedidos ou histórico de senha que devem ser preservados.');
+                throw new ConflictHttpException('The account has orders or password history that must be preserved.');
             }
             $user->delete();
         }, 3);

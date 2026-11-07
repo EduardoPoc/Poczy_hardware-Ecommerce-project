@@ -19,7 +19,7 @@ class StoreCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:100', Rule::unique('categories', 'name')],
             'description' => ['nullable', 'string', 'max:65535', function (string $attribute, mixed $value, Closure $fail): void {
                 if (is_string($value) && strlen($value) > 65535) {
-                    $fail('A descrição deve ter no máximo 65535 bytes.');
+                    $fail('The description must not exceed 65535 bytes.');
                 }
             }],
             'attributes' => ['nullable', 'array', 'max:100'],

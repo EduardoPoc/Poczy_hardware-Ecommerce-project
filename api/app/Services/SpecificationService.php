@@ -66,10 +66,10 @@ class SpecificationService
         foreach ($definitions as $key => $definition) {
             $field = 'attributes.'.$key;
             if (! is_string($key) || ! preg_match('/^[a-z][a-z0-9_]{0,59}$/', $key)) {
-                throw ValidationException::withMessages([$field => 'A chave deve usar snake_case e ter até 60 caracteres.']);
+                throw ValidationException::withMessages([$field => 'The key must use snake_case and must not exceed 60 characters.']);
             }
             if ($key === 'brand' && (($definition['type'] ?? null) !== 'text' || ($definition['required'] ?? false))) {
-                throw ValidationException::withMessages([$field => 'Marca é um filtro textual reservado; use brand_id no produto.']);
+                throw ValidationException::withMessages([$field => 'Brand is a reserved text filter; use brand_id on the product.']);
             }
             $this->validateBounds($definition, $field);
             $this->validateOptions($definition, $field);
@@ -97,11 +97,11 @@ class SpecificationService
     {
         $bounds = array_intersect_key($definition, array_flip(self::BOUNDS));
         if ($bounds !== [] && ! in_array($definition['type'], self::NUMERIC_TYPES, true)) {
-            throw ValidationException::withMessages([$field => 'Somente atributos numéricos aceitam limites.']);
+            throw ValidationException::withMessages([$field => 'Only numeric attributes support bounds.']);
         }
         foreach ($bounds as $bound) {
             if (! is_finite((float) $bound)) {
-                throw ValidationException::withMessages([$field => 'Os limites devem ser finitos.']);
+                throw ValidationException::withMessages([$field => 'Bounds must be finite.']);
             }
         }
         foreach (['minimum', 'exclusive_minimum'] as $lower) {
@@ -113,7 +113,7 @@ class SpecificationService
                 $upperValue = $definition[$upper];
                 $excludesEqualBounds = $lower === 'exclusive_minimum' || $upper === 'exclusive_maximum';
                 if ($lowerValue > $upperValue || ($lowerValue == $upperValue && $excludesEqualBounds)) {
-                    throw ValidationException::withMessages([$field => 'Os limites não permitem nenhum valor.']);
+                    throw ValidationException::withMessages([$field => 'The bounds do not allow any value.']);
                 }
             }
         }
@@ -126,7 +126,7 @@ class SpecificationService
         unset($withoutOptions['options']);
         foreach ($definition['options'] ?? [] as $option) {
             if (! $this->matchesDefinition($option, $withoutOptions)) {
-                throw ValidationException::withMessages([$field.'.options' => 'As opções devem respeitar o tipo e os limites do atributo.']);
+                throw ValidationException::withMessages([$field.'.options' => 'Options must match the attribute type and bounds.']);
             }
         }
     }
@@ -140,12 +140,12 @@ class SpecificationService
         $errors = [];
         foreach ($definitions as $key => $definition) {
             if ($key !== 'brand' && ($definition['required'] ?? false) && ! array_key_exists($key, $values)) {
-                $errors[$field.'.'.$key] = 'Este atributo é obrigatório para a categoria.';
+                $errors[$field.'.'.$key] = 'This attribute is required for the category.';
             }
         }
         foreach ($values as $key => $value) {
             if ($key === 'brand' || ! isset($definitions[$key]) || ! $this->matchesDefinition($value, $definitions[$key])) {
-                $errors[$field.'.'.$key] = 'O atributo deve existir na categoria e respeitar seu tipo, opções e limites.';
+                $errors[$field.'.'.$key] = 'The attribute must exist in the category and match its type, options, and bounds.';
             }
         }
         if ($errors !== []) {

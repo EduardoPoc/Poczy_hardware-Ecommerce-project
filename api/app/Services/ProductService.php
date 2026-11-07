@@ -135,7 +135,7 @@ class ProductService
                     Brand::lockForUpdate()->findOrFail($data['brand_id']);
                 }
                 if (! isset($data['category_id']) && $product->category_id !== $category->id) {
-                    throw new ConflictHttpException('A categoria foi alterada por outra operação. Tente novamente.');
+                    throw new ConflictHttpException('The category was changed by another operation. Try again.');
                 }
                 $values = array_key_exists('specifications', $data) ? $data['specifications'] : $product->specifications;
                 $this->specifications->validateValues($values ?? [], $category->getAttribute('attributes') ?? []);
@@ -166,10 +166,10 @@ class ProductService
         DB::transaction(function () use ($id): void {
             $product = Product::lockForUpdate()->findOrFail($id);
             if ($product->orderItems()->exists()) {
-                throw new ConflictHttpException('O produto pertence a pedidos. Use is_active para desativá-lo e preservar o histórico.');
+                throw new ConflictHttpException('The product belongs to orders. Use is_active to deactivate it and preserve history.');
             }
             if ($product->stockMovements()->exists()) {
-                throw new ConflictHttpException('O produto possui movimentações de estoque. Use is_active para desativá-lo.');
+                throw new ConflictHttpException('The product has stock movements. Use is_active to deactivate it.');
             }
             $product->delete();
             $this->deleteImageAfterCommit($product->image_path);
@@ -180,7 +180,7 @@ class ProductService
     {
         if ($isActive && $stock < 1) {
             throw ValidationException::withMessages([
-                'is_active' => 'O produto precisa ter pelo menos 1 unidade em estoque para estar ativo.',
+                'is_active' => 'The product must have at least 1 unit in stock to be active.',
             ]);
         }
     }
@@ -195,7 +195,7 @@ class ProductService
 
         $path = $image->store('products', 'public');
         if ($path === false) {
-            throw new RuntimeException('Não foi possível salvar a imagem do produto.');
+            throw new RuntimeException('The product image could not be saved.');
         }
         $data['image_path'] = $path;
 

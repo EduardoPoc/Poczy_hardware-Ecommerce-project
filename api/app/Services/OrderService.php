@@ -136,10 +136,10 @@ class OrderService
             $product = $products->get($item['product_id']);
             $category = $product === null ? null : $categories->get($product->category_id);
             if ($product === null || ! $product->is_active || ! $category?->is_active) {
-                throw ValidationException::withMessages(['items.'.$index.'.product_id' => 'O produto não está disponível.']);
+                throw ValidationException::withMessages(['items.'.$index.'.product_id' => 'The product is not available.']);
             }
             if ($product->stock < $item['quantity']) {
-                throw ValidationException::withMessages(['items.'.$index.'.quantity' => 'Estoque insuficiente.']);
+                throw ValidationException::withMessages(['items.'.$index.'.quantity' => 'Insufficient stock.']);
             }
             $total = $total->plus(BigDecimal::of($product->price)->multipliedBy($item['quantity']));
         }
@@ -151,7 +151,7 @@ class OrderService
     {
         $shipping = BigDecimal::of((string) config('shop.shipping_total'))->toScale(2);
         if ($shipping->isNegative() || $productsTotal->plus($shipping)->isGreaterThan('99999999.99')) {
-            throw ValidationException::withMessages(['items' => 'O total do pedido ou frete está fora dos limites permitidos.']);
+            throw ValidationException::withMessages(['items' => 'The order total or shipping amount is outside the allowed limits.']);
         }
 
         return $shipping;
@@ -197,7 +197,7 @@ class OrderService
                 return;
             }
             if ($order->status !== 'PENDING') {
-                throw new ConflictHttpException('Somente pedidos aguardando pagamento podem ser cancelados.');
+                throw new ConflictHttpException('Only orders awaiting payment can be cancelled.');
             }
             $this->transition($order, 'CANCELLED');
         }, 3);
@@ -216,13 +216,13 @@ class OrderService
     private function transition(Order $order, string $status): void
     {
         if (! array_key_exists($status, self::TRANSITIONS)) {
-            throw new ConflictHttpException('Transição de status não permitida.');
+            throw new ConflictHttpException('Status transition is not allowed.');
         }
         if ($order->status === $status) {
             return;
         }
         if (! in_array($status, self::allowedTransitions($order), true)) {
-            throw new ConflictHttpException('Transição de status não permitida.');
+            throw new ConflictHttpException('Status transition is not allowed.');
         }
         if ($status === 'CANCELLED') {
             $this->restoreStock($order);
@@ -238,7 +238,7 @@ class OrderService
         foreach ($items as $item) {
             $product = $products->get($item->product_id);
             if ($product === null) {
-                throw new ConflictHttpException('O produto foi removido; o estoque exige conciliação antes do cancelamento.');
+                throw new ConflictHttpException('The product was removed; stock must be reconciled before cancellation.');
             }
             $this->stock->move($product, 'INBOUND', $item->quantity, 'Cancelamento do pedido #'.$order->id);
         }

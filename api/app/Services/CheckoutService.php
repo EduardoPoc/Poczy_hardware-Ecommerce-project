@@ -28,10 +28,10 @@ class CheckoutService
             $cart = Cart::where('user_id', $user->id)->lockForUpdate()->first();
             $items = $cart?->items()->orderBy('product_id')->get(['product_id', 'quantity']);
             if ($items === null || $items->isEmpty()) {
-                throw ValidationException::withMessages(['cart' => 'Adicione produtos ao carrinho antes de finalizar a compra.']);
+                throw ValidationException::withMessages(['cart' => 'Add products to the cart before checking out.']);
             }
             if ($items->count() > 100 || $items->contains(fn (CartItem $item): bool => $item->quantity < 1 || $item->quantity > 10000)) {
-                throw ValidationException::withMessages(['cart' => 'O pedido aceita até 100 produtos e até 10.000 unidades de cada produto. Ajuste seu carrinho.']);
+                throw ValidationException::withMessages(['cart' => 'An order accepts up to 100 products and up to 10,000 units per product. Adjust your cart.']);
             }
 
             $order = $this->orders->create($user, [
@@ -40,7 +40,7 @@ class CheckoutService
                 'items' => $items->toArray(),
             ]);
             if (! BigDecimal::of($order->total)->isEqualTo($data['expected_total'])) {
-                throw new ConflictHttpException('O valor do carrinho foi atualizado. Confira o novo total antes de confirmar o Fake Pix.');
+                throw new ConflictHttpException('The cart amount has changed. Review the new total before confirming Fake Pix.');
             }
             $order->forceFill(['checkout_token' => $data['checkout_token']])->save();
             $order = $this->orders->pay($user, $order->id);

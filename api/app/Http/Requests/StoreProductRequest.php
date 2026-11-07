@@ -46,11 +46,11 @@ class StoreProductRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'image.image' => 'Envie uma imagem válida em PNG, JPG, JPEG ou WebP.',
-            'image.mimes' => 'Envie uma imagem em PNG, JPG, JPEG ou WebP.',
-            'image.extensions' => 'O arquivo deve ter extensão PNG, JPG, JPEG ou WebP.',
-            'image.max' => 'A imagem deve ter no máximo 5 MB.',
-            'image.uploaded' => 'Não foi possível receber a imagem. Confira o arquivo e o limite de 5 MB.',
+            'image.image' => 'Upload a valid PNG, JPG, JPEG, or WebP image.',
+            'image.mimes' => 'Upload a PNG, JPG, JPEG, or WebP image.',
+            'image.extensions' => 'The file must have a PNG, JPG, JPEG, or WebP extension.',
+            'image.max' => 'The image must not exceed 5 MB.',
+            'image.uploaded' => 'The image could not be uploaded. Check the file and the 5 MB limit.',
         ];
     }
 }
