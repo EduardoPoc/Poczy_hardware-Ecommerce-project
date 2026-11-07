@@ -1,0 +1,4512 @@
+openapi: 3.0.3
+info:
+  title: 'Poczy Hardware API'
+  version: 1.0.0
+  description: |-
+    Contrato das rotas atuais de api/routes/api.php, controllers, Form Requests, Resources, services, models, migrations e bootstrap/app.php. Servido estaticamente em /api/docs/openapi.yaml.
+
+    Sessão e CSRF: GET /sanctum/csrf-cookie inicializa cookies; POST /api/login autentica pelo guard web (driver session). Preserve cookies em todas as chamadas e envie X-XSRF-TOKEN (cookie XSRF-TOKEN URL-decodificado) em POST/PUT/PATCH/DELETE. A UI faz isso automaticamente, sempre no mesmo host. Use login abaixo; cadastro não autentica. Logout e troca de senha invalidam sessão. O nome do cookie de sessão é configurável por SESSION_COOKIE, ou derivado de APP_NAME em config/session.php; não há token de autenticação emitido por estas rotas. Por isso a autenticação é descrita por operação, sem esquema manual de credenciais no botão Authorize.
+
+    Acesso: catálogo/produtos/marcas/categorias públicos. Carrinho permite visitante vinculado à sessão. Perfil/endereços/pedidos/checkout exigem auth:web. /api/admin/* exige também gate manage-shop, definido como role === ADMIN. Não há policies/permissões adicionais. Endereços sempre pertencem ao usuário; detalhe/pagamento/cancelamento de pedido permitem ADMIN acessar outras contas, enquanto listagem /api/orders continua própria.
+
+    JSON: Resources usam {data: ...}; login e cadastro retornam campos do usuário diretamente, com cart_merge condicional. Listas de produtos, pedidos e estoque têm data/links/meta; outras listas não são paginadas. Dinheiro nas respostas é string decimal. Datas são ISO 8601 (nullable conforme persistência). Erros são JSON, podendo conter detalhes extras em APP_DEBUG. Strings de entrada são aparadas e vazias viram null pelo middleware padrão, exceto campos de senha. Campos não validados são descartados; campos explicitamente proibidos são indicados nos schemas. Escritas também podem retornar 409 em colisões de unicidade.
+
+    servers=/ e paths completos /api/... evitam duplicar prefixo e permitem /sanctum/csrf-cookie na raiz. /up é a verificação de saúde do framework. URLs internas de desenvolvimento (_boost) e URLs assinadas de storage do framework não são operações de negócio deste contrato. GET também aceita HEAD conforme registro Laravel.
+servers:
+  -
+    url: /
+    description: 'Mesmo host do proxy; paths já contêm /api.'
+tags:
+  -
+    name: 'Sessão e conta'
+  -
+    name: Catálogo
+  -
+    name: Produtos
+  -
+    name: Marcas
+  -
+    name: Categorias
+  -
+    name: Carrinho
+  -
+    name: Endereços
+  -
+    name: Pedidos
+  -
+    name: Checkout
+  -
+    name: 'Admin · Produtos'
+  -
+    name: 'Admin · Marcas'
+  -
+    name: 'Admin · Categorias'
+  -
+    name: 'Admin · Pedidos'
+  -
+    name: 'Admin · Estoque'
+paths:
+  /sanctum/csrf-cookie:
+    get:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Inicializar cookies e CSRF'
+      operationId: get_sanctum_csrf_cookie
+      description: 'Pública. Middleware web do Sanctum; envia cookies de sessão e XSRF-TOKEN. Não autentica. Nas escritas, preservar cookies e enviar X-XSRF-TOKEN com o valor URL-decodificado de XSRF-TOKEN.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+  /api/catalog:
+    get:
+      tags:
+        - Catálogo
+      summary: 'Catálogo completo sem paginação'
+      operationId: get_api_catalog
+      description: 'Pública. Categorias ativas e todos os produtos ativos com estoque >=1 em categorias ativas; ordenados por name/id. Produtos incluem brand, sem category.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Catalog'
+                required:
+                  - data
+  /api/products:
+    get:
+      tags:
+        - Produtos
+      summary: 'Listar produtos'
+      operationId: get_api_products
+      description: 'Pública. Somente ativos com estoque >=1 e categoria ativa; ordenação name/id.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        422:
+          $ref: '#/components/responses/Http422'
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+        -
+          name: q
+          in: query
+          description: 'Busca parcial por nome (whereLike).'
+          schema:
+            type: string
+            maxLength: 150
+            nullable: true
+        -
+          name: category_id
+          in: query
+          description: ''
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: 'brand_ids[]'
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+            maxItems: 100
+            uniqueItems: true
+          style: form
+          explode: true
+        -
+          name: min_price
+          in: query
+          description: ''
+          schema:
+            type: number
+            minimum: 0
+            maximum: 99999999.99
+        -
+          name: max_price
+          in: query
+          description: 'max_price >= min_price.'
+          schema:
+            type: number
+            minimum: 0
+            maximum: 99999999.99
+        -
+          name: specifications
+          in: query
+          description: 'Mapa JSON, chaves snake_case (até 60 caracteres); até 100 chaves, até 100 alternativas por chave. OR entre valores de uma chave, AND entre chaves. Arrays vazios ignorados. Também aceita specifications[chave][].'
+          content:
+            application/json:
+              schema:
+                type: object
+                maxProperties: 100
+                additionalProperties:
+                  type: array
+                  items:
+                    anyOf:
+                      -
+                        type: string
+                      -
+                        type: integer
+                      -
+                        type: number
+                      -
+                        type: boolean
+                  maxItems: 100
+  '/api/products/{product}':
+    get:
+      tags:
+        - Produtos
+      summary: 'Consultar produto'
+      operationId: get_api_products_product
+      description: 'Pública. Somente ativos com estoque >=1 e categoria ativa; ordenação name/id.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Product'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+    parameters:
+      -
+        name: product
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/brands:
+    get:
+      tags:
+        - Marcas
+      summary: 'Listar marcas'
+      operationId: get_api_brands
+      description: 'Pública. Todas as marcas, ordenadas por name/id, inclusive sem produtos públicos.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+  '/api/brands/{brand}':
+    get:
+      tags:
+        - Marcas
+      summary: 'Consultar marca'
+      operationId: get_api_brands_brand
+      description: 'Pública. Todas as marcas, ordenadas por name/id, inclusive sem produtos públicos.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+    parameters:
+      -
+        name: brand
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/categories:
+    get:
+      tags:
+        - Categorias
+      summary: 'Listar categorias'
+      operationId: get_api_categories
+      description: 'Pública. Somente categorias ativas, ordenadas por name/id.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                required:
+                  - data
+  '/api/categories/{category}':
+    get:
+      tags:
+        - Categorias
+      summary: 'Consultar categoria'
+      operationId: get_api_categories_category
+      description: 'Pública. Somente categorias ativas, ordenadas por name/id.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+    parameters:
+      -
+        name: category
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/products/filter:
+    get:
+      tags:
+        - Produtos
+      summary: 'Filtrar produtos por objeto filter'
+      operationId: get_api_products_filter
+      description: 'Pública. Disponibilidade e ordenação iguais a /api/products.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        422:
+          $ref: '#/components/responses/Http422'
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+        -
+          name: filter
+          in: query
+          description: 'Objeto JSON (ou filter[q], filter[brand_ids][], etc.). page e per_page ficam fora de filter. Mesmas regras de /api/products; is_active não é filtro público.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  q:
+                    type: string
+                    maxLength: 150
+                    nullable: true
+                  category_id:
+                    type: integer
+                    minimum: 1
+                  brand_ids:
+                    type: array
+                    items:
+                      type: integer
+                      minimum: 1
+                    maxItems: 100
+                    uniqueItems: true
+                  min_price:
+                    type: number
+                    minimum: 0
+                    maximum: 99999999.99
+                  max_price:
+                    type: number
+                    minimum: 0
+                    maximum: 99999999.99
+                  specifications:
+                    type: object
+                    maxProperties: 100
+                    additionalProperties:
+                      type: array
+                      items:
+                        anyOf:
+                          -
+                            type: string
+                          -
+                            type: integer
+                          -
+                            type: number
+                          -
+                            type: boolean
+                      maxItems: 100
+  '/api/categories/{category}/filters':
+    get:
+      tags:
+        - Categorias
+      summary: 'Valores de filtros disponíveis'
+      operationId: get_api_categories_category_filters
+      description: 'Pública. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CategoryFilters'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+    parameters:
+      -
+        name: category
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/login:
+    post:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Entrar com email e senha'
+      operationId: post_api_login
+      description: 'Pública. Email normalizado para minúsculas. X-Cart-Token ou merge_cart=true fundem carrinho visitante na conta: somam quantidades, limitam ao estoque e removem indisponíveis; retornam cart_merge com ajustes, excluem o carrinho visitante e limpam seu vínculo da sessão. Usa Auth::guard(web)->attempt e regenera sessão. Credenciais inválidas retornam 422 em email. Limites: 20/min por IP e 5/min por email normalizado+IP.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionUser'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+        429:
+          $ref: '#/components/responses/Http429'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+  /api/user:
+    post:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Cadastrar conta CUSTOMER'
+      operationId: post_api_user
+      description: 'Pública. Email normalizado para minúsculas. X-Cart-Token ou merge_cart=true fundem carrinho visitante na conta: somam quantidades, limitam ao estoque e removem indisponíveis; retornam cart_merge com ajustes, excluem o carrinho visitante e limpam seu vínculo da sessão. Cria CUSTOMER; não inicia login. Limite de 5 cadastros/hora por IP.'
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionUser'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+        429:
+          $ref: '#/components/responses/Http429'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+    get:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Consultar próprio perfil'
+      operationId: get_api_user
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+      x-access:
+        session: true
+        gate: null
+    put:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Atualizar próprio perfil'
+      operationId: put_api_user
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+    patch:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Atualizar próprio perfil'
+      operationId: patch_api_user
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+    delete:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Excluir própria conta'
+      operationId: delete_api_user
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Exige senha atual correta (422). Pedidos ou histórico de alteração de senha impedem exclusão (409). Exclui endereços/carrinho por cascade e encerra a sessão.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteUserInput'
+  /api/logout:
+    post:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Encerrar sessão'
+      operationId: post_api_logout
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Logout do guard web, invalida sessão e regenera token CSRF. Inicialize CSRF antes de novo login.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        419:
+          $ref: '#/components/responses/Http419'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+  /api/user/password:
+    put:
+      tags:
+        - 'Sessão e conta'
+      summary: 'Alterar senha e encerrar sessão'
+      operationId: put_api_user_password
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Valida senha atual, registra histórico, renova remember_token; com SESSION_DRIVER=database remove todas as sessões do usuário. Logout invalida a sessão corrente.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordInput'
+  /api/addresses:
+    get:
+      tags:
+        - Endereços
+      summary: 'Listar próprios endereços'
+      operationId: get_api_addresses
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Sem paginação; ordem crescente de id. Sempre limitado ao proprietário, inclusive ADMIN.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Address'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+      x-access:
+        session: true
+        gate: null
+    post:
+      tags:
+        - Endereços
+      summary: 'Criar endereço'
+      operationId: post_api_addresses
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Address'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+  '/api/addresses/{id}':
+    get:
+      tags:
+        - Endereços
+      summary: 'Consultar próprio endereço'
+      operationId: get_api_addresses_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Endereço de outro usuário retorna 404, inclusive para ADMIN.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Address'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: null
+    put:
+      tags:
+        - Endereços
+      summary: 'Atualizar próprio endereço'
+      operationId: put_api_addresses_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Address'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressUpdateInput'
+    patch:
+      tags:
+        - Endereços
+      summary: 'Atualizar próprio endereço'
+      operationId: patch_api_addresses_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Address'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressUpdateInput'
+    delete:
+      tags:
+        - Endereços
+      summary: 'Excluir próprio endereço'
+      operationId: delete_api_addresses_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Não modifica snapshots de pedidos anteriores.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: id
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/cart:
+    get:
+      tags:
+        - Carrinho
+      summary: 'Consultar ou criar carrinho'
+      operationId: get_api_cart
+      description: 'Visitante na mesma sessão ou usuário autenticado. Sem restrição por role. Cookies preservam o carrinho visitante; X-Cart-Token é opcional e acrescenta verificação, nunca substitui sessão. Autenticado usa sempre o carrinho da própria conta. Requisições de carrinho e login/cadastro/checkout usam bloqueio de sessão. Pode criar carrinho e emitir cart_token; retorna sempre 200.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cart'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+  /api/cart/items:
+    post:
+      tags:
+        - Carrinho
+      summary: 'Somar quantidade ao carrinho'
+      operationId: post_api_cart_items
+      description: 'Visitante na mesma sessão ou usuário autenticado. Sem restrição por role. Cookies preservam o carrinho visitante; X-Cart-Token é opcional e acrescenta verificação, nunca substitui sessão. Autenticado usa sempre o carrinho da própria conta. Requisições de carrinho e login/cadastro/checkout usam bloqueio de sessão. quantity>0 soma à quantidade existente; resultado não pode superar estoque. quantity=0 remove item sem consultar disponibilidade do produto.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cart'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemInput'
+  '/api/cart/items/{product}':
+    patch:
+      tags:
+        - Carrinho
+      summary: 'Definir quantidade do item'
+      operationId: patch_api_cart_items_product
+      description: 'Visitante na mesma sessão ou usuário autenticado. Sem restrição por role. Cookies preservam o carrinho visitante; X-Cart-Token é opcional e acrescenta verificação, nunca substitui sessão. Autenticado usa sempre o carrinho da própria conta. Requisições de carrinho e login/cadastro/checkout usam bloqueio de sessão. quantity substitui o valor existente (ou cria item); 0 remove. Quantidade positiva exige produto disponível e estoque suficiente.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cart'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartQuantityInput'
+    delete:
+      tags:
+        - Carrinho
+      summary: 'Remover item do carrinho'
+      operationId: delete_api_cart_items_product
+      description: 'Visitante na mesma sessão ou usuário autenticado. Sem restrição por role. Cookies preservam o carrinho visitante; X-Cart-Token é opcional e acrescenta verificação, nunca substitui sessão. Autenticado usa sempre o carrinho da própria conta. Requisições de carrinho e login/cadastro/checkout usam bloqueio de sessão. Idempotente: item/produto ausente também retorna o carrinho com 200.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cart'
+                required:
+                  - data
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+      parameters:
+        -
+          $ref: '#/components/parameters/CartToken'
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: product
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/orders:
+    get:
+      tags:
+        - Pedidos
+      summary: 'Listar próprios pedidos'
+      operationId: get_api_orders
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Ordem created_at/id decrescente.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/OrderSummary'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/Http401'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+    post:
+      tags:
+        - Pedidos
+      summary: 'Criar pedido e reservar estoque'
+      operationId: post_api_orders
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Cria PENDING, snapshots de endereço/preços/nomes/custos e histórico PENDING; debita estoque com OUTBOUND em transação. Não depende do carrinho nem o esvazia. Frete vem de SHOP_SHIPPING_TOTAL (padrão 30.00). Endereço inexistente/de outro usuário retorna 404; produto indisponível/estoque insuficiente retorna 422.'
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderInput'
+  '/api/orders/{id}':
+    get:
+      tags:
+        - Pedidos
+      summary: 'Consultar pedido e histórico'
+      operationId: get_api_orders_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: null
+    delete:
+      tags:
+        - Pedidos
+      summary: 'Cancelar pedido pendente'
+      operationId: delete_api_orders_id
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Apenas PENDING pode ser cancelado; repetir CANCELLED retorna 204. Outros estados retornam 409. Preserva o pedido, registra histórico e devolve estoque com INBOUND; não reativa automaticamente produto desativado.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: id
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  '/api/orders/{id}/pay':
+    post:
+      tags:
+        - Pedidos
+      summary: 'Simular pagamento do pedido'
+      operationId: post_api_orders_id_pay
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Consulta, pagamento e cancelamento usam accessibleOrders: CUSTOMER só acessa pedidos próprios; ADMIN pode acessar qualquer pedido nestas rotas, mas recebe o Resource público sem custos. A listagem sempre contém apenas pedidos próprios, inclusive para ADMIN. Corpo vazio: qualquer campo exceto _token causa 422 em payment. Sem integração financeira: transiciona PENDING para PAID; repetir PAID é idempotente; outros estados retornam 409.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: id
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/checkout:
+    post:
+      tags:
+        - Checkout
+      summary: 'Concluir carrinho com Fake Pix'
+      operationId: post_api_checkout
+      description: 'Exige sessão autenticada (auth:web), sem restrição por role. Em transação, lê carrinho da conta, cria pedido com snapshots/reserva de estoque, compara total, marca PAID e esvazia carrinho. Não cobra dinheiro. checkout_token é idempotente por usuário: repetição retorna o pedido existente (também 201), antes de verificar carrinho/endereço/expected_total novamente. Divergência de expected_total: 409 com rollback.'
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Order'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: null
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutInput'
+  /api/admin/products:
+    get:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Listar produtos'
+      operationId: get_api_admin_products
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Inclui cost e timestamps.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdminProduct'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+        -
+          name: q
+          in: query
+          description: 'Busca parcial por nome (whereLike).'
+          schema:
+            type: string
+            maxLength: 150
+            nullable: true
+        -
+          name: category_id
+          in: query
+          description: ''
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: 'brand_ids[]'
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+            maxItems: 100
+            uniqueItems: true
+          style: form
+          explode: true
+        -
+          name: min_price
+          in: query
+          description: ''
+          schema:
+            type: number
+            minimum: 0
+            maximum: 99999999.99
+        -
+          name: max_price
+          in: query
+          description: 'max_price >= min_price.'
+          schema:
+            type: number
+            minimum: 0
+            maximum: 99999999.99
+        -
+          name: specifications
+          in: query
+          description: 'Mapa JSON, chaves snake_case (até 60 caracteres); até 100 chaves, até 100 alternativas por chave. OR entre valores de uma chave, AND entre chaves. Arrays vazios ignorados. Também aceita specifications[chave][].'
+          content:
+            application/json:
+              schema:
+                type: object
+                maxProperties: 100
+                additionalProperties:
+                  type: array
+                  items:
+                    anyOf:
+                      -
+                        type: string
+                      -
+                        type: integer
+                      -
+                        type: number
+                      -
+                        type: boolean
+                  maxItems: 100
+        -
+          name: is_active
+          in: query
+          description: ''
+          schema:
+            type: boolean
+    post:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Criar produto'
+      operationId: post_api_admin_products
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminProduct'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductMultipartInput'
+  '/api/admin/products/{product}':
+    get:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Consultar produto'
+      operationId: get_api_admin_products_product
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminProduct'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: manage-shop
+    put:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Atualizar produto'
+      operationId: put_api_admin_products_product
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminProduct'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateMultipartInput'
+    patch:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Atualizar produto'
+      operationId: patch_api_admin_products_product
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminProduct'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateMultipartInput'
+    delete:
+      tags:
+        - 'Admin · Produtos'
+      summary: 'Excluir produto'
+      operationId: delete_api_admin_products_product
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. 409 se possui itens de pedidos ou movimentações de estoque; desative para preservar histórico. Exclui imagem após commit.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: product
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/admin/brands:
+    get:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Listar marcas'
+      operationId: get_api_admin_brands
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Sem paginação.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+      x-access:
+        session: true
+        gate: manage-shop
+    post:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Criar marca'
+      operationId: post_api_admin_brands
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandInput'
+  '/api/admin/brands/{brand}':
+    get:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Consultar marca'
+      operationId: get_api_admin_brands_brand
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: manage-shop
+    put:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Atualizar marca'
+      operationId: put_api_admin_brands_brand
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandUpdateInput'
+    patch:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Atualizar marca'
+      operationId: patch_api_admin_brands_brand
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Brand'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandUpdateInput'
+    delete:
+      tags:
+        - 'Admin · Marcas'
+      summary: 'Excluir marca'
+      operationId: delete_api_admin_brands_brand
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Exclui marca e define brand_id=null nos produtos por FK; não exige ausência de produtos.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: brand
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/admin/categories:
+    get:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Listar categorias'
+      operationId: get_api_admin_categories
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Inclui inativos. Ordenação name/id. Sem paginação.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+      x-access:
+        session: true
+        gate: manage-shop
+    post:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Criar categoria'
+      operationId: post_api_admin_categories
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+  '/api/admin/categories/{category}':
+    get:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Consultar categoria'
+      operationId: get_api_admin_categories_category
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: manage-shop
+    put:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Atualizar categoria'
+      operationId: put_api_admin_categories_category
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateInput'
+    patch:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Atualizar categoria'
+      operationId: patch_api_admin_categories_category
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateInput'
+    delete:
+      tags:
+        - 'Admin · Categorias'
+      summary: 'Excluir categoria'
+      operationId: delete_api_admin_categories_category
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. 409 se possui produtos; desative ou remova associações antes de excluir.'
+      security: []
+      responses:
+        204:
+          description: 'Sucesso, sem corpo.'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+    parameters:
+      -
+        name: category
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /api/admin/orders:
+    get:
+      tags:
+        - 'Admin · Pedidos'
+      summary: 'Listar todos os pedidos'
+      operationId: get_api_admin_orders
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Todas as contas; ordem created_at/id decrescente. Inclui allowed_statuses; sem itens/endereço/histórico na listagem.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AdminOrderSummary'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+  '/api/admin/orders/{id}':
+    get:
+      tags:
+        - 'Admin · Pedidos'
+      summary: 'Consultar pedido com custos'
+      operationId: get_api_admin_orders_id
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. '
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminOrder'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+      x-access:
+        session: true
+        gate: manage-shop
+    put:
+      tags:
+        - 'Admin · Pedidos'
+      summary: 'Alterar status do pedido'
+      operationId: put_api_admin_orders_id
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED/DELIVERED/CANCELLED; SHIPPED → DELIVERED/CANCELLED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminOrder'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusInput'
+    patch:
+      tags:
+        - 'Admin · Pedidos'
+      summary: 'Alterar status do pedido'
+      operationId: patch_api_admin_orders_id
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Transições: PENDING → PAID/CANCELLED; PAID → SHIPPED/DELIVERED/CANCELLED; SHIPPED → DELIVERED/CANCELLED; DELIVERED e CANCELLED são finais. Repetir o mesmo estado é idempotente. Estado desconhecido/transição proibida: 409. CANCELLED devolve estoque e registra histórico, sem reativar produto.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminOrder'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        409:
+          $ref: '#/components/responses/Http409'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusInput'
+    parameters:
+      -
+        name: id
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  '/api/admin/products/{id}/stock-movements':
+    get:
+      tags:
+        - 'Admin · Estoque'
+      summary: 'Listar movimentações do produto'
+      operationId: get_api_admin_products_id_stock_movements
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. Ordem id decrescente; inclui movimentações automáticas de pedido/cancelamento/estoque inicial.'
+      security: []
+      responses:
+        200:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  -
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StockMovement'
+                    required:
+                      - data
+                  -
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Page'
+        -
+          $ref: '#/components/parameters/PerPage'
+    post:
+      tags:
+        - 'Admin · Estoque'
+      summary: 'Movimentar estoque do produto'
+      operationId: post_api_admin_products_id_stock_movements
+      description: 'Exige sessão autenticada e can:manage-shop: role === ADMIN. INBOUND soma; OUTBOUND subtrai; ADJUSTMENT soma diferença assinada. Saldo resultante 0..2147483647. Saldo zero desativa produto e remove dos carrinhos; repor estoque não o reativa.'
+      security: []
+      responses:
+        201:
+          description: Sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StockMovement'
+                required:
+                  - data
+        401:
+          $ref: '#/components/responses/Http401'
+        403:
+          $ref: '#/components/responses/Http403'
+        404:
+          $ref: '#/components/responses/Http404'
+        419:
+          $ref: '#/components/responses/Http419'
+        422:
+          $ref: '#/components/responses/Http422'
+      x-access:
+        session: true
+        gate: manage-shop
+      parameters:
+        -
+          $ref: '#/components/parameters/Xsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockMovementInput'
+    parameters:
+      -
+        name: id
+        in: path
+        description: 'Identificador numérico (dígitos), limitado a PHP_INT_MAX. Zeros à esquerda aceitos; 0 normalmente não encontra registro.'
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 9223372036854775807
+          format: int64
+        required: true
+  /up:
+    get:
+      tags:
+        - Catálogo
+      summary: 'Verificação de saúde Laravel'
+      operationId: get_up
+      description: 'Pública. '
+      security: []
+      responses:
+        200:
+          description: 'Aplicação inicializada.'
+          content:
+            text/html:
+              schema:
+                type: string
+        500:
+          description: 'Falha na verificação de saúde.'
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: ''
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      description: ''
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    CartToken:
+      name: X-Cart-Token
+      in: header
+      description: 'Opcional: token retornado ao criar carrinho visitante. Exige também a mesma sessão; token inválido retorna 404. Login/cadastro com este header solicitam fusão mesmo sem merge_cart=true. Não é token de autenticação da API.'
+      schema:
+        type: string
+        pattern: '^[a-f0-9]{64}$'
+    Xsrf:
+      name: X-XSRF-TOKEN
+      in: header
+      description: 'Valor URL-decodificado do cookie XSRF-TOKEN emitido por GET /sanctum/csrf-cookie. A UI envia automaticamente; necessário em escritas com middleware web.'
+      schema:
+        type: string
+  responses:
+    Http401:
+      description: 'Sessão não autenticada (Unauthenticated.).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Http403:
+      description: 'Gate manage-shop negado: role diferente de ADMIN.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Http404:
+      description: 'Recurso inexistente, indisponível, fora do escopo permitido ou identificador inválido (somente dígitos, limitado a PHP_INT_MAX).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Http409:
+      description: 'Conflito com estado/histórico ou colisão de unicidade (A record with the provided unique values already exists.).'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Http419:
+      description: 'Token CSRF ausente/inválido (CSRF token mismatch.). Inicialize a sessão em /sanctum/csrf-cookie.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Http422:
+      description: 'Validação de entrada ou regra de negócio; errors mapeia campos (inclusive caminhos pontuados) para listas de mensagens.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            message: 'The provided credentials are invalid.'
+            errors:
+              email:
+                - 'The provided credentials are invalid.'
+    Http429:
+      description: 'Limite de tentativas excedido. Respeite Retry-After.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      headers:
+        Retry-After:
+          description: 'Segundos para tentar novamente.'
+          schema:
+            type: integer
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      additionalProperties: true
+      description: 'Em APP_DEBUG=true, Laravel também pode incluir exception, file, line e trace.'
+      required:
+        - message
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - message
+        - errors
+    Brand:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+      required:
+        - id
+        - name
+    AttributeDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - text
+            - integer
+            - number
+            - boolean
+        unit:
+          type: string
+          nullable: true
+        options:
+          type: array
+          items:
+            anyOf:
+              -
+                type: string
+              -
+                type: integer
+              -
+                type: number
+              -
+                type: boolean
+        required:
+          type: boolean
+        is_filterable:
+          type: boolean
+        minimum:
+          type: number
+        maximum:
+          type: number
+        exclusive_minimum:
+          type: number
+        exclusive_maximum:
+          type: number
+      additionalProperties: false
+      description: 'Tipos JSON estritos; text aceita até 1000 caracteres. options deve respeitar tipo e limites. Limites finitos somente em tipos numéricos e não podem formar intervalo vazio. is_filterable assume true no cálculo de filtros; required assume false. A chave reservada brand só aceita type=text e required=false; produtos usam brand_id.'
+      required:
+        - name
+        - type
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        attributes:
+          nullable: true
+          anyOf:
+            -
+              type: object
+              maxProperties: 100
+              additionalProperties:
+                $ref: '#/components/schemas/AttributeDefinition'
+              description: 'Mapa de chaves snake_case: ^[a-z][a-z0-9_]{0,59}$. Pode ser um array vazio [] quando não há definições.'
+              nullable: true
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+              nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - name
+        - description
+        - attributes
+        - is_active
+        - created_at
+        - updated_at
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        specifications:
+          nullable: true
+          anyOf:
+            -
+              type: object
+              maxProperties: 100
+              additionalProperties:
+                anyOf:
+                  -
+                    type: string
+                  -
+                    type: integer
+                  -
+                    type: number
+                  -
+                    type: boolean
+              nullable: true
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+              nullable: true
+          description: 'Valores conforme attributes da categoria: tipo JSON, options, limites e campos required. Chaves desconhecidas e brand são rejeitadas. Também aceita string JSON na entrada (útil em multipart).'
+        price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        stock:
+          type: integer
+          minimum: 0
+        image_url:
+          type: string
+          example: /storage/products/exemplo.webp
+          nullable: true
+        is_active:
+          type: boolean
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+          required:
+            - id
+            - name
+        brand:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+          required:
+            - id
+            - name
+          nullable: true
+      description: 'category e brand aparecem somente quando carregadas; catálogo carrega apenas brand, listas/detalhes e itens do carrinho carregam ambas. Sem cost ou timestamps públicos.'
+      required:
+        - id
+        - category_id
+        - brand_id
+        - name
+        - description
+        - specifications
+        - price
+        - stock
+        - image_url
+        - is_active
+    AdminProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        specifications:
+          nullable: true
+          anyOf:
+            -
+              type: object
+              maxProperties: 100
+              additionalProperties:
+                anyOf:
+                  -
+                    type: string
+                  -
+                    type: integer
+                  -
+                    type: number
+                  -
+                    type: boolean
+              nullable: true
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+              nullable: true
+          description: 'Valores conforme attributes da categoria: tipo JSON, options, limites e campos required. Chaves desconhecidas e brand são rejeitadas. Também aceita string JSON na entrada (útil em multipart).'
+        price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        stock:
+          type: integer
+          minimum: 0
+        image_url:
+          type: string
+          example: /storage/products/exemplo.webp
+          nullable: true
+        is_active:
+          type: boolean
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+          required:
+            - id
+            - name
+        brand:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+          required:
+            - id
+            - name
+          nullable: true
+        cost:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - category_id
+        - brand_id
+        - name
+        - description
+        - specifications
+        - price
+        - stock
+        - image_url
+        - is_active
+        - category
+        - brand
+        - cost
+        - created_at
+        - updated_at
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        role:
+          type: string
+          enum:
+            - CUSTOMER
+            - ADMIN
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - name
+        - email
+        - email_verified_at
+        - role
+        - created_at
+        - updated_at
+    Address:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        postal_code:
+          type: string
+          pattern: '^[0-9]{5}-?[0-9]{3}$'
+        street:
+          type: string
+          maxLength: 150
+        number:
+          type: string
+          maxLength: 20
+        complement:
+          type: string
+          maxLength: 100
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          enum:
+            - AC
+            - AL
+            - AP
+            - AM
+            - BA
+            - CE
+            - DF
+            - ES
+            - GO
+            - MA
+            - MT
+            - MS
+            - MG
+            - PA
+            - PB
+            - PR
+            - PE
+            - PI
+            - RJ
+            - RN
+            - RS
+            - RO
+            - RR
+            - SC
+            - SP
+            - SE
+            - TO
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - user_id
+        - postal_code
+        - street
+        - number
+        - complement
+        - city
+        - state
+        - created_at
+        - updated_at
+    ShippingAddress:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          format: int64
+        postal_code:
+          type: string
+          pattern: '^[0-9]{5}-?[0-9]{3}$'
+        street:
+          type: string
+          maxLength: 150
+        number:
+          type: string
+          maxLength: 20
+        complement:
+          type: string
+          maxLength: 100
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          enum:
+            - AC
+            - AL
+            - AP
+            - AM
+            - BA
+            - CE
+            - DF
+            - ES
+            - GO
+            - MA
+            - MT
+            - MS
+            - MG
+            - PA
+            - PB
+            - PR
+            - PE
+            - PI
+            - RJ
+            - RN
+            - RS
+            - RO
+            - RR
+            - SC
+            - SP
+            - SE
+            - TO
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - order_id
+        - postal_code
+        - street
+        - number
+        - complement
+        - city
+        - state
+        - created_at
+        - updated_at
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+        unit_price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        line_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        product:
+          $ref: '#/components/schemas/Product'
+      required:
+        - product_id
+        - quantity
+        - unit_price
+        - line_total
+        - product
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        items_count:
+          type: integer
+          description: 'Número de linhas de produtos disponíveis.'
+        items_quantity:
+          type: integer
+          description: 'Soma das unidades disponíveis.'
+        products_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        shipping_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        cart_token:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          description: 'Somente na criação do carrinho visitante. Não substitui o cookie da sessão.'
+      description: 'Preços atuais; produtos inativos, sem estoque ou de categoria inativa são omitidos. Frete 0.00 no carrinho vazio; nos demais usa SHOP_SHIPPING_TOTAL (padrão 30.00). Não reserva estoque.'
+      required:
+        - id
+        - user_id
+        - items
+        - items_count
+        - items_quantity
+        - products_total
+        - shipping_total
+        - total
+    CartAdjustment:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          format: int64
+        requested_quantity:
+          type: integer
+        quantity:
+          type: integer
+        reason:
+          type: string
+          enum:
+            - unavailable
+            - stock_limit
+        message:
+          type: string
+      required:
+        - product_id
+        - requested_quantity
+        - quantity
+        - reason
+        - message
+    CartMerge:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/Cart'
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartAdjustment'
+      required:
+        - cart
+        - adjustments
+    SessionUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        role:
+          type: string
+          enum:
+            - CUSTOMER
+            - ADMIN
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        cart_merge:
+          $ref: '#/components/schemas/CartMerge'
+      description: 'Resposta direta sem envelope data. cart_merge só aparece quando ocorre fusão do carrinho visitante.'
+      required:
+        - id
+        - name
+        - email
+        - email_verified_at
+        - role
+        - created_at
+        - updated_at
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+          nullable: true
+        category_id:
+          type: integer
+          format: int64
+          nullable: true
+        category_name_snapshot:
+          type: string
+        product_name_snapshot:
+          type: string
+        quantity:
+          type: integer
+        unit_price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        line_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - order_id
+        - product_id
+        - category_id
+        - category_name_snapshot
+        - product_name_snapshot
+        - quantity
+        - unit_price
+        - line_total
+        - created_at
+        - updated_at
+    AdminOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+          nullable: true
+        category_id:
+          type: integer
+          format: int64
+          nullable: true
+        category_name_snapshot:
+          type: string
+        product_name_snapshot:
+          type: string
+        quantity:
+          type: integer
+        unit_price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        line_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        unit_cost:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+          nullable: true
+      required:
+        - id
+        - order_id
+        - product_id
+        - category_id
+        - category_name_snapshot
+        - product_name_snapshot
+        - quantity
+        - unit_price
+        - line_total
+        - created_at
+        - updated_at
+        - unit_cost
+    OrderStatusHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        order_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+        changed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - order_id
+        - status
+        - changed_at
+        - created_at
+        - updated_at
+    OrderSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+        payment_method:
+          type: string
+          enum:
+            - PIX
+            - CREDIT_CARD
+            - BOLETO
+            - FAKE_PIX
+          nullable: true
+        products_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        shipping_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        items_count:
+          type: integer
+        items_quantity:
+          type: integer
+      description: 'Listagens não incluem items, shipping_address nem status_history.'
+      required:
+        - id
+        - user_id
+        - status
+        - payment_method
+        - products_total
+        - shipping_total
+        - total
+        - created_at
+        - updated_at
+        - items_count
+        - items_quantity
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+        payment_method:
+          type: string
+          enum:
+            - PIX
+            - CREDIT_CARD
+            - BOLETO
+            - FAKE_PIX
+          nullable: true
+        products_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        shipping_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        items_count:
+          type: integer
+        items_quantity:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        shipping_address:
+          type: object
+          properties:
+            order_id:
+              type: integer
+              format: int64
+            postal_code:
+              type: string
+              pattern: '^[0-9]{5}-?[0-9]{3}$'
+            street:
+              type: string
+              maxLength: 150
+            number:
+              type: string
+              maxLength: 20
+            complement:
+              type: string
+              maxLength: 100
+              nullable: true
+            city:
+              type: string
+              maxLength: 100
+            state:
+              type: string
+              enum:
+                - AC
+                - AL
+                - AP
+                - AM
+                - BA
+                - CE
+                - DF
+                - ES
+                - GO
+                - MA
+                - MT
+                - MS
+                - MG
+                - PA
+                - PB
+                - PR
+                - PE
+                - PI
+                - RJ
+                - RN
+                - RS
+                - RO
+                - RR
+                - SC
+                - SP
+                - SE
+                - TO
+            created_at:
+              type: string
+              format: date-time
+              nullable: true
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+          required:
+            - order_id
+            - postal_code
+            - street
+            - number
+            - complement
+            - city
+            - state
+            - created_at
+            - updated_at
+          nullable: true
+        status_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusHistory'
+      description: 'Detalhes incluem snapshots dos itens e endereço e histórico ordenado por changed_at/id. checkout_token não é serializado.'
+      required:
+        - id
+        - user_id
+        - status
+        - payment_method
+        - products_total
+        - shipping_total
+        - total
+        - created_at
+        - updated_at
+        - items_count
+        - items_quantity
+        - items
+        - shipping_address
+        - status_history
+    AdminOrderSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+        payment_method:
+          type: string
+          enum:
+            - PIX
+            - CREDIT_CARD
+            - BOLETO
+            - FAKE_PIX
+          nullable: true
+        products_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        shipping_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        items_count:
+          type: integer
+        items_quantity:
+          type: integer
+        allowed_statuses:
+          type: array
+          items:
+            type: string
+            enum:
+              - PENDING
+              - PAID
+              - SHIPPED
+              - DELIVERED
+              - CANCELLED
+      required:
+        - id
+        - user_id
+        - status
+        - payment_method
+        - products_total
+        - shipping_total
+        - total
+        - created_at
+        - updated_at
+        - items_count
+        - items_quantity
+        - allowed_statuses
+    AdminOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - SHIPPED
+            - DELIVERED
+            - CANCELLED
+        payment_method:
+          type: string
+          enum:
+            - PIX
+            - CREDIT_CARD
+            - BOLETO
+            - FAKE_PIX
+          nullable: true
+        products_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        shipping_total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        total:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        items_count:
+          type: integer
+        items_quantity:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminOrderItem'
+        shipping_address:
+          type: object
+          properties:
+            order_id:
+              type: integer
+              format: int64
+            postal_code:
+              type: string
+              pattern: '^[0-9]{5}-?[0-9]{3}$'
+            street:
+              type: string
+              maxLength: 150
+            number:
+              type: string
+              maxLength: 20
+            complement:
+              type: string
+              maxLength: 100
+              nullable: true
+            city:
+              type: string
+              maxLength: 100
+            state:
+              type: string
+              enum:
+                - AC
+                - AL
+                - AP
+                - AM
+                - BA
+                - CE
+                - DF
+                - ES
+                - GO
+                - MA
+                - MT
+                - MS
+                - MG
+                - PA
+                - PB
+                - PR
+                - PE
+                - PI
+                - RJ
+                - RN
+                - RS
+                - RO
+                - RR
+                - SC
+                - SP
+                - SE
+                - TO
+            created_at:
+              type: string
+              format: date-time
+              nullable: true
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+          required:
+            - order_id
+            - postal_code
+            - street
+            - number
+            - complement
+            - city
+            - state
+            - created_at
+            - updated_at
+          nullable: true
+        status_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusHistory'
+        allowed_statuses:
+          type: array
+          items:
+            type: string
+            enum:
+              - PENDING
+              - PAID
+              - SHIPPED
+              - DELIVERED
+              - CANCELLED
+      required:
+        - id
+        - user_id
+        - status
+        - payment_method
+        - products_total
+        - shipping_total
+        - total
+        - created_at
+        - updated_at
+        - items_count
+        - items_quantity
+        - items
+        - shipping_address
+        - status_history
+        - allowed_statuses
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        product_id:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+        type:
+          type: string
+          enum:
+            - INBOUND
+            - OUTBOUND
+            - ADJUSTMENT
+        reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - product_id
+        - quantity
+        - type
+        - reason
+        - created_at
+        - updated_at
+    Catalog:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+      required:
+        - categories
+        - products
+    CategoryFilters:
+      type: object
+      properties:
+        brands:
+          type: array
+          items:
+            $ref: '#/components/schemas/Brand'
+        attributes:
+          anyOf:
+            -
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                    enum:
+                      - text
+                      - integer
+                      - number
+                      - boolean
+                  unit:
+                    type: string
+                    nullable: true
+                  options:
+                    type: array
+                    items:
+                      anyOf:
+                        -
+                          type: string
+                        -
+                          type: integer
+                        -
+                          type: number
+                        -
+                          type: boolean
+                  required:
+                    type: boolean
+                  is_filterable:
+                    type: boolean
+                  minimum:
+                    type: number
+                  maximum:
+                    type: number
+                  exclusive_minimum:
+                    type: number
+                  exclusive_maximum:
+                    type: number
+                  values:
+                    type: array
+                    items:
+                      anyOf:
+                        -
+                          type: string
+                        -
+                          type: integer
+                        -
+                          type: number
+                        -
+                          type: boolean
+                additionalProperties: false
+                description: 'Tipos JSON estritos; text aceita até 1000 caracteres. options deve respeitar tipo e limites. Limites finitos somente em tipos numéricos e não podem formar intervalo vazio. is_filterable assume true no cálculo de filtros; required assume false. A chave reservada brand só aceita type=text e required=false; produtos usam brand_id.'
+                required:
+                  - name
+                  - type
+                  - values
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+        min_price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+          nullable: true
+        max_price:
+          type: string
+          pattern: '^\d+\.\d{2}$'
+          example: '199.90'
+          description: 'Decimal serializado como string com duas casas.'
+          nullable: true
+      description: 'Somente produtos ativos com estoque na categoria ativa. Exclui brand e atributos com is_filterable=false. Sem produtos, preços null; sem atributos, attributes=[].'
+      required:
+        - brands
+        - attributes
+        - min_price
+        - max_price
+    Pagination:
+      type: object
+      properties:
+        links:
+          type: object
+          properties:
+            first:
+              type: string
+              nullable: true
+            last:
+              type: string
+              nullable: true
+            prev:
+              type: string
+              nullable: true
+            next:
+              type: string
+              nullable: true
+          required:
+            - first
+            - last
+            - prev
+            - next
+        meta:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            from:
+              type: integer
+              nullable: true
+            last_page:
+              type: integer
+            links:
+              type: array
+              items:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    nullable: true
+                  label:
+                    type: string
+                  page:
+                    type: integer
+                    nullable: true
+                  active:
+                    type: boolean
+                required:
+                  - url
+                  - label
+                  - active
+            path:
+              type: string
+            per_page:
+              type: integer
+            to:
+              type: integer
+              nullable: true
+            total:
+              type: integer
+          required:
+            - current_page
+            - from
+            - last_page
+            - links
+            - path
+            - per_page
+            - to
+            - total
+      description: 'Paginação Laravel por página, incluindo data, links e meta. Links preservam a query string. page>=1; per_page de 1 a 100, padrão 20.'
+      required:
+        - links
+        - meta
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        password:
+          type: string
+        merge_cart:
+          type: boolean
+      required:
+        - email
+        - password
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        password:
+          type: string
+          minLength: 12
+          maxLength: 72
+          description: 'Mínimo 12 caracteres, maiúsculas, minúsculas, número e símbolo; máximo 72 caracteres E 72 bytes, sem byte nulo. Requer password_confirmation igual.'
+          example: SenhaForte!2026
+        password_confirmation:
+          type: string
+        merge_cart:
+          type: boolean
+      description: 'role é proibido. Email convertido para minúsculas; nome/email não vazios; email único. merge_cart ou X-Cart-Token solicitam fusão. Não autentica o novo usuário: faça login após cadastrar.'
+      required:
+        - name
+        - email
+        - password
+        - password_confirmation
+    ProfileInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+        email:
+          type: string
+          format: email
+          maxLength: 150
+        current_password:
+          type: string
+      description: 'Atualização parcial, tanto PUT quanto PATCH. role é proibido. Alterar email exige current_password correto, limpa email_verified_at e valida unicidade. Email convertido para minúsculas.'
+    PasswordInput:
+      type: object
+      properties:
+        current_password:
+          type: string
+        password:
+          type: string
+          minLength: 12
+          maxLength: 72
+          description: 'Mínimo 12 caracteres, maiúsculas, minúsculas, número e símbolo; máximo 72 caracteres E 72 bytes, sem byte nulo. Requer password_confirmation igual.'
+          example: SenhaForte!2026
+        password_confirmation:
+          type: string
+      required:
+        - current_password
+        - password
+        - password_confirmation
+    DeleteUserInput:
+      type: object
+      properties:
+        current_password:
+          type: string
+      required:
+        - current_password
+    AddressInput:
+      type: object
+      properties:
+        postal_code:
+          type: string
+          pattern: '^[0-9]{5}-?[0-9]{3}$'
+        street:
+          type: string
+          maxLength: 150
+        number:
+          type: string
+          maxLength: 20
+        complement:
+          type: string
+          maxLength: 100
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          enum:
+            - AC
+            - AL
+            - AP
+            - AM
+            - BA
+            - CE
+            - DF
+            - ES
+            - GO
+            - MA
+            - MT
+            - MS
+            - MG
+            - PA
+            - PB
+            - PR
+            - PE
+            - PI
+            - RJ
+            - RN
+            - RS
+            - RO
+            - RR
+            - SC
+            - SP
+            - SE
+            - TO
+      description: 'user_id é proibido. O proprietário é sempre o usuário da sessão.'
+      required:
+        - postal_code
+        - street
+        - number
+        - city
+        - state
+    AddressUpdateInput:
+      type: object
+      properties:
+        postal_code:
+          type: string
+          pattern: '^[0-9]{5}-?[0-9]{3}$'
+        street:
+          type: string
+          maxLength: 150
+        number:
+          type: string
+          maxLength: 20
+        complement:
+          type: string
+          maxLength: 100
+          nullable: true
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          enum:
+            - AC
+            - AL
+            - AP
+            - AM
+            - BA
+            - CE
+            - DF
+            - ES
+            - GO
+            - MA
+            - MT
+            - MS
+            - MG
+            - PA
+            - PB
+            - PR
+            - PE
+            - PI
+            - RJ
+            - RN
+            - RS
+            - RO
+            - RR
+            - SC
+            - SP
+            - SE
+            - TO
+      description: 'Atualização parcial, tanto PUT quanto PATCH. user_id é proibido.'
+    BrandInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      description: 'Nome único em brands.'
+      required:
+        - name
+    BrandUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      description: 'Nome opcional; se enviado, obrigatório e único (exceto o próprio registro).'
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 65535
+          description: 'Também limitada a 65535 bytes.'
+          nullable: true
+        attributes:
+          nullable: true
+          anyOf:
+            -
+              type: object
+              maxProperties: 100
+              additionalProperties:
+                $ref: '#/components/schemas/AttributeDefinition'
+              description: 'Mapa de chaves snake_case: ^[a-z][a-z0-9_]{0,59}$. Pode ser um array vazio [] quando não há definições.'
+              nullable: true
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+              nullable: true
+        is_active:
+          type: boolean
+      description: 'Nome único. attributes aceita mapa ou []; null equivale a nenhuma definição na validação.'
+      required:
+        - name
+    CategoryUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 65535
+          description: 'Também limitada a 65535 bytes.'
+          nullable: true
+        attributes:
+          nullable: true
+          anyOf:
+            -
+              type: object
+              maxProperties: 100
+              additionalProperties:
+                $ref: '#/components/schemas/AttributeDefinition'
+              description: 'Mapa de chaves snake_case: ^[a-z][a-z0-9_]{0,59}$. Pode ser um array vazio [] quando não há definições.'
+              nullable: true
+            -
+              type: array
+              items:
+                description: 'Nenhum item permitido (maxItems=0).'
+              maxItems: 0
+              nullable: true
+        is_active:
+          type: boolean
+      description: 'Atualização parcial; novo attributes deve validar todos os produtos já existentes. Desativar remove produtos da categoria dos carrinhos.'
+    ProductInput:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 65535
+          nullable: true
+        specifications:
+          anyOf:
+            -
+              nullable: true
+              anyOf:
+                -
+                  type: object
+                  maxProperties: 100
+                  additionalProperties:
+                    anyOf:
+                      -
+                        type: string
+                      -
+                        type: integer
+                      -
+                        type: number
+                      -
+                        type: boolean
+                  nullable: true
+                -
+                  type: array
+                  items:
+                    description: 'Nenhum item permitido (maxItems=0).'
+                  maxItems: 0
+                  nullable: true
+              description: 'Valores conforme attributes da categoria: tipo JSON, options, limites e campos required. Chaves desconhecidas e brand são rejeitadas. Também aceita string JSON na entrada (útil em multipart).'
+            -
+              type: string
+              description: 'JSON das especificações, decodificado antes da validação.'
+        price:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              example: '199.90'
+          description: 'Valor numérico de 0 a 99999999.99, com no máximo duas casas decimais.'
+        cost:
+          anyOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+              nullable: true
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              nullable: true
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+          default: 0
+          description: 'Validação de entrada aceita até 4294967295; movimentação inicial limita saldo a 2147483647.'
+        is_active:
+          type: boolean
+          default: true
+      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Ativar exige estoque >=1; sem estoque envie is_active=false. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
+      required:
+        - category_id
+        - name
+        - price
+    ProductUpdateInput:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 65535
+          nullable: true
+        specifications:
+          anyOf:
+            -
+              nullable: true
+              anyOf:
+                -
+                  type: object
+                  maxProperties: 100
+                  additionalProperties:
+                    anyOf:
+                      -
+                        type: string
+                      -
+                        type: integer
+                      -
+                        type: number
+                      -
+                        type: boolean
+                  nullable: true
+                -
+                  type: array
+                  items:
+                    description: 'Nenhum item permitido (maxItems=0).'
+                  maxItems: 0
+                  nullable: true
+              description: 'Valores conforme attributes da categoria: tipo JSON, options, limites e campos required. Chaves desconhecidas e brand são rejeitadas. Também aceita string JSON na entrada (útil em multipart).'
+            -
+              type: string
+              description: 'JSON das especificações, decodificado antes da validação.'
+        price:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              example: '199.90'
+          description: 'Valor numérico de 0 a 99999999.99, com no máximo duas casas decimais.'
+        cost:
+          anyOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+              nullable: true
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              nullable: true
+        is_active:
+          type: boolean
+          default: true
+      description: 'Atualização parcial por PUT/PATCH. stock, image_url e image_path são proibidos. Estoque muda somente por movimentações. Desativar remove dos carrinhos. specs existentes são revalidadas ao trocar categoria.'
+    ProductMultipartInput:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 65535
+          nullable: true
+        specifications:
+          type: string
+          description: 'JSON das especificações com valores de tipos corretos.'
+          example: '{}'
+        price:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              example: '199.90'
+          description: 'Valor numérico de 0 a 99999999.99, com no máximo duas casas decimais.'
+        cost:
+          anyOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+              nullable: true
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              nullable: true
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+          default: 0
+          description: 'Validação de entrada aceita até 4294967295; movimentação inicial limita saldo a 2147483647.'
+        is_active:
+          type: boolean
+          default: true
+        image:
+          type: string
+          format: binary
+          description: 'PNG, JPG, JPEG ou WebP; conteúdo e extensão validados; máximo 5120 KiB. Substitui imagem anterior. null não remove a imagem.'
+          nullable: true
+      description: 'Categoria e marca devem existir. image_url/image_path são proibidos. Ativar exige estoque >=1; sem estoque envie is_active=false. Estoque inicial positivo cria movimentação INBOUND. specifications obedece às definições da categoria.'
+      required:
+        - category_id
+        - name
+        - price
+    ProductUpdateMultipartInput:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          format: int64
+        brand_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 65535
+          nullable: true
+        specifications:
+          type: string
+          description: 'JSON das especificações com valores de tipos corretos.'
+          example: '{}'
+        price:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              example: '199.90'
+          description: 'Valor numérico de 0 a 99999999.99, com no máximo duas casas decimais.'
+        cost:
+          anyOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+              nullable: true
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              nullable: true
+        is_active:
+          type: boolean
+          default: true
+        image:
+          type: string
+          format: binary
+          description: 'PNG, JPG, JPEG ou WebP; conteúdo e extensão validados; máximo 5120 KiB. Substitui imagem anterior. null não remove a imagem.'
+          nullable: true
+      description: 'Atualização parcial por PUT/PATCH. stock, image_url e image_path são proibidos. Estoque muda somente por movimentações. Desativar remove dos carrinhos. specs existentes são revalidadas ao trocar categoria. A atualização também aceita POST multipart com _method=PUT ou PATCH à URL do produto (method spoofing do middleware web).'
+    CartItemInput:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+      required:
+        - product_id
+        - quantity
+    CartQuantityInput:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+      required:
+        - quantity
+    OrderInput:
+      type: object
+      properties:
+        address_id:
+          type: integer
+          format: int64
+        payment_method:
+          type: string
+          enum:
+            - PIX
+            - CREDIT_CARD
+            - BOLETO
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: integer
+                format: int64
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 10000
+            additionalProperties: false
+            required:
+              - product_id
+              - quantity
+          minItems: 1
+          maxItems: 100
+      description: 'Endereço do usuário. product_id distinto por item; produto e categoria ativos, estoque suficiente. user_id, status, products_total, shipping_total e total proibidos. Preço e frete calculados pelo servidor; total até 99999999.99.'
+      required:
+        - address_id
+        - payment_method
+        - items
+    CheckoutInput:
+      type: object
+      properties:
+        address_id:
+          type: integer
+          minimum: 1
+        payment_method:
+          type: string
+          enum:
+            - FAKE_PIX
+        checkout_token:
+          type: string
+          format: uuid
+        expected_total:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              maximum: 99999999.99
+              multipleOf: 0.01
+            -
+              type: string
+              pattern: '^\d{1,8}(\.\d{1,2})?$'
+              example: '199.90'
+          description: 'Valor numérico de 0 a 99999999.99, com no máximo duas casas decimais.'
+      description: 'Usa o carrinho autenticado: 1 a 100 produtos, 1 a 10000 unidades por produto. Proibidos items, user_id, status, products_total, shipping_total, total e card_number. expected_total deve ser igual ao total recalculado.'
+      required:
+        - address_id
+        - payment_method
+        - checkout_token
+        - expected_total
+    OrderStatusInput:
+      type: object
+      properties:
+        status:
+          type: string
+          description: 'PENDING, PAID, SHIPPED, DELIVERED ou CANCELLED. Outros valores string passam pelo FormRequest, mas o serviço retorna 409.'
+      required:
+        - status
+    StockMovementInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - INBOUND
+            - OUTBOUND
+            - ADJUSTMENT
+        quantity:
+          type: integer
+          minimum: -2147483647
+          maximum: 2147483647
+          description: 'Não zero. INBOUND/OUTBOUND exigem positivo; ADJUSTMENT aceita diferença positiva ou negativa (não o saldo final).'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 150
+      required:
+        - type
+        - quantity
+        - reason
