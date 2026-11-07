@@ -3,14 +3,13 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
-use Illuminate\Database\Seeder;
 
-class CatalogSeeder extends Seeder
+class CatalogSeeder extends DemoSeeder
 {
     /**
      * Run the database seeds.
      */
-    public function run(): void
+    protected function seedDemoData(): void
     {
         $categories = [
             'notebooks' => 'Notebooks',

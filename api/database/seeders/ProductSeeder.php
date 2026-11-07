@@ -5,12 +5,11 @@ namespace Database\Seeders;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class ProductSeeder extends Seeder
+class ProductSeeder extends DemoSeeder
 {
-    public function run(): void
+    protected function seedDemoData(): void
     {
         DB::transaction(function (): void {
             $this->call(CatalogSeeder::class);

@@ -3,11 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Seeder;
 
-class UserSeeder extends Seeder
+class UserSeeder extends DemoSeeder
 {
-    public function run(): void
+    protected function seedDemoData(): void
     {
         foreach (self::USERS as $data) {
             $user = User::firstOrNew(['email' => $data['email']]);
