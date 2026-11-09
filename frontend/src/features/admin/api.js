@@ -1,4 +1,36 @@
-import { apiRequest, ApiError } from '../../shared/api/http.js';
+import { apiRequest, resourceData } from '../../shared/api/http.js';
+import { ApiError } from '../../shared/api/errors.js';
+
+function recordPath(resource, id = null) {
+  if (!['products', 'categories', 'brands', 'orders'].includes(resource)) {
+    throw new TypeError('Recurso administrativo inválido.');
+  }
+  return `/api/admin/${resource}${id == null ? '' : `/${encodeURIComponent(id)}`}`;
+}
+
+export async function getAdminUser() {
+  return resourceData(await apiRequest('/api/user'));
+}
+
+export async function getAdminRecord(resource, id) {
+  return resourceData(await apiRequest(recordPath(resource, id)));
+}
+
+export function loadStockMovements(id) {
+  return allRecords(`${recordPath('products', id)}/stock-movements`);
+}
+
+export function saveAdminRecord({ kind, resource, record }, payload) {
+  const path = recordPath(resource, record?.id);
+  return apiRequest(kind === 'stock' ? `${path}/stock-movements` : path, {
+    method: kind === 'stock' || !record ? 'POST' : 'PATCH',
+    data: payload,
+  });
+}
+
+export function deleteAdminRecord(resource, id) {
+  return apiRequest(recordPath(resource, id), { method: 'DELETE' });
+}
 
 export async function allRecords(path) {
   const records = [];

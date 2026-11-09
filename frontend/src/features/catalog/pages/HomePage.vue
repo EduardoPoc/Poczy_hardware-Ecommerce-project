@@ -7,7 +7,7 @@ import StoreFooter from '../../../layouts/StoreFooter.vue';
 import RequestState from '../../../shared/components/RequestState.vue';
 import { listCategories, listProducts } from '../api.js';
 
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage } from '../../../shared/api/errors.js';
 import { categoryUrl, productUrl } from '../domain.js';
 import { money } from '../../../shared/lib/money.js';
 

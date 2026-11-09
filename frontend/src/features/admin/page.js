@@ -1,5 +1,13 @@
-import { apiRequest, ApiError } from '../../shared/api/http.js';
-import { allRecords, loadAdminData } from './api.js';
+import { isSessionFailure, isUncertainFailure } from '../../shared/api/errors.js';
+import { logout } from '../auth/api.js';
+import {
+  loadAdminData,
+  getAdminUser,
+  getAdminRecord,
+  loadStockMovements,
+  saveAdminRecord,
+  deleteAdminRecord,
+} from './api.js';
 import { escapeHtml } from '../../shared/lib/html.js';
 import { allowedOrderTransitions, orderStatuses as statusLabels } from '../orders/domain.js';
 import { sections, overview, listing, listingResults } from './views.js';
@@ -61,7 +69,7 @@ function showGate(title, copy) {
 }
 
 function accessFailure(error) {
-  if (error.status === 401 || error.status === 419) {
+  if (isSessionFailure(error)) {
     showGate(
       'Entre para continuar',
       'Sua sessão não está ativa. Acesse com uma conta administradora para gerenciar a loja.',
@@ -108,8 +116,6 @@ function renderSection({ focus = false, reset = false } = {}) {
   document.getElementById('admin-title').textContent = meta.title;
   document.getElementById('admin-location').textContent = meta.title;
   document.getElementById('admin-description').textContent = meta.description;
-  document.getElementById('admin-live-notice').hidden =
-    demo || !['products', 'categories', 'brands', 'stock'].includes(section);
   document.title = `${meta.title} — Administração Poczy`;
   document.querySelectorAll('[data-section]').forEach((link) => {
     if (link.dataset.section === section) link.setAttribute('aria-current', 'page');
@@ -201,8 +207,7 @@ async function authorizeAdmin() {
     demoModule = await import('./demo/data.js');
     user = { name: 'Prévia da loja', role: 'DEMO' };
   } else {
-    const response = await apiRequest('/api/user');
-    user = response?.data ?? response;
+    user = await getAdminUser();
     if (user?.role !== 'ADMIN') {
       showGate(
         'Acesso restrito',
@@ -311,15 +316,13 @@ async function loadEditorRecord(kind, resource, id) {
   if (id === null) return { record: null, movements: [] };
   const local = data[resource].find((entry) => String(entry.id) === String(id));
   if (!local) throw new Error('Registro não encontrado. Atualize os dados.');
-  const record = demo
-    ? local
-    : (await apiRequest(`/api/admin/${resource}/${encodeURIComponent(id)}`)).data;
+  const record = demo ? local : await getAdminRecord(resource, id);
   if (!record) throw new Error('Não foi possível confirmar os dados do registro.');
   const movements =
     kind === 'history'
       ? demo
         ? demoModule.demoMovements(record.id)
-        : await allRecords(`/api/admin/products/${encodeURIComponent(id)}/stock-movements`)
+        : await loadStockMovements(id)
       : [];
   return { record, movements };
 }
@@ -385,11 +388,10 @@ async function submitEditor(event) {
   }
   document.getElementById('admin-form-error').hidden = true;
   const { kind } = activeEditor;
-  const { path, method } = editorRequest(activeEditor);
   setSaving(true);
   let success = false;
   try {
-    await apiRequest(path, { method, data: payload });
+    await saveAdminRecord(activeEditor, payload);
     success = true;
     editor.close();
     const refreshed = await reloadData();
@@ -409,18 +411,9 @@ async function submitEditor(event) {
   }
 }
 
-function editorRequest({ kind, resource, record }) {
-  const path =
-    kind === 'stock'
-      ? `/api/admin/products/${record.id}/stock-movements`
-      : `/api/admin/${resource}${record ? `/${record.id}` : ''}`;
-  const method = kind === 'stock' || !record ? 'POST' : 'PATCH';
-  return { path, method };
-}
-
 function handleEditorError(error) {
   if (!accessFailure(error)) {
-    if (error instanceof ApiError && error.status === 0) {
+    if (isUncertainFailure(error)) {
       uncertain = true;
       formError(
         new Error(
@@ -449,7 +442,7 @@ async function submitDelete(event) {
   document.getElementById('admin-confirm-cancel').disabled = true;
   const { resource, record } = activeEditor;
   try {
-    await apiRequest(`/api/admin/${resource}/${record.id}`, { method: 'DELETE' });
+    await deleteAdminRecord(resource, record.id);
     confirmDialog.close();
     editor.close();
     const refreshed = await reloadData();
@@ -458,7 +451,7 @@ async function submitDelete(event) {
   } catch (error) {
     if (!accessFailure(error)) {
       const message = document.getElementById('admin-confirm-error');
-      if (error instanceof ApiError && error.status === 0) uncertain = true;
+      if (isUncertainFailure(error)) uncertain = true;
       message.textContent = uncertain
         ? 'Não foi possível confirmar a exclusão. Feche esta janela e atualize os dados antes de tentar novamente.'
         : error.message;
@@ -573,7 +566,7 @@ document.getElementById('admin-logout').addEventListener('click', async (event) 
   const button = event.currentTarget;
   button.disabled = true;
   try {
-    await apiRequest('/api/logout', { method: 'POST', data: {} });
+    await logout();
     location.replace('/login');
   } catch (error) {
     if (!accessFailure(error)) announce(error.message, true);

@@ -1,4 +1,5 @@
-import { apiRequest, ApiError, resourceData } from '../../shared/api/http.js';
+import { apiRequest, resourceData } from '../../shared/api/http.js';
+import { ApiError } from '../../shared/api/errors.js';
 import { productQuery } from './domain.js';
 
 export async function listProducts(criteria = {}, { signal } = {}) {

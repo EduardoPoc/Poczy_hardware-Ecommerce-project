@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { ApiError } from '../src/shared/api/errors.js';
 
 let sequence = 0;
 const freshClient = () => import(`../src/shared/api/http.js?test=${sequence++}`);
@@ -93,7 +94,7 @@ test('JSON inválido e resposta vazia não são tratados como sucesso', async (c
     context.mock.method(globalThis, 'fetch', async (path) =>
       path === '/sanctum/csrf-cookie' ? new Response(null, { status: 204 }) : response,
     );
-    const { apiRequest, ApiError } = await freshClient();
+    const { apiRequest } = await freshClient();
     await assert.rejects(apiRequest('/api/products'), ApiError);
   }
 });

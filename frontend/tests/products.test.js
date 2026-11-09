@@ -8,7 +8,7 @@ import {
   productSpecifications,
 } from '../src/features/catalog/domain.js';
 import { listProducts, getProduct } from '../src/features/catalog/api.js';
-import { ApiError } from '../src/shared/api/http.js';
+import { ApiError } from '../src/shared/api/errors.js';
 
 test('os filtros enviados ao backend preservam false, zero e números', () => {
   const query = new URLSearchParams(

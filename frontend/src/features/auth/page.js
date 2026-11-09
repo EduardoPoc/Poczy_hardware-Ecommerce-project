@@ -1,5 +1,5 @@
-import { ApiError } from '../../shared/api/http.js';
-import { currentUser, submitSession } from './api.js';
+import { ApiError } from '../../shared/api/errors.js';
+import { currentUser, login, register, logout } from './api.js';
 import { accountDestination } from './domain.js';
 
 const next = accountDestination(new URLSearchParams(location.search).get('next'), '');
@@ -185,7 +185,7 @@ async function submitForm(event) {
     const values = Object.fromEntries(fields.map((input) => [input.name, input.value]));
     values.email = values.email.toLowerCase();
     values.merge_cart = true;
-    const response = await submitSession(isRegister ? '/api/user' : '/api/login', values);
+    const response = await (isRegister ? register(values) : login(values));
     const user = response?.data ?? response;
     if (typeof user?.name !== 'string')
       throw new ApiError('Não foi possível confirmar seu acesso. Tente novamente.', 0);
@@ -220,7 +220,7 @@ logoutButton.addEventListener('click', async () => {
   logoutButton.disabled = true;
   logoutButton.textContent = 'Saindo…';
   try {
-    await submitSession('/api/logout', {});
+    await logout();
     window.location.replace('/login');
   } catch (error) {
     message.textContent = error.message;

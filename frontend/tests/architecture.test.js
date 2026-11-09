@@ -73,3 +73,10 @@ test('domain modules contain no DOM, Vue state or HTTP calls', () => {
     assert.doesNotMatch(source, /from\s+['"]vue['"]/, relative(root, file));
   }
 });
+
+test('network calls are restricted to feature APIs and the shared HTTP transport', () => {
+  for (const [file, { source }] of applicationGraph()) {
+    if (file.endsWith('/api.js') || file.endsWith('/shared/api/http.js')) continue;
+    assert.doesNotMatch(source, /\b(?:fetch|apiRequest)\s*\(/, relative(root, file));
+  }
+});

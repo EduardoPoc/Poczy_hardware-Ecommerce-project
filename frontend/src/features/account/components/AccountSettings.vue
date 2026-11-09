@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, reactive, ref, useId, watch } from 'vue';
 import { changePassword, updateProfile } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage, isSessionFailure } from '../../../shared/api/errors.js';
 import { profilePayload } from '../domain.js';
 
 const props = defineProps({ user: { type: Object, required: true } });
@@ -59,7 +59,7 @@ watch(
 );
 
 function handleFailure(failure, errors, message) {
-  if ([401, 419].includes(failure.status)) {
+  if (isSessionFailure(failure)) {
     emit('unauthorized');
     return;
   }

@@ -1,4 +1,5 @@
-import { apiRequest, ApiError, resourceData } from '../../shared/api/http.js';
+import { apiRequest, resourceData } from '../../shared/api/http.js';
+import { ApiError } from '../../shared/api/errors.js';
 
 export async function listOrders(page = 1) {
   const response = await apiRequest(`/api/orders?page=${page}&per_page=10`);

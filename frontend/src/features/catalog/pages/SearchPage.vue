@@ -6,7 +6,7 @@ import ProductFilters from '../components/ProductFilters.vue';
 import ProductPagination from '../components/ProductPagination.vue';
 import RequestState from '../../../shared/components/RequestState.vue';
 import { listCategories, listBrands, getCategoryFilters } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage } from '../../../shared/api/errors.js';
 import { productSortOptions } from '../domain.js';
 import { useProductSearch } from '../composables/useProductSearch.js';
 

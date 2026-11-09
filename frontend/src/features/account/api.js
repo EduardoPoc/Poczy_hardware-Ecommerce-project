@@ -1,4 +1,5 @@
-import { apiRequest, ApiError, resourceData } from '../../shared/api/http.js';
+import { apiRequest, resourceData } from '../../shared/api/http.js';
+import { ApiError } from '../../shared/api/errors.js';
 
 export async function getProfile() {
   const user = resourceData(await apiRequest('/api/user'));

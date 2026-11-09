@@ -7,7 +7,7 @@ import OrderDetails from '../../orders/components/OrderDetails.vue';
 import RequestState from '../../../shared/components/RequestState.vue';
 import { getOrder, listOrders } from '../../orders/api.js';
 import { getProfile, listAddresses } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage, isSessionFailure } from '../../../shared/api/errors.js';
 import { formatDate as dateLabel } from '../../../shared/lib/dates.js';
 import { orderStatuses, paymentLabel } from '../../orders/domain.js';
 import { money } from '../../../shared/lib/money.js';
@@ -31,7 +31,7 @@ const titles = { overview: 'Visão geral', addresses: 'Meus endereços', orders:
 const title = computed(() => titles[section.value]);
 
 function unauthorized(failure) {
-  if (!failure || [401, 419].includes(failure.status)) {
+  if (!failure || isSessionFailure(failure)) {
     location.replace('/login?next=/conta');
     return true;
   }

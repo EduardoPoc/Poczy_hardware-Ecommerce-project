@@ -8,7 +8,7 @@ import RequestState from '../../../shared/components/RequestState.vue';
 import { completeCheckout } from '../api.js';
 import { getOrder } from '../../orders/api.js';
 import { getProfile } from '../../account/api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage, isSessionFailure } from '../../../shared/api/errors.js';
 import { money } from '../../../shared/lib/money.js';
 import { useCart } from '../../cart/store.js';
 
@@ -83,7 +83,7 @@ async function load() {
     }
     await cart.load({ force: true });
   } catch (failure) {
-    if ([401, 419].includes(failure.status)) login();
+    if (isSessionFailure(failure)) login();
     else error.value = errorMessage(failure);
   } finally {
     loading.value = false;
@@ -109,7 +109,7 @@ async function placeOrder() {
     await cart.load({ force: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (failure) {
-    if ([401, 419].includes(failure.status)) {
+    if (isSessionFailure(failure)) {
       login();
       return;
     }

@@ -1,6 +1,6 @@
 import { computed, reactive, readonly } from 'vue';
 import * as api from './api.js';
-import { ApiError, errorMessage } from '../../shared/api/http.js';
+import { ApiError, errorMessage, isUncertainFailure } from '../../shared/api/errors.js';
 import { rememberGuestCartToken } from '../../shared/session/guest-cart.js';
 
 const state = reactive({ cart: null, loading: false, saving: false, error: '', uncertain: false });
@@ -49,7 +49,7 @@ async function changeCart(operation) {
     acceptCart(await operation());
     return true;
   } catch (error) {
-    state.uncertain = error.status === 0 || !error.status;
+    state.uncertain = isUncertainFailure(error);
     state.error = state.uncertain
       ? 'Não foi possível confirmar a alteração. Atualize o carrinho antes de tentar novamente.'
       : errorMessage(error);

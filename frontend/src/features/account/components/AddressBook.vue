@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { deleteAddress, listAddresses, saveAddress } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage, isSessionFailure } from '../../../shared/api/errors.js';
 import AddressForm from './AddressForm.vue';
 import RequestState from '../../../shared/components/RequestState.vue';
 
@@ -22,7 +22,7 @@ const current = ref(null);
 const deleting = ref(null);
 
 function failure(errorValue) {
-  if ([401, 419].includes(errorValue.status)) emit('unauthorized');
+  if (isSessionFailure(errorValue)) emit('unauthorized');
   error.value = errorMessage(errorValue);
 }
 

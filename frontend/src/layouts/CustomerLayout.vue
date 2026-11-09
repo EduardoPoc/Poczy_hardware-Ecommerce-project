@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { apiRequest, errorMessage } from '../shared/api/http.js';
+import { logout as logoutSession } from '../features/auth/api.js';
+import { errorMessage } from '../shared/api/errors.js';
 import logo from '../assets/brand/logo1.svg';
 
 const props = defineProps({
@@ -31,7 +32,7 @@ async function logout() {
   loggingOut.value = true;
   error.value = '';
   try {
-    await apiRequest('/api/logout', { method: 'POST', data: {} });
+    await logoutSession();
     location.replace('/login');
   } catch (failure) {
     error.value = errorMessage(failure);

@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { cancelOrder, getOrder, payOrder } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage, isSessionFailure, isUncertainFailure } from '../../../shared/api/errors.js';
 
 const props = defineProps({ order: { type: Object, required: true } });
 const emit = defineEmits(['updated', 'unauthorized']);
@@ -11,7 +11,7 @@ const error = ref('');
 const uncertain = ref(false);
 
 function showFailure(failure) {
-  if ([401, 419].includes(failure.status)) emit('unauthorized');
+  if (isSessionFailure(failure)) emit('unauthorized');
   else error.value = errorMessage(failure);
 }
 
@@ -36,9 +36,8 @@ async function perform(action) {
     emit('updated', await action(props.order.id));
     confirmingCancellation.value = false;
   } catch (failure) {
-    uncertain.value = failure.status === 0 || failure.status >= 500;
+    uncertain.value = isUncertainFailure(failure) || failure.status === 409;
     showFailure(failure);
-    if (failure.status === 409) uncertain.value = true;
   } finally {
     saving.value = false;
   }

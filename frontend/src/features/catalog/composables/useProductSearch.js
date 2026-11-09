@@ -1,6 +1,6 @@
 import { onScopeDispose, reactive, ref, watch } from 'vue';
 import { listProducts } from '../api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage } from '../../../shared/api/errors.js';
 
 const SEARCH_DEBOUNCE_MS = 200;
 

@@ -7,7 +7,7 @@ import ProductCard from '../../catalog/components/ProductCard.vue';
 import RequestState from '../../../shared/components/RequestState.vue';
 import { useCart } from '../store.js';
 import { listProducts } from '../../catalog/api.js';
-import { errorMessage } from '../../../shared/api/http.js';
+import { errorMessage } from '../../../shared/api/errors.js';
 import { money } from '../../../shared/lib/money.js';
 import { productUrl } from '../../catalog/domain.js';
 import { SHIPPING_TOTAL } from '../../../shared/config/shop.js';

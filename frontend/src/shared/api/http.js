@@ -1,28 +1,14 @@
 import { translateApiMessage, translateValidationErrors } from './messages.js';
 import { guestCartToken } from '../session/guest-cart.js';
+import { ApiError } from './errors.js';
 
 const apiOrigin = (import.meta.env?.VITE_API_URL ?? '').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = 12000;
 let csrfReady = false;
 let csrfPromise;
 
-export class ApiError extends Error {
-  constructor(message, status = 0, errors = {}) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.errors = errors;
-  }
-}
-
 export function resourceData(response) {
   return response?.data ?? response;
-}
-
-export function errorMessage(error) {
-  return error instanceof ApiError
-    ? error.message
-    : 'Não foi possível carregar os dados da loja. Tente novamente.';
 }
 
 async function request(path, options = {}) {

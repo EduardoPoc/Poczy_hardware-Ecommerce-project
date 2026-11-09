@@ -30,3 +30,15 @@ export async function submitSession(path, values) {
   }
   return response;
 }
+
+export function login(values) {
+  return submitSession('/api/login', values);
+}
+
+export function register(values) {
+  return submitSession('/api/user', values);
+}
+
+export function logout() {
+  return submitSession('/api/logout', {});
+}
