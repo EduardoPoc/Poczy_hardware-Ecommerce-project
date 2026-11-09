@@ -61,6 +61,8 @@ Os testes do frontend cobrem critérios de busca, requisições HTTP, sessão e 
 
 A build gera `frontend/dist/` para hospedagem estática. Em produção, encaminhe `/api`, `/sanctum` e `/storage` para o backend, ou configure uma origem de API autorizada antes da build.
 
+No Docker, o `CMD` de `Dockerfile.dev` executa `npm ci` e inicia o Vite com a atualização automática usada em `compose.yaml`. `Dockerfile` faz a build em uma etapa Node e copia o resultado para uma imagem Nginx, sem executar Node em produção. O `compose.prod.yaml` da raiz inclui esse frontend e o proxy da API na mesma origem; a configuração `nginx.conf` resolve as páginas sem extensão e os redirecionamentos abaixo.
+
 O servidor da hospedagem precisa resolver os caminhos sem extensão para os arquivos HTML correspondentes. Em um Nginx que serve a pasta `dist`, configure as regras abaixo, mantendo o encaminhamento das rotas da API em seus próprios blocos:
 
 ```nginx
@@ -81,6 +83,6 @@ location / {
 
 ## Imagem de produção
 
-O único Dockerfile tem os alvos `development`, `build` e `production`. O Compose de desenvolvimento seleciona `development`; o Compose de produção seleciona `production`, executa os testes e o build, e serve o resultado por Nginx. As páginas sem extensão, a página 404 e o proxy de `/api`, `/sanctum` e `/storage` já estão configurados em `nginx.conf`.
+O Compose de desenvolvimento usa `Dockerfile.dev`; o Compose de produção seleciona o alvo `production` de `Dockerfile`, executa os testes e o build, e serve o resultado por Nginx. As páginas sem extensão, os redirecionamentos de `.html` e a página 404 estão configurados em `nginx.conf`. O serviço `proxy` publica a loja e encaminha `/api`, `/sanctum` e `/storage` para o backend.
 
 Por padrão, a API usa a mesma origem da loja. `VITE_API_URL` é um argumento de build para instalações que precisam de outra origem; os cookies e CORS do backend devem acompanhar essa escolha. O procedimento completo está no README da API.

@@ -12,7 +12,32 @@ docker compose exec api php artisan migrate --no-interaction
 docker compose exec api php artisan db:seed --no-interaction
 ```
 
-O proxy publica a loja em `http://localhost`, encaminhando `/api`, `/sanctum`, `/storage` e `/up`. O frontend seleciona o alvo `development` do seu único Dockerfile. Migrations e seeders são operações explícitas; subir os containers não recria dados.
+- API: `http://localhost/api/products`.
+- Saúde: `http://localhost/up`.
+- Frontend: `http://localhost`.
+- MySQL local: `127.0.0.1:3306`.
+
+O serviço Nginx `proxy` publica a porta 80 e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. A porta 8000 fica acessível apenas na rede Docker.
+
+O serviço `api` usa `Dockerfile.dev`, monta o código e mantém as dependências em um volume próprio. O `CMD` do Dockerfile instala dependências, limpa o cache de configuração e cria `.env` e `APP_KEY` quando ausentes antes de iniciar o servidor. O healthcheck HTTP usa o próprio PHP. O frontend usa `frontend/Dockerfile.dev`, com Vite e dependências em volume, e o proxy aguarda ambos responderem aos healthchecks. `LOCAL_UID` e `LOCAL_GID` são aplicados aos dois serviços. As migrations e seeders são comandos explícitos. O servidor usa `--no-reload` para preservar as variáveis MySQL fornecidas pelo Compose no processo HTTP. Após alterar variáveis do Compose, execute `docker compose up -d --wait` para recriar os containers com os novos valores; mudanças nos arquivos PHP continuam disponíveis nas requisições.
+
+Dentro do Compose, `DB_HOST=mysql`. As credenciais vêm das variáveis `MYSQL_*` do `.env` da raiz. O healthcheck do MySQL executa `SELECT 1` com o usuário e banco da aplicação. `APP_URL`, também na raiz, tem padrão `http://localhost`, correspondente ao proxy e às URLs públicas de imagens; cookies seguros ficam desativados no desenvolvimento HTTP. O MySQL mantém seus dados no volume `mysql_data`; alterar as variáveis não altera usuários de um volume já inicializado.
+
+## Executar localmente
+
+Com PHP 8.5, Composer, `pdo_mysql` e as demais extensões instaladas, inicie apenas o banco pelo Compose:
+
+```sh
+docker compose up -d mysql
+cd api
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve
+```
+
+Se `api/.env` já existir, ajuste as variáveis de banco em vez de sobrescrever o arquivo. Fora do container, use `DB_HOST=127.0.0.1`, porta 3306 e as mesmas credenciais do banco de desenvolvimento. Depois de alterar variáveis, execute `php artisan config:clear`.
 
 ## Testes com MySQL isolado
 
@@ -24,6 +49,8 @@ docker compose -f compose.test.yaml down
 O banco e usuário são `ecommerce_test`, em MySQL 8.4 temporário, sem porta publicada. `Tests\TestCase` verifica ambiente, driver, banco, usuário e ausência de cache de configuração antes de testes que usam `RefreshDatabase`. A suíte nunca deve usar um banco com dados a preservar.
 
 Testes sem banco podem ser executados diretamente com `php artisan test --compact <arquivo>`. Os cenários de persistência, estoque, snapshots, autorização Bearer, seeders e transações dependem da suíte MySQL. O workflow do GitHub também testa as imagens e páginas de produção.
+
+O arquivo de testes é independente do Compose de desenvolvimento. Ele cria `mysql_test` sem publicar portas e com armazenamento temporário. A imagem `Dockerfile.dev` contém as dependências de teste e o autoload preparados durante o build. O Compose substitui o `CMD` padrão por um comando que cria `.env` a partir do exemplo quando ausente, limpa o cache de configuração e executa `php artisan test --compact`; a `APP_KEY` vem do ambiente de testes.
 
 ## Autenticação
 
@@ -51,19 +78,25 @@ O fluxo é `PENDING → PAID → SHIPPED → DELIVERED`; apenas PENDING admite C
 
 Prepare `.env.production` a partir de `.env.production.example`. Use uma `APP_KEY` própria e persistente, credenciais de banco próprias e a URL HTTPS real da loja em `APP_URL` e `CORS_ALLOWED_ORIGINS`. `VITE_API_URL` e `SESSION_DOMAIN` ficam vazios para a implantação padrão na mesma origem.
 
+`compose.prod.yaml` contém quatro serviços: `mysql`, `api`, `frontend` e `proxy`. `Dockerfile` tem os alvos `production` (PHP-FPM, serviço `api`) e `web` (Nginx, serviço `proxy`). A imagem PHP final contém o código e dependências de produção instaladas durante o build; não contém Composer ou a suíte de testes. `frontend/Dockerfile` compila a loja com Vite e entrega somente a build para uma imagem Nginx na porta interna 80. O código não é montado da máquina host.
+
+Gere a chave antes do deploy, por exemplo com `php artisan key:generate --show` em um ambiente de desenvolvimento. Nunca publique o arquivo de ambiente.
+
 ```sh
 docker compose --env-file .env.production -f compose.prod.yaml build
 docker compose --env-file .env.production -f compose.prod.yaml up -d mysql --wait
 docker compose --env-file .env.production -f compose.prod.yaml run --rm api php artisan migrate --force --no-interaction
-docker compose --env-file .env.production -f compose.prod.yaml up -d --wait
+docker compose --env-file .env.production -f compose.prod.yaml up -d --wait --remove-orphans
 docker compose --env-file .env.production -f compose.prod.yaml exec api php artisan app:create-admin
 ```
 
 O último comando solicita a senha em prompts ocultos, valida sua força e cria uma conta administrativa nova. Seeders de demonstração são bloqueados em produção. Cadastre o catálogo pelo painel após criar o administrador.
 
-O frontend é compilado e servido por Nginx; não usa o servidor Vite em produção. Somente ele publica `127.0.0.1:8080` por padrão. API, banco e Nginx interno permanecem na rede Docker. Configure um proxy HTTPS do servidor na frente desse endereço, sobrescrevendo `Host`, `X-Forwarded-Proto` e `X-Forwarded-For` com os dados da conexão real. `SESSION_SECURE_COOKIE=true` pressupõe HTTPS no navegador. Restrinja `TRUSTED_PROXIES` às redes dos proxies usados.
+O `CMD` de produção exige `APP_KEY`, gera os caches de configuração e rotas com as variáveis do ambiente e inicia o PHP-FPM. Não instala dependências, não gera outra chave e não executa migrations ou seeders automaticamente. Comandos explícitos em `docker compose run`, como a migration acima, substituem esse `CMD` e executam diretamente com o código e as dependências já presentes na imagem e as variáveis fornecidas pelo Compose.
 
-Migrations não são executadas automaticamente ao iniciar. O entrypoint exige `APP_KEY`, gera caches de configuração e rotas e inicia PHP-FPM. Banco e `storage` têm volumes persistentes; o Nginx da API lê os uploads pelo mesmo volume. `APP_DEBUG=false`, logs em stderr e configurações PHP de produção são definidos na imagem/Compose.
+O serviço `proxy` publica HTTP em `127.0.0.1:8080` por padrão. Encaminha `/api`, `/sanctum` e `/up` ao PHP-FPM, serve `/api/docs` e `/storage` e encaminha as páginas para o frontend. Os caminhos sem extensão e redirecionamentos de `.html` são resolvidos pelo Nginx do frontend. Use um proxy HTTPS do servidor na frente desse endereço, sobrescrevendo `Host`, `X-Forwarded-Proto` e `X-Forwarded-For` com os dados da conexão real. `SESSION_SECURE_COOKIE=true` pressupõe acesso HTTPS no navegador. Restrinja `TRUSTED_PROXIES` às redes dos proxies usados. `HTTP_BIND` e `HTTP_PORT` permitem ajustar a publicação. O MySQL não publica porta no host. Banco e `storage` usam volumes persistentes. O healthcheck da API verifica a porta PHP-FPM, e o do proxy verifica `/up` passando pelo Laravel.
+
+O Nginx da API lê os uploads pelo mesmo volume persistente usado pelo PHP-FPM. `APP_DEBUG=false`, logs em stderr e configurações PHP de produção são definidos na imagem/Compose.
 
 Para instalações com subdomínios, configure `SESSION_DOMAIN=.seu-dominio`, origens CORS e domínios stateful do Sanctum, além da URL de API no build. A mesma origem é o caminho padrão configurado e testado pelo CI.
 

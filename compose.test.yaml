@@ -36,4 +36,10 @@ services:
     depends_on:
       mysql_test:
         condition: service_healthy
-    command: ["php", "artisan", "test", "--compact"]
+    command:
+      - sh
+      - -ec
+      - |
+        if [ ! -f .env ]; then cp .env.example .env; fi
+        php artisan config:clear --no-interaction
+        exec php artisan test --compact

@@ -58,12 +58,12 @@ jobs:
           done
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/pagina-inexistente)" = 404
           docker compose -f compose.prod.yaml exec -T frontend nginx -t
-          docker compose -f compose.prod.yaml exec -T web nginx -t
+          docker compose -f compose.prod.yaml exec -T proxy nginx -t
       - name: Verify uploads survive container replacement
         run: |
           set -euo pipefail
           docker compose -f compose.prod.yaml exec -T api sh -c 'printf persistence-ok > storage/app/public/ci-persistence.txt'
-          docker compose -f compose.prod.yaml up -d --force-recreate --wait api web
+          docker compose -f compose.prod.yaml up -d --force-recreate --wait api frontend proxy
           curl --fail --silent --show-error --retry 12 --retry-delay 1 --retry-all-errors http://127.0.0.1:8080/storage/ci-persistence.txt | grep -qx persistence-ok
       - name: Show service logs on failure
         if: failure()

@@ -32,17 +32,6 @@ COPY --from=build --chown=www-data:www-data /var/www/html/database ./database
 COPY --from=build --chown=www-data:www-data /var/www/html/routes ./routes
 COPY --from=build --chown=www-data:www-data /var/www/html/public ./public
 COPY --from=build --chown=www-data:www-data /var/www/html/artisan /var/www/html/composer.json /var/www/html/composer.lock ./
-COPY --chmod=755 <<'ENTRYPOINT_SCRIPT' /usr/local/bin/api-entrypoint
-#!/bin/sh
-set -eu
-
-: "${APP_KEY:?Configure uma APP_KEY persistente para a aplicação.}"
-
-php artisan config:cache --no-interaction
-php artisan route:cache --no-interaction
-
-exec "$@"
-ENTRYPOINT_SCRIPT
 COPY php-production.ini /usr/local/etc/php/conf.d/production.ini
 COPY php-uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
@@ -50,8 +39,11 @@ RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/s
     && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
 EXPOSE 9000
-ENTRYPOINT ["api-entrypoint"]
-CMD ["php-fpm"]
+CMD ["sh", "-euc", "\
+    : \"${APP_KEY:?Configure uma APP_KEY persistente para a aplicação.}\"; \
+    php artisan config:cache --no-interaction; \
+    php artisan route:cache --no-interaction; \
+    exec php-fpm"]
 
 FROM nginx:stable-alpine AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf
