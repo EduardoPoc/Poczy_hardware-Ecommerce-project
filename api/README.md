@@ -19,9 +19,9 @@ docker compose exec api php artisan db:seed
 
 O serviço Nginx `proxy` publica a porta 80 e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. A porta 8000 fica acessível apenas na rede Docker.
 
-O serviço `api` usa `Dockerfile.dev`, monta o código e mantém as dependências em um volume próprio. O entrypoint de desenvolvimento instala dependências, limpa o cache de configuração e cria `.env` e `APP_KEY` quando ausentes. As migrations e seeders são comandos explícitos. O servidor usa `--no-reload` para preservar as variáveis MySQL fornecidas pelo Compose no processo HTTP. Após alterar variáveis de ambiente, reinicie a API; mudanças nos arquivos PHP continuam disponíveis nas requisições.
+O serviço `api` usa `Dockerfile.dev`, monta o código e mantém as dependências em um volume próprio. O `CMD` do Dockerfile instala dependências, limpa o cache de configuração e cria `.env` e `APP_KEY` quando ausentes antes de iniciar o servidor. O healthcheck HTTP usa o próprio PHP. O frontend usa `frontend/Dockerfile.dev`, com Vite e dependências em volume, e o proxy aguarda ambos responderem aos healthchecks. `LOCAL_UID` e `LOCAL_GID` são aplicados aos dois serviços. As migrations e seeders são comandos explícitos. O servidor usa `--no-reload` para preservar as variáveis MySQL fornecidas pelo Compose no processo HTTP. Após alterar variáveis do Compose, execute `docker compose up -d --wait` para recriar os containers com os novos valores; mudanças nos arquivos PHP continuam disponíveis nas requisições.
 
-Dentro do Compose, `DB_HOST=mysql`. As credenciais vêm das variáveis `MYSQL_*` do `.env` da raiz. O MySQL mantém seus dados no volume `mysql_data`; alterar as variáveis não altera usuários de um volume já inicializado.
+Dentro do Compose, `DB_HOST=mysql`. As credenciais vêm das variáveis `MYSQL_*` do `.env` da raiz. O healthcheck do MySQL executa `SELECT 1` com o usuário e banco da aplicação. `APP_URL`, também na raiz, tem padrão `http://localhost`, correspondente ao proxy e às URLs públicas de imagens; cookies seguros ficam desativados no desenvolvimento HTTP. O MySQL mantém seus dados no volume `mysql_data`; alterar as variáveis não altera usuários de um volume já inicializado.
 
 ## Executar localmente
 
@@ -50,7 +50,7 @@ docker compose -f compose.test.yaml down
 
 O código de saída do primeiro comando é o resultado da suíte. O segundo remove os containers e a rede após a execução.
 
-O arquivo de testes é independente do Compose de desenvolvimento. Ele cria `mysql_test` sem publicar portas e com armazenamento temporário. A imagem `Dockerfile.dev` contém as dependências de teste e o comando executado é `php artisan test --compact`.
+O arquivo de testes é independente do Compose de desenvolvimento. Ele cria `mysql_test` sem publicar portas e com armazenamento temporário. A imagem `Dockerfile.dev` contém as dependências de teste e o autoload preparados durante o build. O Compose substitui o `CMD` padrão por um comando que cria `.env` a partir do exemplo quando ausente, limpa o cache de configuração e executa `php artisan test --compact`; a `APP_KEY` vem do ambiente de testes.
 
 O `phpunit.xml` fixa `APP_ENV=testing`, driver MySQL, banco `ecommerce_test` e usuário `ecommerce_test`. Dentro do Compose de testes, o host é `mysql_test`; para executar PHP diretamente na máquina, é necessário que o MySQL de testes esteja acessível em `127.0.0.1:3306` (ou configure `DB_HOST`/`DB_PORT`) e tenha esse banco e usuário. O banco de desenvolvimento (`ecommerce`) e seu usuário não substituem essa configuração. Um MySQL pode estar saudável para a API dentro da rede Docker enquanto a porta local usada pelo PHP no host permanece inacessível.
 
@@ -70,27 +70,27 @@ Os controllers estão conectados aos services, Form Requests e Resources existen
 Para conferir manualmente o ciclo de migrations somente no ambiente de testes:
 
 ```sh
-docker compose -f compose.test.yaml run --rm tests php artisan migrate
-docker compose -f compose.test.yaml run --rm tests php artisan migrate:rollback
-docker compose -f compose.test.yaml run --rm tests php artisan migrate
+docker compose -f compose.test.yaml run --rm tests php artisan migrate --no-interaction
+docker compose -f compose.test.yaml run --rm tests php artisan migrate:rollback --no-interaction
+docker compose -f compose.test.yaml run --rm tests php artisan migrate --no-interaction
 ```
 
 ## Produção
 
-`Dockerfile` tem os alvos `production` (PHP-FPM) e `web` (Nginx). A imagem PHP final contém o código e dependências de produção instaladas durante o build; não contém Composer ou a suíte de testes. O código não é montado da máquina host.
+`compose.prod.yaml` contém quatro serviços: `mysql`, `api`, `frontend` e `proxy`. `Dockerfile` tem os alvos `production` (PHP-FPM, serviço `api`) e `web` (Nginx, serviço `proxy`). A imagem PHP final contém o código e dependências de produção instaladas durante o build; não contém Composer ou a suíte de testes. `frontend/Dockerfile` compila a loja com Vite e entrega somente a build para uma imagem Nginx na porta interna 80. O código não é montado da máquina host.
 
-Prepare `.env.production` na raiz usando `.env.production.example`. Configure credenciais próprias, `APP_URL`, origens CORS e uma `APP_KEY` persistente. Gere a chave antes do deploy, por exemplo com `php artisan key:generate --show` em um ambiente de desenvolvimento. Nunca publique o arquivo de ambiente.
+Prepare `.env.production` na raiz usando `.env.production.example`. Configure credenciais próprias, `APP_URL` com a URL pública da loja, origens CORS e uma `APP_KEY` persistente. Gere a chave antes do deploy, por exemplo com `php artisan key:generate --show` em um ambiente de desenvolvimento. Nunca publique o arquivo de ambiente.
 
 ```sh
 docker compose --env-file .env.production -f compose.prod.yaml build
 docker compose --env-file .env.production -f compose.prod.yaml up -d mysql --wait
-docker compose --env-file .env.production -f compose.prod.yaml run --rm api php artisan migrate --force
-docker compose --env-file .env.production -f compose.prod.yaml up -d --wait
+docker compose --env-file .env.production -f compose.prod.yaml run --rm api php artisan migrate --force --no-interaction
+docker compose --env-file .env.production -f compose.prod.yaml up -d --wait --remove-orphans
 ```
 
-O entrypoint de produção exige `APP_KEY` e gera os caches de configuração e rotas com as variáveis do ambiente. Não instala dependências, não gera outra chave e não executa migrations ou seeders automaticamente.
+O `CMD` de produção exige `APP_KEY`, gera os caches de configuração e rotas com as variáveis do ambiente e inicia o PHP-FPM. Não instala dependências, não gera outra chave e não executa migrations ou seeders automaticamente. Comandos explícitos em `docker compose run`, como a migration acima, substituem esse `CMD` e executam diretamente com o código e as dependências já presentes na imagem e as variáveis fornecidas pelo Compose.
 
-O Nginx publica HTTP em `127.0.0.1:8080` por padrão. Use um proxy HTTPS do servidor na frente desse endereço; `SESSION_SECURE_COOKIE=true` pressupõe acesso HTTPS no navegador. `HTTP_BIND` e `HTTP_PORT` permitem ajustar a publicação. O MySQL não publica porta no host. Banco e `storage` usam volumes persistentes. O frontend não faz parte deste Compose de produção.
+O serviço `proxy` publica HTTP em `127.0.0.1:8080` por padrão. Encaminha `/api`, `/sanctum` e `/up` ao PHP-FPM, serve `/storage` do volume compartilhado e encaminha as páginas para o frontend. Os caminhos sem extensão e redirecionamentos de `.html` são resolvidos pelo Nginx do frontend. Use um proxy HTTPS do servidor na frente desse endereço; `SESSION_SECURE_COOKIE=true` pressupõe acesso HTTPS no navegador. `HTTP_BIND` e `HTTP_PORT` permitem ajustar a publicação. O MySQL não publica porta no host. Banco e `storage` usam volumes persistentes. O healthcheck da API verifica a porta PHP-FPM, e o do proxy verifica `/up` passando pelo Laravel.
 
 `APP_ENV=production`, `APP_DEBUG=false` e logs em stderr são configurados pelo Compose. Seeders com usuários fictícios são exclusivos de desenvolvimento/testes. O endpoint `/up` verifica a aplicação; a prontidão do MySQL é verificada pelo healthcheck do banco.
 

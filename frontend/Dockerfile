@@ -1,18 +1,16 @@
-FROM node:24-alpine
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
-ARG LOCAL_UID=1000
-ARG LOCAL_GID=1000
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
-COPY --chown=${LOCAL_UID}:${LOCAL_GID} package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi \
-    && chown -R "$LOCAL_UID:$LOCAL_GID" /app
+COPY . .
+RUN npm run build
 
-COPY --chown=${LOCAL_UID}:${LOCAL_GID} . .
+FROM nginx:stable-alpine AS production
 
-USER ${LOCAL_UID}:${LOCAL_GID}
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 5173
-
-CMD ["sh", "-c", "if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi && exec npm run dev -- --port 5173 --strictPort"]
+EXPOSE 80

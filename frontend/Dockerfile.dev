@@ -1,0 +1,19 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+ARG LOCAL_UID=1000
+ARG LOCAL_GID=1000
+
+COPY --chown=${LOCAL_UID}:${LOCAL_GID} package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund \
+    && chown -R "$LOCAL_UID:$LOCAL_GID" /app
+
+COPY --chown=${LOCAL_UID}:${LOCAL_GID} . .
+
+USER ${LOCAL_UID}:${LOCAL_GID}
+ENV NPM_CONFIG_CACHE=/tmp/npm-cache
+
+EXPOSE 5173
+
+CMD ["sh", "-ec", "npm ci --no-audit --no-fund && exec npm run dev -- --port 5173 --strictPort"]

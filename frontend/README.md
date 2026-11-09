@@ -56,6 +56,8 @@ Os testes do frontend cobrem critérios de busca, requisições HTTP, sessão e 
 
 A build gera `frontend/dist/` para hospedagem estática. Em produção, encaminhe `/api`, `/sanctum` e `/storage` para o backend, ou configure uma origem de API autorizada antes da build.
 
+No Docker, o `CMD` de `Dockerfile.dev` executa `npm ci` e inicia o Vite com a atualização automática usada em `compose.yaml`. `Dockerfile` faz a build em uma etapa Node e copia o resultado para uma imagem Nginx, sem executar Node em produção. O `compose.prod.yaml` da raiz inclui esse frontend e o proxy da API na mesma origem; a configuração `nginx.conf` resolve as páginas sem extensão e os redirecionamentos abaixo.
+
 O servidor da hospedagem precisa resolver os caminhos sem extensão para os arquivos HTML correspondentes. Em um Nginx que serve a pasta `dist`, configure as regras abaixo, mantendo o encaminhamento das rotas da API em seus próprios blocos:
 
 ```nginx

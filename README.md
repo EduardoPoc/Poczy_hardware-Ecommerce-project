@@ -25,7 +25,7 @@ docker compose exec api php artisan db:seed
 
 O serviço `proxy` usa Nginx como entrada única para o frontend e encaminha `/api`, `/sanctum`, `/storage` e `/up` para a API. As portas do frontend e da API ficam internas à rede Docker. O frontend mantém o Vite e a atualização automática via WebSocket.
 
-O Compose de desenvolvimento usa `api/Dockerfile.dev`, monta o código e mantém volumes para banco e dependências. As credenciais de banco ficam no `.env` da raiz. Dentro do container, a API conecta em `mysql:3306`; as demais configurações ficam em `api/.env`. As migrations e seeders são comandos explícitos.
+O Compose de desenvolvimento usa `api/Dockerfile.dev` e `frontend/Dockerfile.dev`, monta o código e mantém volumes para banco e dependências. As credenciais de banco e a URL pública `APP_URL` ficam no `.env` da raiz. Dentro do container, a API conecta em `mysql:3306`; as demais configurações ficam em `api/.env`. Os healthchecks verificam o acesso ao banco e as respostas HTTP antes de liberar os serviços dependentes. As migrations e seeders são comandos explícitos.
 
 ## Testes MySQL
 
@@ -40,7 +40,7 @@ Não execute a suíte contra o banco de desenvolvimento. O banco e usuário de t
 
 ## Produção
 
-`api/Dockerfile` gera imagens PHP-FPM e Nginx. Prepare `.env.production` a partir de `.env.production.example` com credenciais e `APP_KEY` próprias. Os passos de build, migrations e inicialização estão no [guia da API](api/README.md#produção). O Compose de produção é `compose.prod.yaml` e não executa seeders fictícios automaticamente.
+`compose.prod.yaml` reúne `mysql`, `api`, `frontend` e `proxy`. `api/Dockerfile` gera as imagens PHP-FPM e Nginx do backend/proxy; `frontend/Dockerfile` compila a loja e serve os arquivos estáticos com Nginx na porta interna 80. Prepare `.env.production` a partir de `.env.production.example` com credenciais e `APP_KEY` próprias. `APP_URL` deve apontar para o endereço público da loja, usado também nas URLs de imagens. Os passos de build, migrations e inicialização estão no [guia da API](api/README.md#produção). O ambiente não executa seeders fictícios automaticamente.
 
 ## Desenvolvimento local
 
