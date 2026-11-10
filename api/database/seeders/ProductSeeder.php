@@ -6,11 +6,21 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class ProductSeeder extends DemoSeeder
 {
     protected function seedDemoData(): void
     {
+        foreach (self::PRODUCTS as $data) {
+            $source = database_path('seeders/images/'.$data['image_path']);
+            if (! Storage::disk('public')->put($data['image_path'], File::get($source))) {
+                throw new RuntimeException('Could not publish demo product image: '.$data['image_path']);
+            }
+        }
+
         DB::transaction(function (): void {
             $this->call(CatalogSeeder::class);
 
@@ -26,9 +36,15 @@ class ProductSeeder extends DemoSeeder
                         'cost' => $data['cost'],
                         'stock' => $data['stock'],
                         'is_active' => $data['stock'] >= 1,
+                        'image_path' => $data['image_path'],
                         'specifications' => $data['specifications'],
                     ],
                 );
+                $currentImage = $product->image_path;
+                if ($currentImage !== $data['image_path'] && ($currentImage === null || $currentImage === ''
+                    || preg_match('/^products\/prod\d+\.jpg$/', $currentImage) === 1)) {
+                    $product->update(['image_path' => $data['image_path']]);
+                }
                 if ($product->wasRecentlyCreated && $product->stock > 0) {
                     $product->stockMovements()->create([
                         'type' => 'INBOUND',
@@ -43,7 +59,7 @@ class ProductSeeder extends DemoSeeder
     /**
      * Dados fictícios para desenvolvimento; configurações e valores não são ofertas comerciais.
      *
-     * @var list<array{category: string, brand: string, name: string, description: string, price: string, cost: string, stock: int, specifications: array<string, mixed>}>
+     * @var list<array{category: string, brand: string, name: string, description: string, price: string, cost: string, stock: int, image_path: string, specifications: array<string, mixed>}>
      */
     private const PRODUCTS = [
         [
@@ -54,6 +70,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '3299.90',
             'cost' => '2700.00',
             'stock' => 8,
+            'image_path' => 'products/prod1.jpg',
             'specifications' => ['storage_capacity_gb' => 512, 'has_dedicated_gpu' => false, 'ram_capacity_gb' => 16, 'screen_size_inches' => 15.6, 'screen_type' => 'IPS'],
         ],
         [
@@ -64,6 +81,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '5299.90',
             'cost' => '4400.00',
             'stock' => 5,
+            'image_path' => 'products/prod2.jpg',
             'specifications' => ['storage_capacity_gb' => 1000, 'has_dedicated_gpu' => true, 'ram_capacity_gb' => 16, 'screen_size_inches' => 15.6, 'screen_type' => 'IPS'],
         ],
         [
@@ -74,6 +92,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '2499.90',
             'cost' => '2050.00',
             'stock' => 6,
+            'image_path' => 'products/prod3.jpg',
             'specifications' => ['storage_capacity_gb' => 512, 'has_dedicated_gpu' => false, 'ram_capacity_gb' => 16],
         ],
         [
@@ -84,6 +103,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '4899.90',
             'cost' => '4150.00',
             'stock' => 4,
+            'image_path' => 'products/prod4.jpg',
             'specifications' => ['storage_capacity_gb' => 1000, 'has_dedicated_gpu' => true, 'ram_capacity_gb' => 32],
         ],
         [
@@ -94,6 +114,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '749.90',
             'cost' => '610.00',
             'stock' => 15,
+            'image_path' => 'products/prod5.jpg',
             'specifications' => ['screen_size_inches' => 23.8, 'screen_type' => 'IPS'],
         ],
         [
@@ -104,6 +125,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '3499.90',
             'cost' => '2900.00',
             'stock' => 5,
+            'image_path' => 'products/prod6.jpg',
             'specifications' => ['screen_size_inches' => 27, 'screen_type' => 'OLED'],
         ],
         [
@@ -114,6 +136,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '119.90',
             'cost' => '78.00',
             'stock' => 35,
+            'image_path' => 'products/prod7.jpg',
             'specifications' => ['type' => 'Mouse'],
         ],
         [
@@ -124,6 +147,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '249.90',
             'cost' => '175.00',
             'stock' => 20,
+            'image_path' => 'products/prod8.jpg',
             'specifications' => ['type' => 'Teclado'],
         ],
         [
@@ -134,6 +158,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '799.90',
             'cost' => '650.00',
             'stock' => 18,
+            'image_path' => 'products/prod9.jpg',
             'specifications' => ['socket' => 'AM4'],
         ],
         [
@@ -144,6 +169,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '999.90',
             'cost' => '820.00',
             'stock' => 12,
+            'image_path' => 'products/prod10.jpg',
             'specifications' => ['socket' => 'LGA 1700'],
         ],
         [
@@ -154,6 +180,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '249.90',
             'cost' => '185.00',
             'stock' => 30,
+            'image_path' => 'products/prod11.jpg',
             'specifications' => ['capacity_gb' => 16, 'ddr' => 'DDR4', 'speed_mhz' => 3200],
         ],
         [
@@ -164,6 +191,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '599.90',
             'cost' => '470.00',
             'stock' => 16,
+            'image_path' => 'products/prod12.jpg',
             'specifications' => ['capacity_gb' => 32, 'ddr' => 'DDR5', 'speed_mhz' => 5600],
         ],
         [
@@ -174,6 +202,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '1999.90',
             'cost' => '1690.00',
             'stock' => 9,
+            'image_path' => 'products/prod13.jpg',
             'specifications' => ['video_memory_gb' => 8],
         ],
         [
@@ -184,6 +213,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '2799.90',
             'cost' => '2350.00',
             'stock' => 7,
+            'image_path' => 'products/prod14.jpg',
             'specifications' => ['video_memory_gb' => 12],
         ],
         [
@@ -194,6 +224,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '699.90',
             'cost' => '550.00',
             'stock' => 14,
+            'image_path' => 'products/prod15.jpg',
             'specifications' => ['ddr' => 'DDR4', 'form_factor' => 'Micro ATX', 'socket' => 'AM4'],
         ],
         [
@@ -204,6 +235,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '1299.90',
             'cost' => '1050.00',
             'stock' => 8,
+            'image_path' => 'products/prod16.jpg',
             'specifications' => ['ddr' => 'DDR5', 'form_factor' => 'ATX', 'socket' => 'AM5'],
         ],
         [
@@ -214,6 +246,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '449.90',
             'cost' => '345.00',
             'stock' => 25,
+            'image_path' => 'products/prod17.jpg',
             'specifications' => ['capacity_gb' => 1000, 'write_speed_mbps' => 2100, 'read_speed_mbps' => 3500, 'type' => 'SSD NVMe'],
         ],
         [
@@ -224,6 +257,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '399.90',
             'cost' => '310.00',
             'stock' => 12,
+            'image_path' => 'products/prod18.jpg',
             'specifications' => ['capacity_gb' => 2000, 'write_speed_mbps' => 200, 'read_speed_mbps' => 220, 'type' => 'HD SATA'],
         ],
         [
@@ -234,6 +268,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '449.90',
             'cost' => '350.00',
             'stock' => 15,
+            'image_path' => 'products/prod19.jpg',
             'specifications' => ['modularity' => 'Não modular', 'certification_80_plus' => 'Bronze'],
         ],
         [
@@ -244,6 +279,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '699.90',
             'cost' => '555.00',
             'stock' => 10,
+            'image_path' => 'products/prod20.jpg',
             'specifications' => ['modularity' => 'Modular', 'certification_80_plus' => 'Gold'],
         ],
         [
@@ -254,6 +290,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '279.90',
             'cost' => '205.00',
             'stock' => 11,
+            'image_path' => 'products/prod21.jpg',
             'specifications' => ['motherboard_form_factor' => 'Micro ATX'],
         ],
         [
@@ -264,6 +301,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '549.90',
             'cost' => '425.00',
             'stock' => 7,
+            'image_path' => 'products/prod22.jpg',
             'specifications' => ['motherboard_form_factor' => 'ATX'],
         ],
         [
@@ -274,6 +312,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '169.90',
             'cost' => '115.00',
             'stock' => 20,
+            'image_path' => 'products/prod23.jpg',
             'specifications' => ['type' => 'Air cooler'],
         ],
         [
@@ -284,6 +323,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '549.90',
             'cost' => '420.00',
             'stock' => 9,
+            'image_path' => 'products/prod24.jpg',
             'specifications' => ['type' => 'Water cooler'],
         ],
         [
@@ -294,6 +334,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '4299.90',
             'cost' => '3520.00',
             'stock' => 7,
+            'image_path' => 'products/prod25.jpg',
             'specifications' => ['storage_capacity_gb' => 1000, 'has_dedicated_gpu' => false, 'ram_capacity_gb' => 16, 'screen_size_inches' => 16, 'screen_type' => 'IPS'],
         ],
         [
@@ -304,6 +345,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '2599.90',
             'cost' => '2120.00',
             'stock' => 12,
+            'image_path' => 'products/prod26.jpg',
             'specifications' => ['storage_capacity_gb' => 256, 'has_dedicated_gpu' => false, 'ram_capacity_gb' => 8, 'screen_size_inches' => 15.6, 'screen_type' => 'IPS'],
         ],
         [
@@ -314,6 +356,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '1899.90',
             'cost' => '1510.00',
             'stock' => 9,
+            'image_path' => 'products/prod27.jpg',
             'specifications' => ['storage_capacity_gb' => 256, 'has_dedicated_gpu' => false, 'ram_capacity_gb' => 8],
         ],
         [
@@ -324,6 +367,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '8499.90',
             'cost' => '7100.00',
             'stock' => 2,
+            'image_path' => 'products/prod28.jpg',
             'specifications' => ['storage_capacity_gb' => 2000, 'has_dedicated_gpu' => true, 'ram_capacity_gb' => 64],
         ],
         [
@@ -334,6 +378,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '699.90',
             'cost' => '535.00',
             'stock' => 22,
+            'image_path' => 'products/prod29.jpg',
             'specifications' => ['screen_size_inches' => 23.8, 'screen_type' => 'IPS'],
         ],
         [
@@ -344,6 +389,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '1699.90',
             'cost' => '1320.00',
             'stock' => 8,
+            'image_path' => 'products/prod30.jpg',
             'specifications' => ['screen_size_inches' => 27, 'screen_type' => 'IPS'],
         ],
         [
@@ -354,6 +400,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '329.90',
             'cost' => '238.00',
             'stock' => 14,
+            'image_path' => 'products/prod31.jpg',
             'specifications' => ['type' => 'Headset'],
         ],
         [
@@ -364,6 +411,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '449.90',
             'cost' => '330.00',
             'stock' => 6,
+            'image_path' => 'products/prod32.jpg',
             'specifications' => ['type' => 'Controle'],
         ],
         [
@@ -374,6 +422,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '1899.90',
             'cost' => '1515.00',
             'stock' => 10,
+            'image_path' => 'products/prod33.jpg',
             'specifications' => ['socket' => 'AM5'],
         ],
         [
@@ -384,6 +433,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '2099.90',
             'cost' => '1700.00',
             'stock' => 6,
+            'image_path' => 'products/prod34.jpg',
             'specifications' => ['socket' => 'LGA 1700'],
         ],
         [
@@ -394,6 +444,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '139.90',
             'cost' => '92.00',
             'stock' => 46,
+            'image_path' => 'products/prod35.jpg',
             'specifications' => ['capacity_gb' => 8, 'ddr' => 'DDR4', 'speed_mhz' => 2666],
         ],
         [
@@ -404,6 +455,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '369.90',
             'cost' => '265.00',
             'stock' => 19,
+            'image_path' => 'products/prod36.jpg',
             'specifications' => ['capacity_gb' => 16, 'ddr' => 'DDR5', 'speed_mhz' => 6000],
         ],
         [
@@ -414,6 +466,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '3299.90',
             'cost' => '2710.00',
             'stock' => 5,
+            'image_path' => 'products/prod37.jpg',
             'specifications' => ['video_memory_gb' => 12],
         ],
         [
@@ -424,6 +477,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '3899.90',
             'cost' => '3210.00',
             'stock' => 0,
+            'image_path' => 'products/prod38.jpg',
             'specifications' => ['video_memory_gb' => 16],
         ],
         [
@@ -434,6 +488,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '999.90',
             'cost' => '775.00',
             'stock' => 13,
+            'image_path' => 'products/prod39.jpg',
             'specifications' => ['ddr' => 'DDR5', 'form_factor' => 'Micro ATX', 'socket' => 'AM5'],
         ],
         [
@@ -444,6 +499,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '629.90',
             'cost' => '470.00',
             'stock' => 17,
+            'image_path' => 'products/prod40.jpg',
             'specifications' => ['ddr' => 'DDR4', 'form_factor' => 'Micro ATX', 'socket' => 'LGA 1700'],
         ],
         [
@@ -454,6 +510,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '289.90',
             'cost' => '210.00',
             'stock' => 28,
+            'image_path' => 'products/prod41.jpg',
             'specifications' => ['capacity_gb' => 500, 'write_speed_mbps' => 510, 'read_speed_mbps' => 560, 'type' => 'SSD SATA'],
         ],
         [
@@ -464,6 +521,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '799.90',
             'cost' => '605.00',
             'stock' => 11,
+            'image_path' => 'products/prod42.jpg',
             'specifications' => ['capacity_gb' => 2000, 'write_speed_mbps' => 4200, 'read_speed_mbps' => 5000, 'type' => 'SSD NVMe'],
         ],
         [
@@ -474,6 +532,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '849.90',
             'cost' => '650.00',
             'stock' => 7,
+            'image_path' => 'products/prod43.jpg',
             'specifications' => ['modularity' => 'Modular', 'certification_80_plus' => 'Gold'],
         ],
         [
@@ -484,6 +543,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '329.90',
             'cost' => '240.00',
             'stock' => 21,
+            'image_path' => 'products/prod44.jpg',
             'specifications' => ['modularity' => 'Não modular', 'certification_80_plus' => 'Bronze'],
         ],
         [
@@ -494,6 +554,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '599.90',
             'cost' => '435.00',
             'stock' => 8,
+            'image_path' => 'products/prod45.jpg',
             'specifications' => ['motherboard_form_factor' => 'ATX'],
         ],
         [
@@ -504,6 +565,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '299.90',
             'cost' => '205.00',
             'stock' => 16,
+            'image_path' => 'products/prod46.jpg',
             'specifications' => ['motherboard_form_factor' => 'Micro ATX'],
         ],
         [
@@ -514,6 +576,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '189.90',
             'cost' => '120.00',
             'stock' => 24,
+            'image_path' => 'products/prod47.jpg',
             'specifications' => ['type' => 'Air cooler'],
         ],
         [
@@ -524,6 +587,7 @@ class ProductSeeder extends DemoSeeder
             'price' => '69.90',
             'cost' => '38.00',
             'stock' => 52,
+            'image_path' => 'products/prod48.jpg',
             'specifications' => ['type' => 'Ventoinha'],
         ],
     ];
