@@ -47,6 +47,12 @@ A sessão usa cookies Laravel e CSRF. O token do carrinho visitante fica no loca
 
 Login e cadastro usam os endpoints existentes de sessão. O painel exige `role=ADMIN` e continua protegido pela API. A prévia `/admin?demo=1` contém somente dados fictícios de consulta, isolados da vitrine e das escritas reais.
 
+## Aviso educacional e termos de uso
+
+Todas as entradas da aplicação exibem um diálogo informando que o projeto é destinado a testes e aprendizado, que as compras são simuladas e que somente dados fictícios devem ser usados. O aviso pode ser fechado pelo botão, pela tecla Escape ou pelo link para os termos completos em `/#terms-panel`.
+
+O fechamento fica registrado apenas na sessão da aba, em `sessionStorage`, pela chave versionada `poczy.learning-notice.v1`; a navegação entre as páginas não repete o aviso. Se o armazenamento estiver bloqueado, o aviso continua funcionando e reaparece ao carregar outra página. Esse registro controla apenas a exibição do aviso e não representa consentimento para tratamento de dados. Os termos ficam disponíveis no rodapé da página inicial.
+
 ## Verificar e gerar a build
 
 ```sh

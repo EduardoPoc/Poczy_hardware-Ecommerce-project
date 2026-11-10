@@ -212,6 +212,7 @@
 }
 .store-info-panel {
   padding-top: 20px;
+  scroll-margin-top: 24px;
 }
 .store-info-panel h3 {
   margin: 0 0 10px;
@@ -224,6 +225,14 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.8;
+}
+.store-info-panel h4 {
+  margin: 24px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.store-info-panel .store-terms-updated {
+  font-size: 12px;
 }
 @media (max-width: 767.98px) {
   .store-footer {

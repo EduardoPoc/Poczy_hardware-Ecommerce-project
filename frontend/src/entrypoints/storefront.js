@@ -1,4 +1,8 @@
 import { createApp } from 'vue';
+import { showLearningNotice } from '../shared/ui/learning-notice.js';
+import '../styles/learning-notice.css';
+
+showLearningNotice();
 
 const pages = {
   home: () => import('../features/catalog/pages/HomePage.vue'),
