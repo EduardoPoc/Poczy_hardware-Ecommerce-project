@@ -1,0 +1,486 @@
+{
+  "purpose": "Imagens representativas do catálogo fictício de demonstração",
+  "downloaded_on": "2026-11-10",
+  "sources": [
+    {
+      "number": 1,
+      "product_name": "Notebook Lenovo 15,6 IPS 16 GB SSD 512 GB",
+      "image_path": "products/prod1.jpg",
+      "source_title": "Portátil Lenovo IdeaPad 15AMN8 Ryzen 3 16GB RAM 512GB SSD 15.6\" FHD Artic Grey (82XQ00YQLM) Lenovo | Falabella Colombia",
+      "source_page": "https://www.falabella.com.co/falabella-co/product/152260867/portatil-lenovo-ideapad-15amn8-ryzen-3-16gb-ram-512gb-ssd-15-6-fhd-artic-grey-82xq00yqlm/152260869",
+      "source_image": "https://media.falabella.com/falabellaCO/152260869_01/w%3D1200%2Ch%3D1200%2Cfit%3Dpad",
+      "representative": true,
+      "sha256": "8621a2ba1dd5f9a714001b9a963abf2a80ed415e19f30dac3fa97c21f402deed"
+    },
+    {
+      "number": 2,
+      "product_name": "Notebook Acer Gamer 15,6 IPS 16 GB SSD 1 TB",
+      "image_path": "products/prod2.jpg",
+      "source_title": "Notebook Acer Nitro 5 15.6\" Rtx 3050 Core I5 16gb 1tb Windows 11 Black - ACER",
+      "source_page": "https://mall.icbc.com.ar/informatica/104650762-notebook-acer-nitro-5-15-6-rtx-3050-core-i-5-16-gb-1-tb-windows-11-black.html",
+      "source_image": "https://mall.icbc.com.ar/38020544-thickbox_default/notebook-acer-nitro-5-15-6-rtx-3050-core-i-5-16-gb-1-tb-windows-11-black.jpg",
+      "representative": true,
+      "sha256": "4184256c4a8d546ab165107434cdd47f35a8722d29d1897812a81089a3811fe9"
+    },
+    {
+      "number": 3,
+      "product_name": "PC Poczy Essencial 16 GB SSD 512 GB",
+      "image_path": "products/prod3.jpg",
+      "source_title": "Computador 3Green Intel I3 8100 16GB Ddr4 SSD 512GB Wifi Windows 11 Original NW3G-004",
+      "source_page": "https://www.belmicro.com.br/computador-3green-intel-i3-8100-16gb-ddr4-ssd-512gb-wifi-windows-11-original-nw3g-004/p",
+      "source_image": "https://belmicro.vtexassets.com/arquivos/ids/182657-800-800?aspect=true&height=800&v=639135181961600000&width=800",
+      "representative": true,
+      "sha256": "8c7de0ded34242682cebec1c5cafc31c1f56b828ac542ed69892d2259e59df29"
+    },
+    {
+      "number": 4,
+      "product_name": "PC Poczy Gamer 32 GB SSD 1 TB",
+      "image_path": "products/prod4.jpg",
+      "source_title": "PC Gaming | PC RACING IONIQ 7, AMD Ryzen™ 7 5700G, 32 GB RAM, 1 TB SSD, Radeon™ RX Vega 8, Windows 11 Pro, Negro | MediaMarkt",
+      "source_page": "https://www.mediamarkt.es/es/product/_pc-gaming-pc-racing-ioniq-7-amd-ryzentm-7-5700g-32-gb-ram-1-tb-ssd-radeontm-rx-vega-8-windows-11-pro-negro-154048268.html",
+      "source_image": "https://assets.mmsrg.com/isr/166325/c1/-/ASSET_MP_164023353/fee_786_587_png",
+      "representative": true,
+      "sha256": "aacd72d4e45d976dad92022edce4738c2cd67226830e73e6076457f7e3f3aade"
+    },
+    {
+      "number": 5,
+      "product_name": "Monitor LG 23,8 IPS Full HD",
+      "image_path": "products/prod5.jpg",
+      "source_title": "Monitor LG B2B - Tela IPS de 24\", Full HD, HDMI, DisplayPort, VGA, ajuste de altura, inclinação e pivotagem - 24BL550J | LG Brasil Business",
+      "source_page": "https://www.lg.com/br/business/monitores/monitores-produtos/monitores-full-hd-qhd/24bl550j-b/",
+      "source_image": "https://www.lg.com/content/dam/channelbtb/lgcom/br/images/business/monitores-produtos/24bl550j-b/gallery/MZ-05.jpg",
+      "representative": true,
+      "sha256": "741c43bc623f33b4c2b115411dbec5a6758083a275a8c7cfb93294d08377b8db"
+    },
+    {
+      "number": 6,
+      "product_name": "Monitor Samsung 27 OLED QHD",
+      "image_path": "products/prod6.jpg",
+      "source_title": "Order Samsung 27 Inch Odyssey OLED G6 G61SD Gaming Monitor Worldwide - Tejar.com",
+      "source_page": "https://www.tejar.com/samsung-27-inch-odyssey-oled-g6-g61sd-gaming-monitor",
+      "source_image": "https://www.tejar.com/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/s/a/samsung_27_inch_odyssey_oled_g6_g61sd_gaming_monitor1_-_tejar.jpg",
+      "representative": true,
+      "sha256": "cf12671c6f2c5f623db1690dd9df878504f78e5084031f87be9d32a303f9c036"
+    },
+    {
+      "number": 7,
+      "product_name": "Mouse Logitech USB",
+      "image_path": "products/prod7.jpg",
+      "source_title": "Mouse Logitech M90, 3 Botões, 1000DPI, USB, Preto",
+      "source_page": "https://www.lognetinfo.com.br/produto?idProduto=mouse-optico-usb-m90-logitech",
+      "source_image": "https://www.lognetinfo.com.br/imagens/original/10329A.JPG",
+      "representative": true,
+      "sha256": "eaeb55a429e465355c8ba64f47e852313ad86a82bdfa5a2d53cf1e95f0d921e5"
+    },
+    {
+      "number": 8,
+      "product_name": "Teclado Redragon Mecânico ABNT2",
+      "image_path": "products/prod8.jpg",
+      "source_title": "Teclado Mecânico Gamer Redragon Kumara K552 RGB, Switch Red, ABNT2, Black - Open Box",
+      "source_page": "https://www.terabyteshop.com.br/produto/11459/teclado-mecanico-gamer-redragon-kumara-k552-rgb-switch-red-abnt2-black-open-box",
+      "source_image": "https://img.terabyteshop.com.br/produto/g/teclado-mecanico-gamer-redragon-kumara-k552-rgb-switch-red-abnt2-black-open-box_75055.png",
+      "representative": true,
+      "sha256": "53dab5ca1dfaf455e9a9a86005a22c8130f4b2c3c6f83c2919a481cad0d4c2f4"
+    },
+    {
+      "number": 9,
+      "product_name": "Processador AMD Ryzen 5 AM4",
+      "image_path": "products/prod9.jpg",
+      "source_title": "AMD Ryzen 5 5600 (6 Çekirdek) 3.5GHz - 4.4GHz 32mb AM4 İşlemci Box (Fan Dahil)",
+      "source_page": "https://www.ciceksepeti.com/amd-ryzen-5-5600-6-cekirdek-35ghz-44ghz-32mb-am4-islemci-box-fan-dahil-kcm11535269",
+      "source_image": "https://cdn03.ciceksepeti.com/cicek/kcm11535269-1/XL/amd-ryzen-5-5600-6-cekirdek-3.5ghz-4.4ghz-32mb-am4-islemci-box-fan-dahil-kcm11535269-1-3efee58febf24667912f5ad266246530.jpg",
+      "representative": true,
+      "sha256": "9f68bfd7693dc98b274a0f51b74270b978c11627f4e1f2e00a36b49d1b332140"
+    },
+    {
+      "number": 10,
+      "product_name": "Processador Intel Core i5 LGA 1700",
+      "image_path": "products/prod10.jpg",
+      "source_title": "CPU Intel Core i5-12400 (Upto 4.4Ghz, 6 nhân 12 luồng, 18MB Cache, 65W) - Socket Intel LGA 1700) | Vi Tính Gia Lộc",
+      "source_page": "https://vitinhgialoc.vn/cpu-intel-core-i5-12400-upto-4-4ghz-6-nhan-12-luong-18mb-cache-65w-socket-intel-lga-1700",
+      "source_image": "https://bizweb.dktcdn.net/thumb/1024x1024/100/446/400/products/cpu-intel-core-i5-12400.jpg?v=1651905949060",
+      "representative": true,
+      "sha256": "f1335a43bc35beb18d0973b7a80e552a312e676cead629a2a0f94d4ec4191be8"
+    },
+    {
+      "number": 11,
+      "product_name": "Memória Kingston 16 GB DDR4 3200 MHz",
+      "image_path": "products/prod11.jpg",
+      "source_title": "Kingston Fury Beast [KF432C16BB1/16] 16GB DDR4 Memory 3200MHz | Shopee Philippines",
+      "source_page": "https://shopee.ph/Kingston-Fury-Beast-KF432C16BB1-16-16GB-DDR4-Memory-3200MHz-i.379168804.24131799635",
+      "source_image": "https://down-ph.img.susercontent.com/file/ph-11134207-7r98z-lw835x1xhaap37",
+      "representative": true,
+      "sha256": "2b7e5e42a5afe0930d3650f8ae8f621c075142fc4e8c0cd6f7dcda542c7d1dc6"
+    },
+    {
+      "number": 12,
+      "product_name": "Memória Corsair 32 GB DDR5 5600 MHz",
+      "image_path": "products/prod12.jpg",
+      "source_title": "DDR5 heat management for hot climates",
+      "source_page": "https://evezone.evetech.co.za/build-lab/ddr5-memory-heat-management-south-africa",
+      "source_image": "https://img.evetech.co.za/repository/ProductImages/corsair-vengeance-32-gb-5600-mhz-ddr-5-c-40-black-main-1600px-v1.webp",
+      "representative": true,
+      "sha256": "a66a8d2611f44181826ca89bda38058ea5db12696224696ee123c33fa6943a8d"
+    },
+    {
+      "number": 13,
+      "product_name": "Placa de vídeo ASUS GeForce 8 GB",
+      "image_path": "products/prod13.jpg",
+      "source_title": "Яндекс Маркет",
+      "source_page": "https://market.yandex.ru/search?text=%D0%92%D0%B8%D0%B4%D0%B5%D0%BE%D0%BA%D0%B0%D1%80%D1%82%D1%8B+Nvidia+Geforce+RTX+t10+8",
+      "source_image": "https://avatars.mds.yandex.net/get-mpic/4947485/2a0000018af895a45d4dcf16403da209cea2/orig",
+      "representative": true,
+      "sha256": "b8059034086b9b29fe6fd0a2f89ba462cbd9ed1bb251383c2d1b14b2ba6dd359"
+    },
+    {
+      "number": 14,
+      "product_name": "Placa de vídeo Sapphire Radeon 12 GB",
+      "image_path": "products/prod14.jpg",
+      "source_title": "Graphics card Sapphire Radeon RX 6700 XT 12GB PULSE - PS Auction - We value the future - Largest in net auctions",
+      "source_page": "https://psauction.com/item/view/1090328/graphics-card-sapphire-radeon-rx-6700-xt-12gb-pulse",
+      "source_image": "https://d2q01ftr6ua4w.cloudfront.net/assets/images/3147914d502c4bef50c809ef53f80335249a585f.png?t=1696839730",
+      "representative": true,
+      "sha256": "ff7e20574dd738f086f6a384363d39e23a945fccdf3eac64226414faf38a1e2d"
+    },
+    {
+      "number": 15,
+      "product_name": "Placa-mãe ASUS AM4 Micro ATX DDR4",
+      "image_path": "products/prod15.jpg",
+      "source_title": "So sánh  Mainboard Asus Prime B550M-A và Mainboard Gigabyte B560M Aorus Pro",
+      "source_page": "https://cellphones.com.vn/so-sanh/mainboard-asus-prime-b550m-a-vs-mainboard-gigabyte-b560m-aorus-pro",
+      "source_image": "https://cellphones.com.vn/media/catalog/product/m/s/msinnnn_11_.jpg",
+      "representative": true,
+      "sha256": "36ed6785db2467402758e5c78121de444affe8fc4eaa189d4697f4be228ee793"
+    },
+    {
+      "number": 16,
+      "product_name": "Placa-mãe MSI AM5 ATX DDR5",
+      "image_path": "products/prod16.jpg",
+      "source_title": "เมนบอร์ด MSI PRO B650-P WIFI",
+      "source_page": "https://www.bnn.in.th/th/p/computer-hardware-diy/mainboard-computer-hardware-diy/amd-mainboard-computer-hardware-diy/msi-mainboard-pro-b650-p-wifi-ddr5-am5-4711377010177_zvevwk",
+      "source_image": "https://media-cdn.bnn.in.th/250255/msi-pro-b650-p-wifi-ddr5-1.jpg",
+      "representative": true,
+      "sha256": "6e9b7c66f9dbb7c8c1025c8fb9a689b7422a445a5b8f012690038d31a35e9b4f"
+    },
+    {
+      "number": 17,
+      "product_name": "SSD Kingston NVMe 1 TB",
+      "image_path": "products/prod17.jpg",
+      "source_title": "Kingston NV2 1TB с цена 64.02 EUR - Gplay.bg",
+      "source_page": "https://gplay.bg/kingston-nv2-1tb",
+      "source_image": "https://gplay.bg/UserFiles/Product/gallery_1/226f953f-c2c0-3b8a-92b2-77f456a616fc.jpg?block=&cache=&h=1000&w=1000",
+      "representative": true,
+      "sha256": "7649c005f13c9db3e36c1089543016b8942a9b5d9b11af4e20845d02cb01adb6"
+    },
+    {
+      "number": 18,
+      "product_name": "HD Seagate SATA 2 TB",
+      "image_path": "products/prod18.jpg",
+      "source_title": "     WonderCris Perú",
+      "source_page": "https://wondercris.com/products/disco-duro-seagate-barracuda-st2000dm008-2tb-sata-6-0-gbps",
+      "source_image": "https://wondercris.com/cdn/shop/files/45b435eb-1ad1-4d50-8490-f3a4d8b700f8.jpg?v=1719124427",
+      "representative": true,
+      "sha256": "7e4b2174e591b00345a6e28d74f908f005e0beb4a9a1d6865a48ccd4a06fce21"
+    },
+    {
+      "number": 19,
+      "product_name": "Fonte Corsair 650 W 80 Plus Bronze",
+      "image_path": "products/prod19.jpg",
+      "source_title": "Corsair CV650 80 Plus Bronze Non Modular | SMPS | Tech Walker",
+      "source_page": "https://techwalkers.in/corsair-cv650-80-plus-bronze-non-modular",
+      "source_image": "https://techwalker.co.in/uploads/product-imgs/pic/corsair-cv650-80-plus-bronze-non-modular.png",
+      "representative": true,
+      "sha256": "e77fa13d51c56497348c2864d3a0e85e45f40b7179c48715f1403acfe4bb0618"
+    },
+    {
+      "number": 20,
+      "product_name": "Fonte Cooler Master 750 W 80 Plus Gold",
+      "image_path": "products/prod20.jpg",
+      "source_title": "FONTE  750W COOLER MASTER MWE 80+ GOLD FULL-MOD MPE-7501-AFAAG BLACK BIVOLT",
+      "source_page": "https://www.topdekinformatica.com.br/produto/fonte-cooler-master-mwe-gold-750-v2-750w-80-plus-gold-full-modular-preto-mpe-7501-afaag-u2",
+      "source_image": "https://www.topdekinformatica.com.br/img/m/IMG_148024_3.JPG?v=1773494383",
+      "representative": true,
+      "sha256": "19182f5f79c653ca079105baa51401a21a8a2ef8454e8900decc02ac0829b6b5"
+    },
+    {
+      "number": 21,
+      "product_name": "Gabinete Cooler Master Micro ATX",
+      "image_path": "products/prod21.jpg",
+      "source_title": "Cooler Master MasterBox Q300L Micro ATX Case | Shopee Malaysia",
+      "source_page": "https://shopee.com.my/Cooler-Master-MasterBox-Q300L-Micro-ATX-Case-i.881891879.17991102957",
+      "source_image": "https://down-my.img.susercontent.com/file/sg-11134201-22120-bkw822rdqtkv74",
+      "representative": true,
+      "sha256": "f48b3894d5f1ff8bca5febbd8f36f74fce0af2385e09d7e099e3064f15caf358"
+    },
+    {
+      "number": 22,
+      "product_name": "Gabinete NZXT ATX",
+      "image_path": "products/prod22.jpg",
+      "source_title": "Gabinete Gamer NZXT H510 Preto CA-H510B-B1 | CA-H510B-B1",
+      "source_page": "https://www.technospace.com.br/gabinete-gamer-nzxt-h510-ca-h510b-b1",
+      "source_image": "https://images.tcdn.com.br/img/img_prod/313499/gabinete_gamer_nzxt_h510_2_fans_lateral_em_vidro_temperado_atx_preto_ca_h510b_b1_14663_1_f847f2213e8f7616825699b598bae86a.jpg",
+      "representative": true,
+      "sha256": "804b07611ed90dd4a53081e96fd31d7fa707551036ce35de69e411dbe1e2b23c"
+    },
+    {
+      "number": 23,
+      "product_name": "Air cooler DeepCool para desktop",
+      "image_path": "products/prod23.jpg",
+      "source_title": "CPU COOLER DEEPCOOL AK400",
+      "source_page": "https://www.probitz.ro/pc-componente-software/cpu-cooler-deepcool-ak400.html",
+      "source_image": "https://gomagcdn.ro/domains3/probitz.ro/files/product/large/cpu-cooler-deepcool-ak400-199919.jpg",
+      "representative": true,
+      "sha256": "6642a10c83c3083029b948ad26276e14f5d43a09db6de7da21ea0db81b7cd548"
+    },
+    {
+      "number": 24,
+      "product_name": "Water cooler Corsair 240 mm",
+      "image_path": "products/prod24.jpg",
+      "source_title": "Water Cooling Corsair H100 RGB 240mm Liquid CPU Cooler (8728) | Corsair",
+      "source_page": "https://www.invidcomputers.com/water-cooling-corsair-h100-rgb-240mm-liquid-cpu-cooler--det--0415829",
+      "source_image": "https://www.invidcomputers.com/images/000000000041582954167415829--1-.png",
+      "representative": true,
+      "sha256": "ec37075778aeca095719add35754591c2ee6732f24cc0fd7223fd34c73a8d285"
+    },
+    {
+      "number": 25,
+      "product_name": "Notebook Dell 16 IPS 16 GB SSD 1 TB",
+      "image_path": "products/prod25.jpg",
+      "source_title": "DELL INSPIRON 16 5630 (INTEL CORE I7 / 16 GO / 1 TO) - Achetez au meilleur prix",
+      "source_page": "https://www.comparez-malin.fr/informatique/pc-portable/dell-inspiron-16-5630-intel-core-i7-16-go-1-to.html",
+      "source_image": "https://cdn.comparez-malin.fr/img/dell/2023/35787/dell-inspiron-16-5630-2.jpg",
+      "representative": true,
+      "sha256": "748e472bbc94da5bbc1cd72faef29dde2cdaa8e381f84f74ac4fdd683cfa867e"
+    },
+    {
+      "number": 26,
+      "product_name": "Notebook Samsung 15,6 IPS 8 GB SSD 256 GB",
+      "image_path": "products/prod26.jpg",
+      "source_title": "Notebook Samsung Book Intel Core i7 1156G7 -RAM 8GB- SSD256GB - 15,6? Full HD Windows 11 NP550XDA-KU1BR",
+      "source_page": "https://www.sobraltec.com.br/notebook-samsung-book-intel-core-i7-1156g7-ram-8gb-ssd256gb-15-6-full-hd-windows-11-np550xda-ku1br",
+      "source_image": "https://images.tcdn.com.br/img/img_prod/1165337/notebook_samsung_book_intel_core_i7_1165g7_ram_8gb_ssd256gb_15_6_full_hd_windows_11_np550xda_ku1br_24435_2_2a27fca357c6e553e51e8408539c9207.jpg",
+      "representative": true,
+      "sha256": "cb713cad2c3f7fadcc82b83aacb08d18dc4339344d347c95eb9614c2f360531e"
+    },
+    {
+      "number": 27,
+      "product_name": "PC Poczy Compacto 8 GB SSD 256 GB",
+      "image_path": "products/prod27.jpg",
+      "source_title": "Mini PC - CSL Intel NUC13 Core i5-1340P / 500 GB  | CSL",
+      "source_page": "https://www.csl-computer.com/mini-pc-csl-intel-nuc13-core-i5-1340p-500-gb.html",
+      "source_image": "https://www.csl-computer.com/media/catalog/product/cache/3/image/3000x/9df78eab33525d08d6e5fb8d27136e95/8/6/86938-86939_-_bb_intel_nuc_kit_nuc12wski7-nuc12wski5_02_3000px_5_1_1_1.jpg",
+      "representative": true,
+      "sha256": "026831354e526262eb2f9a530904793b172f521b3483032ebadb7712d880b32e"
+    },
+    {
+      "number": 28,
+      "product_name": "PC Poczy Estação Criativa 64 GB SSD 2 TB",
+      "image_path": "products/prod28.jpg",
+      "source_title": "Intel Core i9 12900| 64 GB RAM| 2TB SSD +4TB HDD| Workstation Computer Gaming PC  | eBay Australia",
+      "source_page": "https://www.ebay.com.au/itm/125325100702",
+      "source_image": "https://i.ebayimg.com/images/g/p-YAAOSwJsJmu0WQ/s-l400.png",
+      "representative": true,
+      "sha256": "965505f8d518a7c4a88104b0ba0a565d3eee632c050d95fbb4228d0d9ecdc306"
+    },
+    {
+      "number": 29,
+      "product_name": "Monitor AOC 23,8 IPS Full HD",
+      "image_path": "products/prod29.jpg",
+      "source_title": "Monitor AOC 24B2XH în Moldova",
+      "source_page": "https://xstore.md/monitoare/monitor-aoc-24b2xh-23-8-full-hd-black",
+      "source_image": "https://xstore.md/images/product/2024/02/Monitor-AOC-24B2XH-1.jpg",
+      "representative": true,
+      "sha256": "9fce270edf5db2d32c748abb46d886e7f0b6f7e3c186fcbb973866c46cdaf20c"
+    },
+    {
+      "number": 30,
+      "product_name": "Monitor Dell 27 IPS QHD",
+      "image_path": "products/prod30.jpg",
+      "source_title": "DELL P Series 27 Monitor - P2723D",
+      "source_page": "https://chert.ng/dell-p-series-27-monitor-p2723d-dell-p2723d.html",
+      "source_image": "https://media.stockinthechannel.com/pic/o-iBShJkZESq83P-8yNmHA.c-r.jpg",
+      "representative": true,
+      "sha256": "f9314a30badd8083988296984eef922c8bb9de7a662088fba1235c20186ce6a6"
+    },
+    {
+      "number": 31,
+      "product_name": "Headset HyperX com microfone removível",
+      "image_path": "products/prod31.jpg",
+      "source_title": "HyperX Cloud II Wired Gaming Headset, Black/Gunmetal",
+      "source_page": "https://www.aventissystems.com/cloud-ii-black-gunmetal-accessories-hyperx/?srsltid=AfmBOorvrMVjCUuk-mWiJX4lJA6qXbwlm8qicWfNKON05536xMqblxhk",
+      "source_image": "https://cdn11.bigcommerce.com/s-alitpcfiof/images/stencil/1280x1280/products/23160/23870/840104366592__15291.1692775089.png?c=1",
+      "representative": true,
+      "sha256": "7a4a443b5c3bd44e85ead39a53d5d9eb8a177e57cdb1daf5d6cc7bf4dba7db17"
+    },
+    {
+      "number": 32,
+      "product_name": "Controle Microsoft sem fio para PC",
+      "image_path": "products/prod32.jpg",
+      "source_title": "Microsoft Xbox Wireless Controller - Black - buy at Galaxus",
+      "source_page": "https://www.galaxus.ch/en/s1/product/microsoft-xbox-wireless-controller-black-pc-xbox-one-x-xbox-series-x-xbox-one-s-xbox-series-s-game-c-5911670",
+      "source_image": "https://static01.galaxus.com/productimages/1/0/5/6/6/4/3/3/3/7/5/2/6/0/1/0/1/2/c67f1491-b522-4994-aed6-c1060d8ab4ba_cropped.jpg_720.jpeg",
+      "representative": true,
+      "sha256": "2209a33283290142159302d0a2b2fd93edb18d2b3f7560be64e47490fc7386bd"
+    },
+    {
+      "number": 33,
+      "product_name": "Processador AMD Ryzen 7 AM5",
+      "image_path": "products/prod33.jpg",
+      "source_title": "Mexx | PROCESADOR AMD RYZEN 7 7700 5.3 GHZ AM5",
+      "source_page": "https://www.mexx.com.ar/productos-rubro/procesadores/45551-procesador-amd-ryzen-7-7700-5.3-ghz-am5.html",
+      "source_image": "https://mexx-img-2019.s3.amazonaws.com/Procesador-Amd-Ryzen-7-7700-5-Ghz-AM5_45551_1.jpeg",
+      "representative": true,
+      "sha256": "a26be0e7fb19c862c1092be76b8b185d14947a15b85f20417587969bf1919b09"
+    },
+    {
+      "number": 34,
+      "product_name": "Processador Intel Core i7 LGA 1700",
+      "image_path": "products/prod34.jpg",
+      "source_title": "CPU Intel Core i7-12700 (3.6GHz turbo up to 4.9Ghz, 12 nhân 20 luồng, 25MB Cache, 65W) - Socket Intel LGA 1700)",
+      "source_page": "https://hacom.vn/cpu-intel-core-i7-12700",
+      "source_image": "https://hanoicomputercdn.com/media/product/64217_cpu_intel_core_i7_12700_1.jpg",
+      "representative": true,
+      "sha256": "8b68a4b5740664703368da069a45ddde089801e7a6e0572e4993ed6ccacc5773"
+    },
+    {
+      "number": 35,
+      "product_name": "Memória Kingston 8 GB DDR4 2666 MHz",
+      "image_path": "products/prod35.jpg",
+      "source_title": "Kingston 8GB DDR4 2666MHz FURY BEAST Black (KF426C16BB/8) RAM – PC Express",
+      "source_page": "https://pcx.com.ph/products/kingston-8gb-ddr4-2666mhz-fury-beast-black-kf426c16bb-8-ram",
+      "source_image": "https://pcx.com.ph/cdn/shop/files/1.RAM-KINGSTON8GBDDR42666MHZFURYBEAST.png?v=1692164912",
+      "representative": true,
+      "sha256": "ad213198a7bc722a8972385ec33e10358ad44c0b4cec6ae6a0221cd97a1e5026"
+    },
+    {
+      "number": 36,
+      "product_name": "Memória TeamGroup 16 GB DDR5 6000 MHz",
+      "image_path": "products/prod36.jpg",
+      "source_title": "Ram Desktop TeamGroup T-Force Vulcan 16GB DDR5 6000Mhz Black",
+      "source_page": "https://ictsaigon.com.vn/ram-desktop-teamgroup-t-force-vulcan-16gb-ddr5-6000mhz-black",
+      "source_image": "https://ictsaigon.com.vn/storage/products/ssd/ram/ram-desktop/vulcan-black-16gb-ddr5-6000-600x600.webp",
+      "representative": true,
+      "sha256": "e96d604ffe5c2f61ef74ef4266939eb3de7103a679cd535dbf95a027e4a0f367"
+    },
+    {
+      "number": 37,
+      "product_name": "Placa de vídeo Gigabyte GeForce 12 GB",
+      "image_path": "products/prod37.jpg",
+      "source_title": "GIGABYTE GeForce RTX 4070 Gaming OC 12G Graphics India | Ubuy",
+      "source_page": "https://www.ubuy.co.in/productjp/C8G7VDDGO-gigabyte-geforce-rtx-4070-gaming-oc-12g-graphics-card-3x-windforce-fan-12gb-192-bit-gddr6x-gv-n4070gaming-oc-12gd-video-card",
+      "source_image": "https://m.media-amazon.com/images/I/718-CsJSmHL._AC_SX679_.jpg",
+      "representative": true,
+      "sha256": "6b2b7d6fe5cee803fbda2b18c2ae1d6cba9955fa800946918e43912ef35b290b"
+    },
+    {
+      "number": 38,
+      "product_name": "Placa de vídeo ASRock Radeon 16 GB",
+      "image_path": "products/prod38.jpg",
+      "source_title": "ASRock Radeon RX 7800 XT Challenger 16G OC 16GB GDDR6 Graphics Card RX – FirstShop",
+      "source_page": "https://www.firstshop.co.za/products/asrock-radeon-rx-7800-xt-challenger-16g-oc-16gb-gddr6-graphics-card-rx7800xt-cl-16go-179592?srsltid=AfmBOoqpCtOHwu-6Kr4suXlaVt6WYTJLL2hM8qZDNxfeUUElJ_rVmk6H",
+      "source_image": "https://www.firstshop.co.za/cdn/shop/files/rx7800xt-cl-16go-graphics-cards-43890622988452.png?v=1705385982&width=1214",
+      "representative": true,
+      "sha256": "e5677021ea454926eeb8f8faaa8af9a9f1ac6a0e53dd44716cae4ba85b7c9290"
+    },
+    {
+      "number": 39,
+      "product_name": "Placa-mãe Gigabyte AM5 Micro ATX DDR5",
+      "image_path": "products/prod39.jpg",
+      "source_title": "Gigabyte B650M DS3H | AM5 Micro-ATX Motherboard | Price in Pakistan",
+      "source_page": "https://www.junaidtech.pk/product/gigabyte-b650m-ds3h-microatx-motherboard?srsltid=AfmBOopkHK1CSnt3GXfHhUA_4GD-AgNrh0Z06ZAS04iMCStwsoqXZLMx",
+      "source_image": "https://static.webx.pk/files/19643/Images/gigabyte-b650m-ds3h-motherboard-price-in-pakistan-2-19643-0-270423030213717.jpg",
+      "representative": true,
+      "sha256": "1e4bc8cdc870912bad2dbd74136ce731bdb2f1da187947bd96d9292c72c0d444"
+    },
+    {
+      "number": 40,
+      "product_name": "Placa-mãe ASRock LGA 1700 Micro ATX DDR4",
+      "image_path": "products/prod40.jpg",
+      "source_title": "So sánh  Mainboard ASRock B660M Pro RS và Mainboard Asus TUF Gaming B660M Plus D4",
+      "source_page": "https://cellphones.com.vn/so-sanh/mainboard-asrock-b660m-pro-rs-vs-mainboard-asus-tuf-gaming-b660-plus-d4",
+      "source_image": "https://cellphones.com.vn/media/catalog/product/g/r/group_319_3_.png",
+      "representative": true,
+      "sha256": "e380baf792fbbbb45d3f6b057ddeb5f4a57d40ead85c4f050b4c4b30c88d5798"
+    },
+    {
+      "number": 41,
+      "product_name": "SSD Crucial SATA 500 GB",
+      "image_path": "products/prod41.jpg",
+      "source_title": "SSD-CT500MX500SSD1 Crucial | Crucial MX500 63.5 mm 500 GB Internal SSD | 175-7806 | RS",
+      "source_page": "https://in.rsdelivers.com/product/crucial/ssd-ct500mx500ssd1/crucial-mx500-635-mm-500-gb-internal-ssd/1757806",
+      "source_image": "https://res.cloudinary.com/rsc/image/upload/b_rgb%3AFFFFFF%2Cc_pad%2Cdpr_1.0%2Cf_auto%2Cq_auto%2Cw_700/c_pad%2Cw_700/F1757806-03",
+      "representative": true,
+      "sha256": "6b001807d083a7aeacdec670b3b9d83122a3eda3371ba1648dd201e984f7c197"
+    },
+    {
+      "number": 42,
+      "product_name": "SSD Western Digital NVMe 2 TB",
+      "image_path": "products/prod42.jpg",
+      "source_title": "Ổ cứng SSD M2-PCIe 2TB WD Blue SN580 NVMe 2280 (PCIe 4.0x4) - Tuanphong.vn",
+      "source_page": "https://tuanphong.vn/ssd-m2-pcie/ssd-m2-pcie-2tb-wd-blue-sn580",
+      "source_image": "https://tuanphong.vn/pictures/thumb/2024/03/1711177192-686-1709282144-275-wd-blue-sn580-nvme-ssd-2tb-front-640x640.jpg",
+      "representative": true,
+      "sha256": "536a8ad8c95752ae02c118b7a1882d6b6aa7801a7e5de70ef9efb01ee7143cec"
+    },
+    {
+      "number": 43,
+      "product_name": "Fonte XPG 850 W 80 Plus Gold",
+      "image_path": "products/prod43.jpg",
+      "source_title": "XPG CORE REACTOR 850W - 80 Plus Gold Full Modular Power Supply - Tech Bit Store",
+      "source_page": "https://techbitstore.com/en/xpg-core-reactor-850w/p1543015910",
+      "source_image": "https://cdn.salla.sa/KOPVE/wtPGY0FTyKzPeH3ufA4RHdZRbpb1oebQj1yIBFdN.png",
+      "representative": true,
+      "sha256": "0071b2019d08478181d9df0e8cddfe0b21eb7f15f48cc5d63e48e2ba04d78ffa"
+    },
+    {
+      "number": 44,
+      "product_name": "Fonte MSI 550 W 80 Plus Bronze",
+      "image_path": "products/prod44.jpg",
+      "source_title": "MSI MAG A550BN 550W 80 PLUS Bronze Non-modular ATX Power Supply",
+      "source_page": "https://compuden.co.za/products/msi-mag-a550bn-550w-80-plus-bronze-non-modular-atx-power-supply",
+      "source_image": "https://compuden.co.za/cdn/shop/files/MAG-A550BN_MSI-MAG-A550BN-550W-80-PLUS-Bronze-Non-modular-ATX-Power-Supply_wr_05a.jpg?v=1770210409&width=1440",
+      "representative": true,
+      "sha256": "a4b3e4e8d72c79019a503c895d0aa5ebeb1619274e64054a286f9c836e0d3b62"
+    },
+    {
+      "number": 45,
+      "product_name": "Gabinete Corsair ATX com painel em vidro",
+      "image_path": "products/prod45.jpg",
+      "source_title": "Corsair 4000D AIRFLOW Tempered Glass Mid-Tower ATX Case Black CC-90112 – FirstShop",
+      "source_page": "https://www.firstshop.co.za/products/corsair-4000d-airflow-tempered-glass-mid-tower-atx-case-black-cc-9011200-ww-137751?srsltid=AfmBOorVRJ6wRpsrWA13Gsj3PZqfj27ZBCNXlvLmJ5L6uCiIM_uiVX0s",
+      "source_image": "https://www.firstshop.co.za/cdn/shop/files/cc-9011200-ww-computer-cases-1167932915.jpg?v=1747666147",
+      "representative": true,
+      "sha256": "151c4871911eedf953e39bb75180a3a55dd8595d7b741e56b0f270d9187aaf14"
+    },
+    {
+      "number": 46,
+      "product_name": "Gabinete DeepCool Micro ATX com frente ventilada",
+      "image_path": "products/prod46.jpg",
+      "source_title": "DeepCool-MATREXX 40",
+      "source_page": "https://global.deepcool.com/products/Cases/fulltowercases/2021/11876.shtml",
+      "source_image": "https://global.deepcool.com/ProductFile/DEEPCOOL/Cases/MATREXX_40/Gallery/800X800/02.jpg?fm=webp&q=60",
+      "representative": true,
+      "sha256": "5babc57e2a10e57ba859ec9f74f0e0eb38f838d1ba157576cc4dd74dbb3584be"
+    },
+    {
+      "number": 47,
+      "product_name": "Air cooler Thermalright com ventoinha de 120 mm",
+      "image_path": "products/prod47.jpg",
+      "source_title": " – Vii PC Trade Pte Ltd",
+      "source_page": "https://www.viipc.sg/products/thermalright-assassin-x-120-refined-se-cpu-cooler-high-performance-single-tower-design-with-dual-fans-for-optimal-cooling",
+      "source_image": "https://www.viipc.sg/cdn/shop/files/Thermalright_Assassin_X_120_012a7c9a-79a1-4e1a-bfbe-c85f31475143.png?v=1730543415",
+      "representative": true,
+      "sha256": "827df06c30f2155cc6c0df55957cee6ab065a0bed67a0b2193d6b2db4725659c"
+    },
+    {
+      "number": 48,
+      "product_name": "Ventoinha Arctic 120 mm PWM",
+      "image_path": "products/prod48.jpg",
+      "source_title": "Fan Arctic P12 PWM (Black) - XGEAR",
+      "source_page": "https://xgear.net/products/fan-arctic-p12-pwm-black",
+      "source_image": "https://product.hstatic.net/200000837185/product/p12_pwm_black-768x768-1_3fa1728591be4efb8b6ccbfc7565e029_master.jpg",
+      "representative": true,
+      "sha256": "b6be422cb73bc0939f2e73b418d6a5dfd21f3e1ee12886e665f44201b907ad3d"
+    }
+  ]
+}

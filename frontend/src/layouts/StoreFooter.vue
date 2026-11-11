@@ -86,7 +86,35 @@ function moveTab(event, index) {
       :hidden="selectedTab !== 'terms'"
     >
       <h3>Termos de uso</h3>
-      <p>Os termos de uso da Poczy Hardware serão disponibilizados nesta seção em breve.</p>
+      <p class="store-terms-updated">Atualizado em 10 de novembro de 2026.</p>
+      <h4>1. Finalidade educacional</h4>
+      <p>
+        A Poczy Hardware é um projeto desenvolvido exclusivamente para testes e aprendizado de
+        desenvolvimento de software. O site simula uma loja virtual e não realiza vendas, cobranças
+        ou entregas reais. Produtos, preços, estoques, fretes e pedidos fazem parte da demonstração
+        e não constituem uma oferta comercial.
+      </p>
+      <h4>2. Use somente dados fictícios</h4>
+      <p>
+        Não insira informações pessoais ou reais em cadastros, login, endereços, pedidos ou qualquer
+        outro campo do site. Use nomes, e-mails, telefones, CPFs e endereços fictícios. Nunca
+        informe dados bancários, dados de cartão, documentos ou informações de terceiros. Crie uma
+        senha exclusiva para os testes, sem reutilizar senhas de outros serviços.
+      </p>
+      <h4>3. Dados enviados e operações simuladas</h4>
+      <p>
+        Mesmo em um ambiente de testes, as informações enviadas podem ser armazenadas pelo sistema.
+        Por isso, utilize apenas dados fictícios durante toda a navegação. Cadastros, carrinhos,
+        pedidos e pagamentos servem para experimentar as funcionalidades, sem gerar uma compra ou
+        obrigação de pagamento real.
+      </p>
+      <h4>4. Disponibilidade do ambiente</h4>
+      <p>
+        O projeto está em aprendizado e pode apresentar erros ou passar por alterações e
+        reinicializações. Contas, pedidos e outros dados de teste podem ser alterados ou excluídos.
+        Utilize o site apenas para explorar e aprender, sem depender dele para transações ou para
+        guardar informações importantes.
+      </p>
     </section>
     <section
       id="contact-panel"

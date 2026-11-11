@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import SiteHeader from '../../../layouts/SiteHeader.vue';
 import ProductArtwork from '../components/ProductArtwork.vue';
 import ProductCard from '../components/ProductCard.vue';
@@ -41,6 +41,12 @@ async function load() {
     error.value = errorMessage(failure);
   } finally {
     loading.value = false;
+    if (window.location.hash === '#terms-panel') {
+      await nextTick();
+      const termsPanel = document.getElementById('terms-panel');
+      termsPanel?.scrollIntoView({ block: 'start' });
+      termsPanel?.focus({ preventScroll: true });
+    }
   }
 }
 

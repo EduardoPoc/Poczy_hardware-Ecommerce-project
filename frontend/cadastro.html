@@ -109,7 +109,7 @@
               ></div>
               <form id="auth-form" class="auth-form d-grid" method="post" novalidate>
                 <div class="auth-field">
-                  <label class="form-label" for="name">Nome completo</label>
+                  <label class="form-label" for="name">Nome fictício</label>
                   <div class="auth-input-wrap d-flex align-items-center">
                     <i class="bi bi-person" aria-hidden="true"></i
                     ><input
@@ -117,8 +117,8 @@
                       id="name"
                       name="name"
                       type="text"
-                      placeholder="Como podemos chamar você?"
-                      autocomplete="name"
+                      placeholder="Pessoa de Teste"
+                      autocomplete="off"
                       aria-describedby="name-error"
                       required
                       maxlength="100"
@@ -135,8 +135,8 @@
                       id="email"
                       name="email"
                       type="email"
-                      placeholder="voce@exemplo.com"
-                      autocomplete="email"
+                      placeholder="pessoa@example.com"
+                      autocomplete="off"
                       aria-describedby="email-error"
                       required
                       maxlength="150"
@@ -251,8 +251,8 @@
               <p class="auth-result-feedback" id="auth-result-feedback" role="status" hidden></p>
             </div>
             <div class="auth-security d-flex justify-content-center align-items-center gap-2">
-              <i class="bi bi-shield-check" aria-hidden="true"></i
-              ><span>Seus dados protegidos. Seu setup em boas mãos.</span>
+              <i class="bi bi-code-slash" aria-hidden="true"></i
+              ><span>Ambiente de testes. Use somente dados fictícios.</span>
             </div>
             <noscript
               ><p class="auth-noscript alert alert-danger">
